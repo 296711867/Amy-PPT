@@ -1,0 +1,127 @@
+appId: com.amyppt.app
+productName: Amy-PPT
+directories:
+  buildResources: build
+files:
+  - '!**/.DS_Store'
+  - '!**/._*'
+  # ffmpeg is copied by build/after-pack.cjs per platform so unused binaries are not bundled.
+  # Linux currently has no bundled ffmpeg binary in resources/ffmpeg; MP4 export needs a Linux
+  # ffmpeg asset before Linux video export can be enabled in packaged apps.
+  - '!resources/ffmpeg/**'
+  - '!**/.vscode/*'
+  - '!**/.idea/**'
+  - '!**/.git/**'
+  - '!src/**'
+  - '!tools/**'
+  - '!scripts/**'
+  - '!assets/**'
+  - '!docs/**'
+  - '!doc/**'
+  - '!logs/**'
+  - '!patch/**'
+  - '!tpack/**'
+  - '!dist/**'
+  - '!.claude/**'
+  - '!.pnpm-store/**'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!README_*'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!**/*.map'
+  - '!**/*.tsbuildinfo'
+  - '!*.db'
+  - '!*.db-*'
+  - '!{amy-ppt.dev.db,amy-ppt.db,ohmyppt.dev.db,ohmyppt.db}'
+  - '!thumb.png'
+  - '!tests/**'
+  - '!test/**'
+asarUnpack:
+  - resources/**
+  - node_modules/@node-rs/**/*.node
+afterPack: build/after-pack.cjs
+extraResources:
+  - from: build/icons/icon.ico
+    to: icons/icon.ico
+  - from: build/icons/32x32.png
+    to: icons/32x32.png
+  - from: build/icons/16x16.png
+    to: icons/16x16.png
+forceCodeSigning: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  executableName: amy-ppt
+  icon: build/icons/icon.ico
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
+  installerHeaderIcon: build/icons/icon.ico
+  unicode: true
+  warningsAsErrors: false
+  runAfterFinish: false
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createStartMenuShortcut: true
+  include: installer.nsh
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icons/icon.icns
+  identity: null
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}-${arch}.${ext}
+linux:
+  # Packaging metadata is ready for Linux, but resources/ffmpeg currently only contains
+  # macOS and Windows binaries. build/after-pack.cjs already looks for ffmpeg-linux-x64;
+  # add that binary before advertising MP4 export support for Linux packages.
+  executableName: amy-ppt
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: build/icons
+  maintainer: PAN
+  vendor: Amy-PPT
+  category: Office
+  synopsis: Agent-controlled AI presentation studio
+  description: Amy-PPT creates, reviews, edits, and exports presentations with a controlled AI agent workflow.
+appImage:
+  artifactName: ${name}-${version}-${arch}.${ext}
+deb:
+  artifactName: ${name}-${version}-${arch}.${ext}
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+npmRebuild: false
+publish:
+  provider: github
+  owner: PAN
+  repo: Amy-PPT
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

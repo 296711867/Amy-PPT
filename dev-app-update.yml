@@ -1,0 +1,4 @@
+provider: github
+owner: PAN
+repo: Amy-PPT
+updaterCacheDirName: amy-ppt-updater

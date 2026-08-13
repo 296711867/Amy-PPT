@@ -1,0 +1,19 @@
+{
+  "style": "gold-ivory",
+  "name": {
+    "zh": "鎏金象牙 · 高级质感",
+    "en": "Gold Ivory"
+  },
+  "description": "鎏金棕与象牙白的古典奢华风",
+  "category": "深色 · 奢华",
+  "aliases": [
+    "鎏金",
+    "象牙白",
+    "奢华",
+    "古典",
+    "高级"
+  ],
+  "styleCase": "餐饮美食、品牌营销、艺术视觉",
+  "version": "3.0.0",
+  "source": "builtin"
+}

@@ -1,0 +1,19 @@
+{
+  "style": "handdrawn-watercolor",
+  "name": {
+    "zh": "治愈手绘水彩",
+    "en": "Handdrawn Watercolor"
+  },
+  "description": "低饱和暖色与海洋蓝交织，治愈感从纸面上流淌而出",
+  "category": "插画 · 手绘",
+  "aliases": [
+    "水彩绘本风",
+    "治愈插画风",
+    "手绘风",
+    "手绘",
+    "水彩"
+  ],
+  "styleCase": "教学科普、疗愈冥想、亲子儿童",
+  "version": "3.0.0",
+  "source": "builtin"
+}

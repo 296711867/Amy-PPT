@@ -1,0 +1,312 @@
+/* Tailwind CSS v4 - loaded via local package imports */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import './theme/tokens.css';
+
+@font-face {
+  font-family: 'Elms Sans';
+  src: url('./assets/fonts/ElmsSans-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Elms Sans';
+  src: url('./assets/fonts/ElmsSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Elms Sans';
+  src: url('./assets/fonts/ElmsSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Elms Sans', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  background-image: var(--ui-app-background);
+}
+
+/* Global scrollbar theme (Windows + macOS + Firefox) */
+:root {
+  --scrollbar-thumb: var(--ui-scrollbar-thumb);
+  --scrollbar-thumb-hover: var(--ui-scrollbar-thumb-hover);
+  --scrollbar-track: var(--ui-scrollbar-track);
+}
+
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid var(--ui-scrollbar-border);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+#root {
+  min-height: 100%;
+}
+
+:root {
+  --app-titlebar-height: 48px;
+  --app-titlebar-control-safe-area: 136px;
+}
+
+.app-drag-region {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Reserve space for custom titlebar on Windows/Linux */
+.app-titlebar-spacer {
+  height: var(--app-titlebar-height);
+  flex-shrink: 0;
+}
+
+.app-titlebar {
+  height: var(--app-titlebar-height);
+  flex-shrink: 0;
+}
+
+.app-titlebar-content {
+  padding-left: 64px;
+  padding-right: var(--app-titlebar-control-safe-area);
+}
+
+.app-shell {
+  animation: shell-enter 280ms ease-out;
+}
+
+.soft-card {
+  background: linear-gradient(165deg, var(--ui-surface-elevated), var(--ui-surface));
+  box-shadow:
+    0 14px 34px rgb(var(--ui-shadow-color) / 12%),
+    0 2px 8px rgb(var(--ui-shadow-color) / 8%);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+}
+
+.soft-card-hover {
+  transition: all 180ms ease;
+}
+
+.soft-card-hover:hover {
+  box-shadow:
+    0 18px 36px rgb(var(--ui-shadow-color) / 16%),
+    0 4px 12px rgb(var(--ui-shadow-color) / 10%);
+  transform: translateY(-2px);
+}
+
+.soft-btn {
+  background: linear-gradient(145deg, var(--ui-surface-elevated), var(--ui-surface-inset));
+  box-shadow:
+    0 8px 20px rgb(var(--ui-shadow-color) / 13%),
+    0 2px 6px rgb(var(--ui-shadow-color) / 8%);
+  border: 1px solid var(--ui-border);
+}
+
+.soft-btn:hover {
+  box-shadow:
+    0 11px 24px rgb(var(--ui-shadow-color) / 18%),
+    0 3px 8px rgb(var(--ui-shadow-color) / 10%);
+  transform: translateY(-2px);
+}
+
+.soft-btn:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: translateY(0);
+}
+
+.soft-input {
+  background: var(--ui-surface);
+  box-shadow: inset 0 2px 6px rgb(var(--ui-shadow-color) / 8%);
+  border: 1px solid var(--ui-border);
+}
+
+.soft-input:focus {
+  background: var(--ui-surface-elevated);
+  border-color: var(--ui-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-focus) 24%, transparent);
+}
+
+.soft-surface,
+.soft-surface-subtle,
+.soft-titlebar {
+  background: var(--ui-surface);
+  box-shadow:
+    0 10px 28px rgb(var(--ui-shadow-color) / 13%),
+    0 2px 6px rgb(var(--ui-shadow-color) / 8%);
+  border: 1px solid var(--ui-border);
+}
+
+.soft-inset {
+  background: var(--ui-surface-inset);
+  box-shadow: inset 0 2px 6px rgb(var(--ui-shadow-color) / 9%);
+  border: 1px solid var(--ui-border);
+}
+
+.soft-pill {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  box-shadow:
+    0 6px 14px rgb(var(--ui-shadow-color) / 12%),
+    0 1px 3px rgb(var(--ui-shadow-color) / 6%);
+}
+
+.soft-panel-edge {
+  border: 1px solid var(--ui-border);
+}
+
+.organic-serif {
+  font-family: 'Elms Sans', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.organic-shape {
+  border-radius: 12px;
+}
+
+.leaf-shape {
+  border-radius: 12px;
+}
+
+/* App-wide radius scale: keep the UI soft, but avoid overly pill-like controls. */
+.rounded-sm {
+  border-radius: 3px !important;
+}
+
+.rounded,
+.rounded-md {
+  border-radius: 5px !important;
+}
+
+.rounded-lg {
+  border-radius: 8px !important;
+}
+
+.rounded-xl {
+  border-radius: 10px !important;
+}
+
+.rounded-2xl,
+.rounded-3xl,
+[class*='rounded-[1rem]'],
+[class*='rounded-[1.15rem]'],
+[class*='rounded-[1.25rem]'],
+[class*='rounded-[1.35rem]'],
+[class*='rounded-[1.4rem]'],
+[class*='rounded-[1.5rem]'],
+[class*='rounded-[1.55rem]'],
+[class*='rounded-[2rem]'] {
+  border-radius: 12px !important;
+}
+
+.rounded-full,
+[class*='rounded-[30%'],
+[class*='rounded-[38%'],
+[class*='rounded-[5%'] {
+  border-radius: 10px !important;
+}
+
+.session-create-workspace {
+  background: transparent !important;
+}
+
+@keyframes shell-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gen-grid {
+  background-image:
+    linear-gradient(rgba(132, 141, 102, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(132, 141, 102, 0.16) 1px, transparent 1px);
+  background-size: 36px 36px;
+  animation: gen-grid-pan 18s linear infinite;
+}
+
+.gen-orb {
+  animation: gen-orb-float 9s ease-in-out infinite;
+}
+
+.gen-shimmer {
+  background-size: 220% 100%;
+  animation: gen-shimmer-slide 2.2s linear infinite;
+}
+
+@keyframes gen-grid-pan {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-36px, -36px, 0);
+  }
+}
+
+@keyframes gen-orb-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes gen-shimmer-slide {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 220% 50%;
+  }
+}

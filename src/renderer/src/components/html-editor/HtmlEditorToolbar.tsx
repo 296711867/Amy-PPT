@@ -1,0 +1,198 @@
+import { useCallback, type ReactElement } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Download,
+  ExternalLink,
+  FileSearch,
+  History,
+  Home,
+  Redo2,
+  RotateCcw,
+  Save,
+  Undo2
+} from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip'
+import { useT } from '../../i18n'
+import { ipc } from '../../lib/ipc'
+import { useHtmlEditorStore } from '../../store/htmlEditorStore'
+import { useHtmlEditStore } from '../../store/htmlEditStore'
+import { useHtmlEditHistoryStore } from '../../store/htmlEditHistoryStore'
+import { useHtmlEditorAiStore } from '../../store/htmlEditorAiStore'
+import { useHtmlEditorUiStore } from '../../store/htmlEditorUiStore'
+import { useToastStore } from '../../store/toastStore'
+
+const iconBtnClass =
+  'app-no-drag rounded-md p-1.5 text-primary transition-colors hover:bg-[var(--ui-hover)] disabled:pointer-events-none disabled:opacity-40'
+
+/** HTML 编辑器顶部工具条（全图标，tooltip 标注）。 */
+export function HtmlEditorToolbar({ onOpenHistory }: { onOpenHistory: () => void }): ReactElement {
+  const t = useT()
+  const navigate = useNavigate()
+  const isMac = window.electron?.process?.platform === 'darwin'
+
+  const docId = useHtmlEditorStore((s) => s.docId)
+  const title = useHtmlEditorStore((s) => s.title)
+  const sourcePath = useHtmlEditorStore((s) => s.sourcePath)
+  const exporting = useHtmlEditorStore((s) => s.exporting)
+  const isSavingEdits = useHtmlEditStore((s) => s.isSavingEdits)
+  const canUndo = useHtmlEditHistoryStore((s) => (docId ? s.canUndo(docId) : false))
+  const canRedo = useHtmlEditHistoryStore((s) => (docId ? s.canRedo(docId) : false))
+  const hasPending = useHtmlEditHistoryStore((s) => (docId ? s.hasPendingEdits(docId) : false))
+  const aiModeEnabled = useHtmlEditorAiStore((s) => s.enabled)
+
+  const displayName =
+    title || (sourcePath ? sourcePath.split(/[\\/]/).pop() : '') || t('htmlEditor.untitled')
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    await useHtmlEditStore.getState().save()
+  }, [])
+
+  const handleExport = useCallback(async (): Promise<void> => {
+    const saved = await useHtmlEditStore.getState().save()
+    if (saved.error) return
+    const path = await useHtmlEditorStore.getState().exportAs()
+    if (path) useToastStore.getState().success(t('htmlEditor.exported'))
+  }, [t])
+
+  const handlePreview = useCallback(async (): Promise<void> => {
+    const saved = await useHtmlEditStore.getState().save()
+    if (saved.error || !docId) return
+    await ipc.openHtmlInBrowser({ docId })
+  }, [docId])
+
+  const handleRevealFile = useCallback(async (): Promise<void> => {
+    if (!docId) return
+    const result = await ipc.revealHtmlFile({ docId })
+    if (!result.ok) useToastStore.getState().error(t('htmlEditor.revealFileFailed'))
+  }, [docId, t])
+
+  const handleUndo = useCallback((): void => {
+    useHtmlEditStore.getState().undo()
+  }, [])
+  const handleRedo = useCallback((): void => {
+    useHtmlEditStore.getState().redo()
+  }, [])
+  const handleDiscardAll = useCallback((): void => {
+    useHtmlEditStore.getState().discardAll()
+  }, [])
+
+  const handleToggleAiMode = useCallback(async (): Promise<void> => {
+    if (isSavingEdits) return
+    const nextEnabled = !useHtmlEditorAiStore.getState().enabled
+    if (nextEnabled && docId) {
+      const editStore = useHtmlEditStore.getState()
+      editStore.commitCurrentDraft()
+      if (useHtmlEditHistoryStore.getState().hasPendingEdits(docId)) {
+        const saved = await editStore.save()
+        if (!saved.saved) return
+      }
+    }
+    useHtmlEditorAiStore.getState().setEnabled(nextEnabled)
+    useHtmlEditorUiStore.getState().clearSelectedElement()
+  }, [docId, isSavingEdits])
+
+  const tipBtn = (
+    Icon: typeof Home,
+    label: string,
+    onClick: () => void,
+    disabled?: boolean,
+    danger?: boolean
+  ) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          className={`${iconBtnClass} ${danger ? 'text-destructive hover:bg-[var(--ui-danger-soft)]' : ''}`}
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  )
+
+  return (
+    <header className="app-drag-region app-titlebar relative shrink-0 bg-background/95 shadow-[0_10px_26px_rgb(var(--ui-shadow-color)/0.08)] backdrop-blur-xl">
+      <div
+        className={`relative flex h-full items-center gap-1.5 ${
+          isMac ? 'pl-[85px]' : 'pl-4'
+        } ${isMac ? '' : 'pr-[calc(var(--app-titlebar-control-safe-area)+16px)]'}`}
+      >
+        {/* 返回 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => navigate('/edit-html')}
+              className="app-no-drag inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-secondary text-foreground shadow-[0_4px_10px_rgb(var(--ui-shadow-color)/0.08)] transition-colors hover:bg-accent"
+            >
+              <Home className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('htmlEditor.backToList')}</TooltipContent>
+        </Tooltip>
+
+        {/* 标题 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex w-[150px] shrink-0 items-center gap-2 rounded-[10px] bg-secondary px-3 py-1">
+              <div className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
+                {displayName}
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="start">
+            {displayName}
+          </TooltipContent>
+        </Tooltip>
+
+        <span className="mx-0.5 h-4 w-px bg-border" />
+
+        {/* 撤销 / 重做 / 撤销所有 / 保存（一组） */}
+        {tipBtn(Undo2, t('htmlEditor.undo'), handleUndo, !canUndo)}
+        {tipBtn(Redo2, t('htmlEditor.redo'), handleRedo, !canRedo)}
+        {tipBtn(RotateCcw, t('htmlEditor.discardAll'), handleDiscardAll, !hasPending, true)}
+        {tipBtn(Save, t('htmlEditor.save'), () => void handleSave(), !hasPending || isSavingEdits)}
+
+        <span className="mx-0.5 h-4 w-px bg-border" />
+
+        {/* 导出 / 查看文件 / 预览 / 版本历史（一组） */}
+        {tipBtn(
+          Download,
+          t('htmlEditor.export'),
+          () => void handleExport(),
+          exporting || isSavingEdits
+        )}
+        {tipBtn(
+          FileSearch,
+          t('htmlEditor.revealFile'),
+          () => void handleRevealFile(),
+          !docId || isSavingEdits
+        )}
+        {tipBtn(
+          ExternalLink,
+          t('htmlEditor.preview'),
+          () => void handlePreview(),
+          !docId || isSavingEdits
+        )}
+        {tipBtn(History, t('htmlEditor.history'), onOpenHistory, !docId)}
+        <button
+          type="button"
+          onClick={() => void handleToggleAiMode()}
+          disabled={!docId || isSavingEdits}
+          className={`app-no-drag ml-1 rounded-md px-2 py-1 text-[12px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+            aiModeEnabled
+              ? 'bg-accent text-accent-foreground'
+              : 'text-primary hover:bg-[var(--ui-hover)]'
+          }`}
+          title={t('htmlEditor.aiModeButton')}
+        >
+          {t('htmlEditor.aiModeButton')}
+        </button>
+      </div>
+    </header>
+  )
+}

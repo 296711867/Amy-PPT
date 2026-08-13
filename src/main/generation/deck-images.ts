@@ -1,0 +1,184 @@
+import fs from 'fs'
+import path from 'path'
+import log from 'electron-log/main.js'
+import type { ImageModelProvider } from '@shared/image-generation'
+import type { ImagePolicy, OutlineItem } from '@shared/generation'
+import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
+import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
+import { getUniversalLayoutImageCount } from '@shared/universal-layouts'
+
+const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
+  'jimeng',
+  'jimeng4',
+  'agnes',
+  'siliconflow',
+  'openaiCompatible',
+  'gemini',
+  'seedream'
+])
+
+const PLACEHOLDER_PATH = './assets/amy-image-placeholder.png'
+
+const hasCompleteGeneratedImageSet = (item: OutlineItem, imageCount: number): boolean =>
+  Array.isArray(item.imageAssetPaths) &&
+  item.imageAssetPaths.length === imageCount &&
+  item.imageAssetPaths.every(
+    (assetPath) => typeof assetPath === 'string' && assetPath !== PLACEHOLDER_PATH
+  )
+
+const safeFilePart = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3400-\u9fff]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'slide-image'
+
+const parseConfig = (value: string): Record<string, unknown> => {
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+export async function prepareDeckImageAssets(args: {
+  db: {
+    getActiveImageModelConfig(): Promise<
+      | {
+          id: string
+          name: string
+          provider: string
+          active: number
+          modelConfig: string
+        }
+      | undefined
+    >
+  }
+  decryptApiKey(value: string): string
+  projectDir: string
+  imagePolicy: ImagePolicy
+  outlineItems: OutlineItem[]
+  signal: AbortSignal
+  onStatus?: (status: {
+    pageNumber: number
+    state: 'preparing' | 'generated' | 'placeholder'
+    detail?: string
+  }) => void
+}): Promise<OutlineItem[]> {
+  const imagePages = args.outlineItems
+    .map((item, index) => ({
+      item,
+      index,
+      imageCount: getUniversalLayoutImageCount(item.layoutId)
+    }))
+    .filter(
+      ({ item, imageCount }) => imageCount > 0 && !hasCompleteGeneratedImageSet(item, imageCount)
+    )
+  if (imagePages.length === 0) return args.outlineItems
+
+  const fallback = (): OutlineItem[] =>
+    args.outlineItems.map((item) => {
+      const imageCount = getUniversalLayoutImageCount(item.layoutId)
+      if (imageCount === 0) return item
+      const imageAssetPaths = Array.from({ length: imageCount }, () => PLACEHOLDER_PATH)
+      return {
+        ...item,
+        imagePolicy: args.imagePolicy,
+        imageAssetPath: imageAssetPaths[0],
+        imageAssetPaths
+      }
+    })
+  if (args.imagePolicy !== 'ai') {
+    imagePages.forEach(({ index }) =>
+      args.onStatus?.({ pageNumber: index + 1, state: 'placeholder' })
+    )
+    return fallback()
+  }
+
+  const rawConfig = await args.db.getActiveImageModelConfig().catch(() => undefined)
+  if (!rawConfig || !VALID_IMAGE_PROVIDERS.has(rawConfig.provider as ImageModelProvider)) {
+    log.warn('[generate:deck-images] no active image model; using placeholders')
+    imagePages.forEach(({ index }) =>
+      args.onStatus?.({
+        pageNumber: index + 1,
+        state: 'placeholder',
+        detail: 'No active image model'
+      })
+    )
+    return fallback()
+  }
+
+  const modelConfig: ResolvedImageModelConfig = {
+    id: rawConfig.id,
+    name: rawConfig.name,
+    provider: rawConfig.provider as ImageModelProvider,
+    active: rawConfig.active === 1,
+    modelConfig: parseConfig(args.decryptApiKey(rawConfig.modelConfig || '{}'))
+  }
+  const adapter = resolveImageGenerationProvider(modelConfig.provider)
+  const imagesDir = path.join(args.projectDir, 'images')
+  await fs.promises.mkdir(imagesDir, { recursive: true })
+  const resolved = [...args.outlineItems]
+
+  for (const { item, index, imageCount } of imagePages) {
+    if (args.signal.aborted) throw args.signal.reason
+    args.onStatus?.({ pageNumber: index + 1, state: 'preparing' })
+    const imageAssetPaths: string[] = []
+    let failureCount = 0
+    for (let slotIndex = 0; slotIndex < imageCount; slotIndex += 1) {
+      const prompt = [
+        `Create visual ${slotIndex + 1} of ${imageCount} for the presentation slide "${item.title}".`,
+        `Slide content: ${item.contentOutline}`,
+        'Each slot on this slide must show a distinct subject, angle, moment, example, or supporting detail.',
+        `Make this visual specifically useful for slot ${slotIndex + 1}; do not repeat the composition of another slot.`,
+        'Use a clean editorial composition suitable for insertion into a PowerPoint image frame.',
+        'No text, no letters, no watermark, no UI screenshot, and no decorative border.'
+      ].join('\n')
+      try {
+        const [result] = await adapter.generate(modelConfig, {
+          prompt,
+          size: '16:9',
+          count: 1,
+          signal: args.signal
+        })
+        if (!result) throw new Error('Image provider returned no result')
+        const extension = /^\.[a-z0-9]{2,5}$/i.test(result.extension) ? result.extension : '.png'
+        const fileName = `deck-${index + 1}-slot-${slotIndex + 1}-${safeFilePart(item.title)}${extension}`
+        await fs.promises.writeFile(path.join(imagesDir, fileName), result.bytes)
+        imageAssetPaths.push(`./images/${fileName}`)
+      } catch (error) {
+        failureCount += 1
+        imageAssetPaths.push(PLACEHOLDER_PATH)
+        log.warn('[generate:deck-images] slot failed; using placeholder', {
+          pageNumber: index + 1,
+          slotNumber: slotIndex + 1,
+          message: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
+    resolved[index] = {
+      ...item,
+      imagePolicy: 'ai',
+      imageAssetPath: imageAssetPaths[0],
+      imageAssetPaths
+    }
+    if (failureCount === 0) {
+      args.onStatus?.({ pageNumber: index + 1, state: 'generated' })
+      log.info('[generate:deck-images] generated', {
+        pageNumber: index + 1,
+        imageCount
+      })
+    } else {
+      args.onStatus?.({
+        pageNumber: index + 1,
+        state: 'placeholder',
+        detail: `${failureCount}/${imageCount} image slots fell back to placeholders`
+      })
+    }
+  }
+  return resolved
+}

@@ -1,0 +1,21 @@
+{
+  "style": "mountain-green-literary",
+  "name": {
+    "zh": "山野葱郁",
+    "en": "Mountain Green Literary"
+  },
+  "description": "深绿山峦黄草地的文艺夏日",
+  "category": "插画 · 手绘",
+  "aliases": [
+    "山野",
+    "夏天",
+    "深绿",
+    "文艺",
+    "奔跑",
+    "mountain",
+    "山峦"
+  ],
+  "styleCase": "旅游出行、教学科普、生活方式",
+  "version": "3.0.0",
+  "source": "builtin"
+}

@@ -1,0 +1,189 @@
+import { ChevronDown, Eye, LayoutTemplate, PencilLine, Sparkles, Trash2 } from 'lucide-react'
+import { Button } from '../ui/Button'
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '../ui/DropdownMenu'
+import type { TemplateListItem } from '@renderer/lib/ipc'
+import { useT } from '@renderer/i18n'
+import dayjs from 'dayjs'
+import { localAssetUrl } from '@shared/local-asset'
+import { resolveSlideSize } from '@shared/slide-size'
+
+export function TemplateCard({
+  template,
+  directCreating,
+  onUseDirect,
+  onUseGenerate,
+  onEdit,
+  onDelete,
+  onPreview
+}: {
+  template: TemplateListItem
+  directCreating?: boolean
+  onUseDirect: (template: TemplateListItem) => void
+  onUseGenerate: (template: TemplateListItem) => void
+  onEdit: (template: TemplateListItem) => void
+  onDelete: (template: TemplateListItem) => void
+  onPreview: (template: TemplateListItem) => void
+}): React.JSX.Element {
+  const t = useT()
+  const thumbnailUrl = template.thumbnailPath ? localAssetUrl(template.thumbnailPath) : ''
+  const slideSize = resolveSlideSize({
+    id: template.slideSizeId,
+    width: template.slideWidth,
+    height: template.slideHeight
+  })
+
+  return (
+    <Card
+      data-template-card-id={template.id}
+      className="group overflow-hidden !rounded-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgb(var(--ui-shadow-color)/0.18)]"
+    >
+      <button
+        type="button"
+        className="relative block w-full overflow-hidden bg-secondary text-left"
+        style={{ aspectRatio: `${slideSize.width}/${slideSize.height}` }}
+        onClick={() => onPreview(template)}
+        disabled={!template.previewHtmlPath}
+        aria-label={t('common.preview')}
+      >
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            loading="lazy"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-secondary text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card/70 px-3 py-2 text-xs shadow-sm backdrop-blur-sm">
+              <LayoutTemplate className="h-4 w-4" />
+              <span>{t('templates.thumbnailGenerating')}</span>
+            </div>
+          </div>
+        )}
+      </button>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-start justify-between gap-3 text-base">
+          <span className="min-w-0 truncate text-foreground">{template.name}</span>
+          <span className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground">
+            {t('templates.pageCount', { count: template.pageCount })}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="line-clamp-2 min-h-[40px] text-xs leading-5 text-muted-foreground">
+          {template.description || t('templates.noDescription')}
+        </p>
+        {template.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {template.tags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+          <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+            {dayjs(template.updatedAt).format('YYYY/MM/DD')}
+          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <div className="flex items-center gap-1 rounded-md bg-secondary/70 p-0.5">
+              {template.previewHtmlPath ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 rounded-[6px] p-0 text-muted-foreground"
+                  onClick={() => onPreview(template)}
+                  title={t('common.preview')}
+                  aria-label={t('common.preview')}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 rounded-[6px] p-0 text-muted-foreground"
+                onClick={() => onEdit(template)}
+                title={t('common.edit')}
+                aria-label={t('common.edit')}
+              >
+                <PencilLine className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 rounded-[6px] p-0 text-destructive hover:text-[var(--ui-danger-hover)]"
+                onClick={() => onDelete(template)}
+                title={t('common.delete')}
+                aria-label={t('common.delete')}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-8 rounded-md bg-primary px-3 text-primary-foreground shadow-none hover:bg-[var(--ui-action-hover)]"
+                  disabled={directCreating}
+                >
+                  <LayoutTemplate className="mr-1.5 h-3.5 w-3.5" />
+                  {directCreating ? t('templates.creatingEditable') : t('templates.use')}
+                  <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  className="text-xs"
+                  onSelect={() => onUseDirect(template)}
+                  disabled={directCreating}
+                >
+                  <PencilLine className="h-3.5 w-3.5" />
+                  {t('templates.createEditable')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-xs"
+                  onSelect={() => onUseGenerate(template)}
+                  disabled={directCreating}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {t('templates.createAndGenerate')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function TemplateEmptyState(): React.JSX.Element {
+  const t = useT()
+
+  return (
+    <section className="flex min-h-[calc(100vh-220px)] items-center justify-center px-4 py-12">
+      <div className="flex w-full max-w-[460px] flex-col items-center text-center">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-border bg-accent text-primary shadow-[0_6px_16px_rgb(var(--ui-shadow-color)/0.08)]">
+          <LayoutTemplate className="h-8 w-8" />
+        </div>
+        <h3 className="text-xl font-semibold text-foreground">{t('templates.emptyTitle')}</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {t('templates.emptyDescription')}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{t('templates.emptyHint')}</p>
+      </div>
+    </section>
+  )
+}

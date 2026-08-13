@@ -1,0 +1,18 @@
+{
+  "style": "blue-white-chart",
+  "name": {
+    "zh": "蓝白商务图表",
+    "en": "Blue White Chart"
+  },
+  "description": "冷静专业的数据汇报风",
+  "category": "浅色 · 专业",
+  "aliases": [
+    "蓝色商务",
+    "企业数据汇报",
+    "咨询图表风",
+    "蓝白逻辑图"
+  ],
+  "styleCase": "商业汇报、年度庆典、学术研究",
+  "version": "3.0.0",
+  "source": "builtin"
+}

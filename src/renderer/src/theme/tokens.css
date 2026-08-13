@@ -1,0 +1,390 @@
+@theme inline {
+  --color-background: var(--ui-background);
+  --color-foreground: var(--ui-text);
+  --color-card: var(--ui-surface);
+  --color-card-foreground: var(--ui-text);
+  --color-primary: var(--ui-action);
+  --color-primary-foreground: var(--ui-on-action);
+  --color-secondary: var(--ui-surface-inset);
+  --color-secondary-foreground: var(--ui-text);
+  --color-muted: var(--ui-surface-muted);
+  --color-muted-foreground: var(--ui-text-secondary);
+  --color-accent: var(--ui-selected);
+  --color-accent-foreground: var(--ui-text);
+  --color-destructive: var(--ui-danger);
+  --color-destructive-foreground: var(--ui-on-danger);
+  --color-success: var(--ui-success);
+  --color-warning: var(--ui-warning);
+  --color-info: var(--ui-info);
+  --color-border: var(--ui-border);
+  --color-input: var(--ui-input);
+  --color-ring: var(--ui-focus);
+}
+
+/*
+ * Theme coverage checklist:
+ * - --ui-feature-surface/accent-1..4 style the four home and usage cards; group 4 is
+ *   the Usage "模型调用 / Model calls" card.
+ * - --ui-font-tag-{primary,secondary,tertiary}{,-soft,-border} style the role and
+ *   script labels on the Fonts page. Do not reuse fixed success/green colors there.
+ * Every new theme must define all of these tokens in its own theme block.
+ */
+
+:root[data-ui-theme='sage'] {
+  --ui-background: #f5f1e8;
+  --ui-app-background:
+    radial-gradient(circle at 12% 8%, rgb(212 228 193 / 55%), transparent 32%),
+    radial-gradient(circle at 88% 0%, rgb(200 184 158 / 38%), transparent 30%),
+    linear-gradient(145deg, #f5f1e8 0%, #f1eadb 48%, #ece3cf 100%);
+  --ui-surface: rgb(255 251 244 / 92%);
+  --ui-surface-solid: #fffaf0;
+  --ui-surface-elevated: #fffdf8;
+  --ui-surface-inset: #e8e0d0;
+  --ui-surface-muted: #efe7d7;
+  --ui-text: #3e4a32;
+  --ui-text-secondary: #6f765f;
+  --ui-text-tertiary: #8d8a7b;
+  --ui-on-action: #ffffff;
+  --ui-action: #5d6b4d;
+  --ui-action-hover: #4f613f;
+  --ui-action-soft: #d4e4c1;
+  --ui-selected: #dbe7ca;
+  --ui-hover: #ebe4d6;
+  --ui-border: rgb(161 142 112 / 32%);
+  --ui-border-strong: #c9bda8;
+  --ui-input: rgb(78 96 64 / 12%);
+  --ui-focus: #8fbc8f;
+  --ui-danger: #b15a58;
+  --ui-danger-hover: #974947;
+  --ui-danger-soft: #f3e6e2;
+  --ui-on-danger: #ffffff;
+  --ui-success: #5f8157;
+  --ui-warning: #b7793f;
+  --ui-info: #527d86;
+  --ui-overlay: rgb(31 38 29 / 38%);
+  --ui-shadow-color: 64 52 38;
+  --ui-scrollbar-thumb: rgb(116 136 90 / 72%);
+  --ui-scrollbar-thumb-hover: rgb(99 120 73 / 86%);
+  --ui-scrollbar-track: rgb(232 223 205 / 62%);
+  --ui-scrollbar-border: rgb(242 233 217 / 78%);
+  --ui-feature-surface-1: #d4e4c1;
+  --ui-feature-surface-2: #e8e0d0;
+  --ui-feature-surface-3: #f5f1e8;
+  --ui-feature-surface-4: #dce7ca;
+  --ui-feature-accent-1: #5d6b4d;
+  --ui-feature-accent-2: #6f8a5b;
+  --ui-feature-accent-3: #b18f5e;
+  --ui-feature-accent-4: #3e4a32;
+  --ui-feature-on-accent: #ffffff;
+  --ui-font-tag-primary: #5d6b4d;
+  --ui-font-tag-primary-soft: #e4ecd9;
+  --ui-font-tag-primary-border: #b7c6a4;
+  --ui-font-tag-secondary: #527d86;
+  --ui-font-tag-secondary-soft: #e3eef0;
+  --ui-font-tag-secondary-border: #aac3c8;
+  --ui-font-tag-tertiary: #a06d3d;
+  --ui-font-tag-tertiary-soft: #f1e5d7;
+  --ui-font-tag-tertiary-border: #d5b490;
+  --ui-chart-1: #5d6b4d;
+  --ui-chart-2: #8fbc8f;
+  --ui-chart-3: #c8b89e;
+  --ui-chart-4: #d4e4c1;
+  --ui-chart-5: #3e4a32;
+  --ui-chart-6: #a8b89a;
+  --ui-chart-grid: rgb(93 107 77 / 10%);
+  --ui-chart-tooltip: #3e4a32;
+  --ui-chart-tooltip-text: #f5f1e8;
+  --ui-chart-tooltip-muted: #d4e4c1;
+}
+
+:root[data-ui-theme='studio'] {
+  --ui-background: #f3f6f6;
+  --ui-app-background:
+    radial-gradient(circle at 10% 4%, rgb(188 224 224 / 46%), transparent 31%),
+    radial-gradient(circle at 92% 2%, rgb(241 202 173 / 32%), transparent 27%),
+    linear-gradient(145deg, #f6f8f8 0%, #eef3f3 52%, #e8eeee 100%);
+  --ui-surface: rgb(252 254 254 / 92%);
+  --ui-surface-solid: #f9fcfc;
+  --ui-surface-elevated: #ffffff;
+  --ui-surface-inset: #dce7e8;
+  --ui-surface-muted: #e7eeee;
+  --ui-text: #20383c;
+  --ui-text-secondary: #5b7175;
+  --ui-text-tertiary: #819194;
+  --ui-on-action: #ffffff;
+  --ui-action: #27636b;
+  --ui-action-hover: #1f5158;
+  --ui-action-soft: #bfe0df;
+  --ui-selected: #cae6e4;
+  --ui-hover: #dfebeb;
+  --ui-border: rgb(74 112 117 / 26%);
+  --ui-border-strong: #abc3c5;
+  --ui-input: rgb(39 99 107 / 10%);
+  --ui-focus: #59a5a7;
+  --ui-danger: #b65d56;
+  --ui-danger-hover: #984842;
+  --ui-danger-soft: #f6e3df;
+  --ui-on-danger: #ffffff;
+  --ui-success: #4d8069;
+  --ui-warning: #b56f38;
+  --ui-info: #397b9a;
+  --ui-overlay: rgb(17 37 41 / 36%);
+  --ui-shadow-color: 34 65 69;
+  --ui-scrollbar-thumb: rgb(61 112 117 / 68%);
+  --ui-scrollbar-thumb-hover: rgb(40 91 98 / 84%);
+  --ui-scrollbar-track: rgb(216 231 232 / 72%);
+  --ui-scrollbar-border: rgb(241 247 247 / 82%);
+  --ui-feature-surface-1: #d8ecea;
+  --ui-feature-surface-2: #e4ebec;
+  --ui-feature-surface-3: #f6eee8;
+  --ui-feature-surface-4: #dfe8e6;
+  --ui-feature-accent-1: #27636b;
+  --ui-feature-accent-2: #4f7b72;
+  --ui-feature-accent-3: #c87848;
+  --ui-feature-accent-4: #34545a;
+  --ui-feature-on-accent: #ffffff;
+  --ui-font-tag-primary: #27636b;
+  --ui-font-tag-primary-soft: #d8ecea;
+  --ui-font-tag-primary-border: #9fc8c5;
+  --ui-font-tag-secondary: #b56f38;
+  --ui-font-tag-secondary-soft: #f6e7db;
+  --ui-font-tag-secondary-border: #ddb794;
+  --ui-font-tag-tertiary: #65749a;
+  --ui-font-tag-tertiary-soft: #e5e8f1;
+  --ui-font-tag-tertiary-border: #b7bfd3;
+  --ui-chart-1: #27636b;
+  --ui-chart-2: #58a39d;
+  --ui-chart-3: #d88955;
+  --ui-chart-4: #8ca9ad;
+  --ui-chart-5: #34545a;
+  --ui-chart-6: #82b6b1;
+  --ui-chart-grid: rgb(39 99 107 / 11%);
+  --ui-chart-tooltip: #20383c;
+  --ui-chart-tooltip-text: #f3f6f6;
+  --ui-chart-tooltip-muted: #bfe0df;
+}
+
+:root,
+:root[data-ui-theme='coral'] {
+  --ui-background: #fff8f2;
+  --ui-app-background:
+    radial-gradient(circle at 10% 5%, rgb(248 190 169 / 32%), transparent 30%),
+    radial-gradient(circle at 91% 1%, rgb(225 180 147 / 24%), transparent 27%),
+    linear-gradient(145deg, #fffaf6 0%, #fff6ef 52%, #fdf0e8 100%);
+  --ui-surface: rgb(255 252 248 / 94%);
+  --ui-surface-solid: #fffaf5;
+  --ui-surface-elevated: #ffffff;
+  --ui-surface-inset: #f6e4d8;
+  --ui-surface-muted: #f8eee7;
+  --ui-text: #4b3027;
+  --ui-text-secondary: #7a5d52;
+  --ui-text-tertiary: #a18477;
+  --ui-on-action: #fffaf7;
+  --ui-action: #d9685a;
+  --ui-action-hover: #bd5148;
+  --ui-action-soft: #f6bbaa;
+  --ui-selected: #f8d7ca;
+  --ui-hover: #fae7de;
+  --ui-border: rgb(174 103 79 / 28%);
+  --ui-border-strong: #e3b7a4;
+  --ui-input: rgb(183 91 70 / 10%);
+  --ui-focus: #df7968;
+  --ui-danger: #c94f5d;
+  --ui-danger-hover: #ad3f4c;
+  --ui-danger-soft: #f9e1e3;
+  --ui-on-danger: #ffffff;
+  --ui-success: #66816a;
+  --ui-warning: #b9783f;
+  --ui-info: #4d7f8d;
+  --ui-overlay: rgb(73 41 31 / 36%);
+  --ui-shadow-color: 108 60 43;
+  --ui-scrollbar-thumb: rgb(190 111 88 / 60%);
+  --ui-scrollbar-thumb-hover: rgb(173 83 68 / 78%);
+  --ui-scrollbar-track: rgb(248 229 217 / 72%);
+  --ui-scrollbar-border: rgb(255 247 241 / 84%);
+  --ui-feature-surface-1: #f7d9d2;
+  --ui-feature-surface-2: #f2e1d2;
+  --ui-feature-surface-3: #fae4d9;
+  /* Usage card 4 (模型调用) uses a warm mauve instead of the old sage green. */
+  --ui-feature-surface-4: #f1dce5;
+  --ui-feature-accent-1: #d9685a;
+  --ui-feature-accent-2: #a85f47;
+  --ui-feature-accent-3: #d58b62;
+  --ui-feature-accent-4: #9b667c;
+  --ui-feature-on-accent: #fffaf7;
+  /* Fonts page labels use theme-owned warm colors; none fall back to success green. */
+  --ui-font-tag-primary: #c94f5d;
+  --ui-font-tag-primary-soft: #f9e1e3;
+  --ui-font-tag-primary-border: #e7a4ad;
+  --ui-font-tag-secondary: #b9783f;
+  --ui-font-tag-secondary-soft: #f8eadb;
+  --ui-font-tag-secondary-border: #e1bd99;
+  --ui-font-tag-tertiary: #9c6380;
+  --ui-font-tag-tertiary-soft: #f4e2eb;
+  --ui-font-tag-tertiary-border: #d9aec3;
+  --ui-chart-1: #d9685a;
+  --ui-chart-2: #d99386;
+  --ui-chart-3: #c89055;
+  --ui-chart-4: #778a70;
+  --ui-chart-5: #4d7f8d;
+  --ui-chart-6: #9c738d;
+  --ui-chart-grid: rgb(134 83 66 / 11%);
+  --ui-chart-tooltip: #4b3027;
+  --ui-chart-tooltip-text: #fff8f2;
+  --ui-chart-tooltip-muted: #f6bbaa;
+}
+
+:root[data-ui-theme='pastel'] {
+  --ui-background: #fff8fa;
+  --ui-app-background:
+    radial-gradient(circle at 10% 5%, rgb(246 181 197 / 34%), transparent 31%),
+    radial-gradient(circle at 91% 2%, rgb(244 216 173 / 28%), transparent 27%),
+    linear-gradient(145deg, #fffafb 0%, #fff6f8 52%, #fdf1f5 100%);
+  --ui-surface: rgb(255 253 253 / 94%);
+  --ui-surface-solid: #fffafb;
+  --ui-surface-elevated: #ffffff;
+  --ui-surface-inset: #f8e3e9;
+  --ui-surface-muted: #faedf1;
+  --ui-text: #49343b;
+  --ui-text-secondary: #7b6068;
+  --ui-text-tertiary: #a4868f;
+  --ui-on-action: #ffffff;
+  --ui-action: #df617d;
+  --ui-action-hover: #c84c6a;
+  --ui-action-soft: #f6bcc9;
+  --ui-selected: #f9d7e0;
+  --ui-hover: #fbe8ee;
+  --ui-border: rgb(183 111 132 / 27%);
+  --ui-border-strong: #e8b9c5;
+  --ui-input: rgb(190 91 119 / 10%);
+  --ui-focus: #e47f97;
+  --ui-danger: #c94c64;
+  --ui-danger-hover: #ae3b54;
+  --ui-danger-soft: #f9dfe5;
+  --ui-on-danger: #ffffff;
+  --ui-success: #6c9187;
+  --ui-warning: #c3864f;
+  --ui-info: #668da5;
+  --ui-overlay: rgb(67 39 48 / 34%);
+  --ui-shadow-color: 112 64 80;
+  --ui-scrollbar-thumb: rgb(211 112 139 / 58%);
+  --ui-scrollbar-thumb-hover: rgb(190 78 110 / 76%);
+  --ui-scrollbar-track: rgb(249 226 233 / 72%);
+  --ui-scrollbar-border: rgb(255 248 250 / 86%);
+  --ui-feature-surface-1: #f9dce3;
+  --ui-feature-surface-2: #faefd9;
+  --ui-feature-surface-3: #f2e2ee;
+  /* Usage card 4 (模型调用) uses soft blue, distinct from the previous mint green. */
+  --ui-feature-surface-4: #e4edf5;
+  --ui-feature-accent-1: #df6b83;
+  --ui-feature-accent-2: #d89473;
+  --ui-feature-accent-3: #9a75a0;
+  --ui-feature-accent-4: #6f91ad;
+  --ui-feature-on-accent: #ffffff;
+  /* Fonts page labels use rose, lilac, and honey rather than fixed success green. */
+  --ui-font-tag-primary: #d95777;
+  --ui-font-tag-primary-soft: #fde3e9;
+  --ui-font-tag-primary-border: #eda7b7;
+  --ui-font-tag-secondary: #9a75a0;
+  --ui-font-tag-secondary-soft: #f3e6f4;
+  --ui-font-tag-secondary-border: #cfafd2;
+  --ui-font-tag-tertiary: #b77943;
+  --ui-font-tag-tertiary-soft: #faeedb;
+  --ui-font-tag-tertiary-border: #e2c092;
+  --ui-chart-1: #df617d;
+  --ui-chart-2: #e59483;
+  --ui-chart-3: #d5a65e;
+  --ui-chart-4: #79a496;
+  --ui-chart-5: #6f98b0;
+  --ui-chart-6: #a985b4;
+  --ui-chart-grid: rgb(145 83 102 / 10%);
+  --ui-chart-tooltip: #49343b;
+  --ui-chart-tooltip-text: #fff8fa;
+  --ui-chart-tooltip-muted: #f6bcc9;
+}
+
+:root[data-ui-theme='midnight'] {
+  --ui-background: #171a1b;
+  --ui-app-background:
+    radial-gradient(circle at 12% 5%, rgb(48 105 101 / 28%), transparent 34%),
+    radial-gradient(circle at 90% 0%, rgb(155 94 58 / 18%), transparent 28%),
+    linear-gradient(145deg, #171a1b 0%, #1c2021 50%, #151718 100%);
+  --ui-surface: rgb(34 39 40 / 94%);
+  --ui-surface-solid: #222728;
+  --ui-surface-elevated: #292f30;
+  --ui-surface-inset: #303738;
+  --ui-surface-muted: #2a3031;
+  --ui-text: #e7ecea;
+  --ui-text-secondary: #aebbb7;
+  --ui-text-tertiary: #83908d;
+  --ui-on-action: #10201e;
+  --ui-action: #75b9b0;
+  --ui-action-hover: #8bc9c1;
+  --ui-action-soft: #294a47;
+  --ui-selected: #31534f;
+  --ui-hover: #343c3d;
+  --ui-border: rgb(178 201 195 / 20%);
+  --ui-border-strong: #52615e;
+  --ui-input: rgb(190 218 211 / 10%);
+  --ui-focus: #75b9b0;
+  --ui-danger: #dc7b72;
+  --ui-danger-hover: #ea9188;
+  --ui-danger-soft: #4b302f;
+  --ui-on-danger: #1d1110;
+  --ui-success: #84b987;
+  --ui-warning: #dda465;
+  --ui-info: #78aeca;
+  --ui-overlay: rgb(0 0 0 / 58%);
+  --ui-shadow-color: 0 0 0;
+  --ui-scrollbar-thumb: rgb(117 185 176 / 54%);
+  --ui-scrollbar-thumb-hover: rgb(139 201 193 / 74%);
+  --ui-scrollbar-track: rgb(42 48 49 / 80%);
+  --ui-scrollbar-border: rgb(23 26 27 / 82%);
+  --ui-feature-surface-1: #233433;
+  --ui-feature-surface-2: #2b3132;
+  --ui-feature-surface-3: #342c29;
+  --ui-feature-surface-4: #26302f;
+  --ui-feature-accent-1: #75b9b0;
+  --ui-feature-accent-2: #84b987;
+  --ui-feature-accent-3: #dda465;
+  --ui-feature-accent-4: #78aeca;
+  --ui-feature-on-accent: #10201e;
+  --ui-font-tag-primary: #75b9b0;
+  --ui-font-tag-primary-soft: #294a47;
+  --ui-font-tag-primary-border: #46736e;
+  --ui-font-tag-secondary: #dda465;
+  --ui-font-tag-secondary-soft: #493a2d;
+  --ui-font-tag-secondary-border: #755a3e;
+  --ui-font-tag-tertiary: #b88fcb;
+  --ui-font-tag-tertiary-soft: #3d3043;
+  --ui-font-tag-tertiary-border: #654d70;
+  --ui-chart-1: #75b9b0;
+  --ui-chart-2: #84b987;
+  --ui-chart-3: #dda465;
+  --ui-chart-4: #78aeca;
+  --ui-chart-5: #dce6e2;
+  --ui-chart-6: #b88fcb;
+  --ui-chart-grid: rgb(178 201 195 / 12%);
+  --ui-chart-tooltip: #e7ecea;
+  --ui-chart-tooltip-text: #171a1b;
+  --ui-chart-tooltip-muted: #40504d;
+}
+
+/* Fonts page tag classes consume the values declared inside each theme block above. */
+.ui-font-tag-primary {
+  border-color: var(--ui-font-tag-primary-border);
+  background-color: var(--ui-font-tag-primary-soft);
+  color: var(--ui-font-tag-primary);
+}
+
+.ui-font-tag-secondary {
+  border-color: var(--ui-font-tag-secondary-border);
+  background-color: var(--ui-font-tag-secondary-soft);
+  color: var(--ui-font-tag-secondary);
+}
+
+.ui-font-tag-tertiary {
+  border-color: var(--ui-font-tag-tertiary-border);
+  background-color: var(--ui-font-tag-tertiary-soft);
+  color: var(--ui-font-tag-tertiary);
+}

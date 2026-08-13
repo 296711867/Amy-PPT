@@ -1,0 +1,19 @@
+{
+  "style": "olive-elegant",
+  "name": {
+    "zh": "橄榄奶白 · 高级稳重",
+    "en": "Olive Elegant"
+  },
+  "description": "深橄榄绿与奶白绿的古典奢华风",
+  "category": "深色 · 奢华",
+  "aliases": [
+    "橄榄绿",
+    "奶白绿",
+    "高级",
+    "稳重",
+    "古典"
+  ],
+  "styleCase": "艺术视觉、传统文化、杂志编辑",
+  "version": "3.0.0",
+  "source": "builtin"
+}

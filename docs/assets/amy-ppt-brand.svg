@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 480" role="img" aria-label="Amy-PPT">
+  <rect width="1440" height="480" rx="32" fill="#FFF7EF"/>
+  <circle cx="1250" cy="90" r="44" fill="#FFD166"/>
+  <circle cx="1328" cy="154" r="18" fill="#A8C6A1"/>
+  <rect x="96" y="72" width="336" height="252" rx="52" fill="#27342F"/>
+  <rect x="124" y="100" width="280" height="196" rx="34" fill="#F58E77"/>
+  <path d="M183 265 246 133h35l63 132h-46l-11-26h-47l-11 26h-46Zm72-64h29l-15-35-14 35Z" fill="#FFF7EF"/>
+  <rect x="232" y="338" width="68" height="22" rx="11" fill="#27342F"/>
+  <rect x="178" y="360" width="176" height="26" rx="13" fill="#27342F"/>
+  <circle cx="382" cy="102" r="35" fill="#FFD166"/>
+  <path d="m367 102 11 11 21-24" fill="none" stroke="#27342F" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="504" y="226" fill="#27342F" font-family="Segoe UI, Arial, sans-serif" font-size="118" font-weight="700">Amy-PPT</text>
+  <text x="512" y="298" fill="#6A746F" font-family="Microsoft YaHei, Segoe UI, Arial, sans-serif" font-size="34">Agent 驱动的 AI 演示文稿工作台</text>
+  <rect x="512" y="338" width="176" height="8" rx="4" fill="#F58E77"/>
+  <rect x="704" y="338" width="84" height="8" rx="4" fill="#FFD166"/>
+  <rect x="804" y="338" width="132" height="8" rx="4" fill="#A8C6A1"/>
+</svg>

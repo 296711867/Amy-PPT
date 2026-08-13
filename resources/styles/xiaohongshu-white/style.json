@@ -1,0 +1,18 @@
+{
+  "style": "xiaohongshu-white",
+  "name": {
+    "zh": "小红书白",
+    "en": "Xiaohongshu White"
+  },
+  "description": "暖红点缀白底衬线，生活方式的每一帧都值得收藏",
+  "category": "浅色 · 柔和",
+  "aliases": [
+    "xiaohongshu",
+    "红书",
+    "小红书",
+    "xhs"
+  ],
+  "styleCase": "生活方式、品牌营销、亲子儿童",
+  "version": "3.0.0",
+  "source": "builtin"
+}

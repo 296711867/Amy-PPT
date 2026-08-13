@@ -1,0 +1,20 @@
+{
+  "style": "children-warm-orange",
+  "name": {
+    "zh": "童趣橙暖",
+    "en": "Children Warm Orange"
+  },
+  "description": "活泼可爱的儿童节橙暖风",
+  "category": "暖色 · 治愈",
+  "aliases": [
+    "童趣",
+    "儿童节",
+    "橙暖",
+    "可爱",
+    "木马",
+    "children"
+  ],
+  "styleCase": "亲子儿童、教学科普、品牌营销",
+  "version": "3.0.0",
+  "source": "builtin"
+}

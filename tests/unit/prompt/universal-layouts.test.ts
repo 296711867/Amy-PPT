@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest'
+import {
+  diversifyUniversalLayoutSequence,
+  formatUniversalLayoutPrompt,
+  getUniversalLayoutImageCount,
+  resolveUniversalLayoutId
+} from '../../../src/shared/universal-layouts'
+
+describe('universal PPT layouts', () => {
+  it('uses deterministic fallbacks for common module counts', () => {
+    expect(resolveUniversalLayoutId({ moduleCount: 2, intent: 'concept' })).toBe('two-cards-split')
+    expect(resolveUniversalLayoutId({ moduleCount: 2, intent: 'process' })).toBe('two-cards-stair')
+    expect(resolveUniversalLayoutId({ moduleCount: 4, intent: 'concept' })).toBe('four-cards-grid')
+    expect(resolveUniversalLayoutId({ moduleCount: 5, intent: 'image-focus' })).toBe(
+      'five-cards-2-3-image'
+    )
+  })
+
+  it('covers one to six text modules and the requested image gallery sizes', () => {
+    for (let moduleCount = 1; moduleCount <= 6; moduleCount += 1) {
+      expect(resolveUniversalLayoutId({ moduleCount, intent: 'concept' })).toBeTruthy()
+    }
+    expect(getUniversalLayoutImageCount('two-images-caption')).toBe(2)
+    expect(getUniversalLayoutImageCount('three-images-feature')).toBe(3)
+    expect(getUniversalLayoutImageCount('four-images-grid')).toBe(4)
+    expect(getUniversalLayoutImageCount('six-images-feature')).toBe(6)
+    expect(getUniversalLayoutImageCount('image-left-two-cards')).toBe(1)
+  })
+
+  it('rotates repeated module counts across different silhouettes', () => {
+    const result = diversifyUniversalLayoutSequence([
+      { layoutId: 'three-cards-row' },
+      { layoutId: 'three-cards-row' },
+      { layoutId: 'three-cards-row' },
+      { layoutId: 'three-cards-row' }
+    ])
+    expect(new Set(result.map((item) => item.layoutId)).size).toBeGreaterThanOrEqual(3)
+    expect(result[0].layoutId).not.toBe(result[1].layoutId)
+    expect(result[1].layoutId).not.toBe(result[2].layoutId)
+  })
+
+  it('keeps an explicit valid layout and emits a hard geometry contract', () => {
+    expect(
+      resolveUniversalLayoutId({ value: 'three-cards-stack', moduleCount: 3, intent: 'concept' })
+    ).toBe('three-cards-stack')
+    expect(formatUniversalLayoutPrompt('three-cards-stack')).toContain('Hard geometry contract')
+    expect(formatUniversalLayoutPrompt('three-cards-stack')).toContain('exactly three')
+  })
+})

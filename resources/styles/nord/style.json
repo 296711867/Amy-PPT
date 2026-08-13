@@ -1,0 +1,17 @@
+{
+  "style": "nord",
+  "name": {
+    "zh": "北欧",
+    "en": "Nord"
+  },
+  "description": "极夜蓝底映冰蓝微光，安静到只听得见思考的声音",
+  "category": "深色 · 科技",
+  "aliases": [
+    "nord",
+    "北欧",
+    "清冷"
+  ],
+  "styleCase": "技术分享、产品发布、教学科普",
+  "version": "3.0.0",
+  "source": "builtin"
+}

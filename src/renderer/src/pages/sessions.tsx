@@ -1,0 +1,834 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../components/ui/Button'
+import { Card, CardContent, CardTitle } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '../components/ui/Dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/Tooltip'
+import {
+  FileArchive,
+  FileText,
+  FileUp,
+  FolderOpen,
+  LayoutTemplate,
+  MessageSquare,
+  MessagesSquare,
+  Pencil,
+  Search,
+  Sparkles,
+  Trash2,
+  X,
+  type LucideIcon
+} from 'lucide-react'
+import { type Session, useSessionStore, useTemplateStore } from '../store'
+import { useToastStore } from '../store'
+import { ipc, type GenerateRunStateSnapshot, type HtmlThumbnailTask } from '../lib/ipc'
+import { getEditorGate, parseSessionMetadata } from '../lib/sessionMetadata'
+import { useT } from '../i18n'
+import { SaveTemplateDialog } from '../components/templates/SaveTemplateDialog'
+import { useThumbnailUpdates } from '../hooks/useThumbnailUpdates'
+import sessionPlaceholder from '../assets/images/amy-session-placeholder.png'
+import dayjs from 'dayjs'
+import duration from 'dayjs/plugin/duration'
+import { localAssetUrl } from '@shared/local-asset'
+import { resolveSessionSlideSize } from '@shared/slide-size'
+
+dayjs.extend(duration)
+
+type ActiveGenerateRun = GenerateRunStateSnapshot & {
+  status: 'queued' | 'running'
+}
+
+const sessionThumbnailUrl = (filePath: string): string =>
+  import.meta.env.MODE === 'test' ? 'about:blank' : localAssetUrl(filePath)
+
+const getSourceTag = (
+  session: Session,
+  labels: {
+    pptx: string
+    sessionFile: string
+    saveAsNew: string
+    document: string
+    ai: string
+    thinking: string
+    template: string
+  }
+): { label: string; Icon: LucideIcon; className: string; iconClassName: string } => {
+  const metadata = parseSessionMetadata(session.metadata)
+  const source = typeof metadata.source === 'string' ? metadata.source : ''
+  if (source === 'session-save-as-new') {
+    return {
+      label: labels.saveAsNew,
+      Icon: FileArchive,
+      className: 'border-border bg-[var(--ui-feature-surface-1)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-1)]'
+    }
+  }
+  if (
+    source === 'template' ||
+    source === 'template-direct-edit' ||
+    session.model === 'template-direct-edit'
+  ) {
+    return {
+      label: labels.template,
+      Icon: LayoutTemplate,
+      className: 'border-border bg-[var(--ui-feature-surface-2)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-2)]'
+    }
+  }
+  if (source === 'session-file-import' || session.model === 'session-file-import') {
+    return {
+      label: labels.sessionFile,
+      Icon: FileArchive,
+      className: 'border-border bg-[var(--ui-feature-surface-4)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-4)]'
+    }
+  }
+  if (
+    source === 'pptx-import' ||
+    session.provider === 'import' ||
+    session.model === 'pptx-import'
+  ) {
+    return {
+      label: labels.pptx,
+      Icon: FileUp,
+      className: 'border-border bg-[var(--ui-feature-surface-3)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-3)]'
+    }
+  }
+  if (source === 'thinking') {
+    return {
+      label: labels.thinking,
+      Icon: MessagesSquare,
+      className: 'border-border bg-[var(--ui-feature-surface-1)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-1)]'
+    }
+  }
+  if (session.referenceDocumentPath || session.reference_document_path) {
+    return {
+      label: labels.document,
+      Icon: FileText,
+      className: 'border-border bg-[var(--ui-feature-surface-2)] text-foreground',
+      iconClassName: 'text-[var(--ui-feature-accent-2)]'
+    }
+  }
+  return {
+    label: labels.ai,
+    Icon: Sparkles,
+    className: 'border-border bg-[var(--ui-feature-surface-4)] text-foreground',
+    iconClassName: 'text-[var(--ui-feature-accent-4)]'
+  }
+}
+
+export function SessionsPage(): React.JSX.Element {
+  const navigate = useNavigate()
+  const { sessions, fetchSessions, deleteSession, updateSessionTitle, importSessionFile } =
+    useSessionStore()
+  const { createTemplateFromSession } = useTemplateStore()
+  const { success, error } = useToastStore()
+  const t = useT()
+  const [renameSession, setRenameSession] = useState<Session | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState<Session | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [importingSession, setImportingSession] = useState(false)
+  const [saveTemplateTarget, setSaveTemplateTarget] = useState<Session | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [activeRuns, setActiveRuns] = useState<Record<string, ActiveGenerateRun>>({})
+  const [thumbnailPaths, setThumbnailPaths] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    void fetchSessions()
+  }, [fetchSessions])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    searchInputRef.current?.focus()
+  }, [searchOpen])
+
+  useEffect(() => {
+    let mounted = true
+    void Promise.all([
+      ipc.listActiveGenerateRuns(),
+      ipc.listActivePageEditRuns(),
+      ipc.listActivePageBeautifyRuns(),
+      ipc.listActiveDeckEditRuns()
+    ])
+      .then(([generationRuns, pageEditRuns, pageBeautifyRuns, deckEditRuns]) => {
+        if (!mounted) return
+        setActiveRuns(
+          Object.fromEntries(
+            [...generationRuns, ...pageEditRuns, ...pageBeautifyRuns, ...deckEditRuns]
+              .filter(
+                (run): run is ActiveGenerateRun =>
+                  run.status === 'queued' || run.status === 'running'
+              )
+              .map((run) => [run.sessionId, run])
+          )
+        )
+      })
+      .catch(() => {})
+
+    const unsubscribe = ipc.onGenerateChunk((chunk) => {
+      const sessionId = chunk.payload.sessionId
+      if (!sessionId) return
+      if (
+        chunk.type === 'run_completed' ||
+        chunk.type === 'run_paused' ||
+        chunk.type === 'run_error'
+      ) {
+        void fetchSessions()
+      }
+      setActiveRuns((prev) => {
+        if (
+          chunk.type === 'run_completed' ||
+          chunk.type === 'run_paused' ||
+          chunk.type === 'run_error'
+        ) {
+          const previous = prev[sessionId]
+          if (!previous || previous.runId !== chunk.payload.runId) return prev
+          const next = { ...prev }
+          delete next[sessionId]
+          return next
+        }
+        const previous = prev[sessionId]
+        if (previous?.runId && previous.runId !== chunk.payload.runId) return prev
+        const stage = 'stage' in chunk.payload ? chunk.payload.stage : ''
+        const completedPageCount =
+          'completedPageCount' in chunk.payload &&
+          typeof chunk.payload.completedPageCount === 'number'
+            ? chunk.payload.completedPageCount
+            : previous?.completedPageCount || 0
+        const failedPageCount =
+          'failedPageCount' in chunk.payload && typeof chunk.payload.failedPageCount === 'number'
+            ? chunk.payload.failedPageCount
+            : previous?.failedPageCount || 0
+        return {
+          ...prev,
+          [sessionId]: {
+            sessionId,
+            runId: chunk.payload.runId,
+            status: stage === 'queued' ? 'queued' : 'running',
+            hasActiveRun: true,
+            progress:
+              'progress' in chunk.payload && typeof chunk.payload.progress === 'number'
+                ? Math.max(0, Math.min(90, Math.floor(chunk.payload.progress)))
+                : previous?.progress || 0,
+            totalPages:
+              'totalPages' in chunk.payload && typeof chunk.payload.totalPages === 'number'
+                ? Math.max(1, Math.floor(chunk.payload.totalPages))
+                : previous?.totalPages || 1,
+            events: previous?.events || [],
+            error: null,
+            startedAt: previous?.startedAt || Date.now(),
+            updatedAt: Date.now(),
+            kind:
+              chunk.payload.activityKind === 'page-edit'
+                ? 'page-edit'
+                : chunk.payload.activityKind === 'deck-edit'
+                  ? 'deck-edit'
+                  : chunk.payload.activityKind === 'page-beautify'
+                    ? 'page-beautify'
+                    : chunk.payload.activityKind === 'addPage'
+                      ? 'add-page'
+                      : chunk.payload.activityKind === 'single-page-retry'
+                        ? 'single-page-retry'
+                        : previous?.kind,
+            completedPageCount,
+            failedPageCount
+          }
+        }
+      })
+    })
+
+    return () => {
+      mounted = false
+      unsubscribe?.()
+    }
+  }, [fetchSessions])
+
+  const sortedSessions = sessions
+  const filteredSessions = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase()
+    if (!query) return sortedSessions
+    return sortedSessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
+  }, [searchQuery, sortedSessions])
+  const applyThumbnail = useCallback((task: HtmlThumbnailTask): void => {
+    if (task.variant !== 'first-page' || !task.thumbnailPath) return
+    setThumbnailPaths((current) => ({ ...current, [task.resourceId]: task.thumbnailPath! }))
+  }, [])
+
+  useThumbnailUpdates('session', applyThumbnail)
+  const canEnterEditor = (session: {
+    id: string
+    status: string
+    metadata: string | null
+    page_count: number | null
+  }): boolean => getEditorGate(session, 0.68).canEdit
+
+  const getSessionRoute = (session: {
+    id: string
+    status: string
+    metadata: string | null
+    page_count: number | null
+  }): string => {
+    const activeRun = activeRuns[session.id]
+    const metadata = parseSessionMetadata(session.metadata)
+    if (activeRun) {
+      if (
+        (activeRun.kind === 'edit' ||
+          activeRun.kind === 'page-edit' ||
+          activeRun.kind === 'deck-edit' ||
+          activeRun.kind === 'add-page' ||
+          activeRun.kind === 'single-page-retry') &&
+        canEnterEditor(session)
+      ) {
+        return `/sessions/${session.id}`
+      }
+      return activeRun.kind === 'template' || metadata.source === 'template'
+        ? `/sessions/${session.id}/template-generating`
+        : `/sessions/${session.id}/generating`
+    }
+    if (canEnterEditor(session)) return `/sessions/${session.id}`
+    return metadata.source === 'template'
+      ? `/sessions/${session.id}/template-generating`
+      : `/sessions/${session.id}/generating`
+  }
+
+  const openRenameDialog = (session: Session): void => {
+    setRenameSession(session)
+    setRenameTitle(session.title)
+  }
+
+  const closeRenameDialog = (): void => {
+    if (renaming) return
+    setRenameSession(null)
+    setRenameTitle('')
+  }
+
+  const handleRenameSubmit = async (): Promise<void> => {
+    if (!renameSession) return
+    const title = renameTitle.trim()
+    if (!title) {
+      error(t('sessions.titleEmpty'))
+      return
+    }
+    if (title.length > 120) {
+      error(t('sessions.titleTooLong'), { description: t('sessions.titleTooLongDescription') })
+      return
+    }
+    setRenaming(true)
+    try {
+      await updateSessionTitle({ sessionId: renameSession.id, title })
+      success(t('sessions.titleUpdated'))
+      setRenameSession(null)
+      setRenameTitle('')
+    } catch (err) {
+      error(t('sessions.renameFailed'), {
+        description: err instanceof Error ? err.message : t('common.retryLater')
+      })
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  const closeDeleteDialog = (): void => {
+    if (deleting) return
+    setDeleteSessionTarget(null)
+  }
+
+  const handleDeleteSession = async (): Promise<void> => {
+    if (!deleteSessionTarget) return
+    setDeleting(true)
+    try {
+      await deleteSession(deleteSessionTarget.id)
+      success(t('sessions.deleted'))
+      setDeleteSessionTarget(null)
+    } catch (err) {
+      error(t('sessions.deleteFailed'), {
+        description: err instanceof Error ? err.message : t('common.retryLater')
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleImportSessionFile = async (): Promise<void> => {
+    setImportingSession(true)
+    try {
+      const result = await importSessionFile()
+      if (result.cancelled) return
+      success(t('sessions.importDone'), {
+        description: t('sessions.importedDescription', {
+          title: result.title || t('sessions.importedFallbackTitle'),
+          pageCount: result.pageCount || 0
+        })
+      })
+    } catch (err) {
+      error(t('sessions.importFailed'), {
+        description: err instanceof Error ? err.message : t('common.retryLater')
+      })
+    } finally {
+      setImportingSession(false)
+    }
+  }
+
+  const handleSaveTemplate = async (payload: {
+    name: string
+    description: string
+    tags: string[]
+  }): Promise<void> => {
+    if (!saveTemplateTarget || savingTemplate) return
+    setSavingTemplate(true)
+    try {
+      await createTemplateFromSession({
+        sessionId: saveTemplateTarget.id,
+        ...payload
+      })
+      success(t('sessionDetail.templateSaved'), {
+        action: {
+          label: t('sessionDetail.viewTemplates'),
+          onClick: () => navigate('/templates')
+        }
+      })
+      setSaveTemplateTarget(null)
+    } catch (err) {
+      error(t('sessionDetail.templateSaveFailed'), {
+        description: err instanceof Error ? err.message : t('common.retryLater')
+      })
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl p-6">
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+          {t('sessions.eyebrow')}
+        </p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="organic-serif text-[32px] font-semibold leading-none text-foreground">
+              {t('sessions.title')}
+            </h1>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            {sessions.length > 0 ? (
+              searchOpen || searchQuery ? (
+                <div className="relative w-full sm:w-64">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref={searchInputRef}
+                    type="search"
+                    value={searchQuery}
+                    placeholder={t('sessions.searchPlaceholder')}
+                    className="h-9 pl-9 pr-10"
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    onBlur={() => {
+                      if (!searchQuery.trim()) setSearchOpen(false)
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={t('sessions.clearSearch')}
+                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSearchOpen(false)
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <TooltipProvider delayDuration={180}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={t('sessions.searchButton')}
+                        onClick={() => setSearchOpen(true)}
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end">
+                      {t('sessions.searchButton')}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
+            ) : null}
+            <TooltipProvider delayDuration={180}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-w-[132px]"
+                    onClick={() => void handleImportSessionFile()}
+                    disabled={importingSession}
+                  >
+                    <FileArchive className="mr-2 h-4 w-4" />
+                    {importingSession ? t('sessions.importing') : t('sessions.importSessionFile')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="whitespace-pre-line">
+                  {t('sessions.importSessionFileTooltip')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button size="sm" className="min-w-[112px]" onClick={() => navigate('/')}>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              {t('sessions.newSession')}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {sessions.length === 0 ? (
+        <section className="flex min-h-[calc(100vh-220px)] items-center justify-center px-4 py-12">
+          <div className="flex w-full max-w-[460px] flex-col items-center text-center">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-border bg-accent text-primary shadow-[0_6px_16px_rgb(var(--ui-shadow-color)/0.08)]">
+              <FolderOpen className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground">{t('sessions.emptyTitle')}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {t('sessions.emptyDescription')}
+            </p>
+            <Button className="mt-6 min-w-[148px]" onClick={() => navigate('/')}>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              {t('sessions.newSession')}
+            </Button>
+          </div>
+        </section>
+      ) : filteredSessions.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Search className="mb-4 h-10 w-10 text-muted-foreground" />
+            <h3 className="mb-2 text-lg font-medium">{t('sessions.noSearchResultsTitle')}</h3>
+            <p className="text-muted-foreground">{t('sessions.noSearchResultsDescription')}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {filteredSessions.map((session) => {
+            const editorGate = getEditorGate(session)
+            const activeRun = activeRuns[session.id]
+            const displayGeneratedCount = activeRun
+              ? Math.max(editorGate.generatedCount, activeRun.completedPageCount || 0)
+              : editorGate.generatedCount
+            const displayFailedCount = activeRun
+              ? activeRun.failedPageCount || 0
+              : editorGate.failedCount
+            const displayTotalCount = activeRun
+              ? Math.max(
+                  editorGate.totalCount,
+                  activeRun.totalPages,
+                  displayGeneratedCount + displayFailedCount
+                )
+              : editorGate.totalCount
+            const hasCompletedPages = editorGate.generatedCount > 0
+            const isFullyComplete =
+              canEnterEditor(session) &&
+              editorGate.generatedCount >= editorGate.totalCount &&
+              editorGate.failedCount === 0
+            const isPartialComplete = !isFullyComplete && canEnterEditor(session)
+            const isContinuable = !isFullyComplete && !isPartialComplete && hasCompletedPages
+            const statusText = activeRun
+              ? activeRun.status === 'queued'
+                ? t('sessions.statusQueued')
+                : activeRun.progress > 0
+                  ? t('sessions.statusGeneratingProgress', { progress: activeRun.progress })
+                  : t('sessions.statusGenerating')
+              : isFullyComplete
+                ? t('sessions.statusComplete')
+                : isPartialComplete
+                  ? t('sessions.statusPartialComplete')
+                  : isContinuable
+                    ? t('sessions.statusContinuable')
+                    : t('sessions.statusRegenerate')
+            const actionText = activeRun
+              ? t('sessions.actionViewProgress')
+              : isFullyComplete || isPartialComplete
+                ? t('sessions.actionEnter')
+                : isContinuable
+                  ? t('sessions.actionContinue')
+                  : t('sessions.actionRegenerate')
+            const sourceTag = getSourceTag(session, {
+              pptx: t('sessions.sourcePptx'),
+              sessionFile: t('sessions.sourceSessionFile'),
+              saveAsNew: t('sessions.sourceSaveAsNew'),
+              document: t('sessions.sourceDocument'),
+              ai: t('sessions.sourceAi'),
+              thinking: t('sessions.sourceThinking'),
+              template: t('sessions.sourceTemplate')
+            })
+            const SourceIcon = sourceTag.Icon
+            const thumbnailPath = thumbnailPaths[session.id] || session.thumbnailPath || ''
+            const slideSize = resolveSessionSlideSize(session)
+            const sourceTagBaseClass =
+              'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold leading-none'
+            const statusClassName = activeRun
+              ? 'border-info/35 bg-info/10 text-info'
+              : isFullyComplete
+                ? 'border-success/35 bg-success/10 text-success'
+                : isPartialComplete
+                  ? 'border-primary/35 bg-accent text-primary'
+                  : isContinuable
+                    ? 'border-primary/35 bg-primary/10 text-primary'
+                    : 'border-destructive/35 bg-[var(--ui-danger-soft)] text-destructive'
+            return (
+              <Card
+                key={session.id}
+                data-session-card-id={session.id}
+                className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-card/80 shadow-[0_4px_16px_rgb(var(--ui-shadow-color)/0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgb(var(--ui-shadow-color)/0.15)]"
+                title={isPartialComplete ? t('sessions.statusPartialCompleteTip') : undefined}
+                onClick={() => navigate(getSessionRoute(session))}
+              >
+                <div
+                  className="relative flex h-[230px] w-full shrink-0 items-center justify-center overflow-hidden bg-secondary"
+                  data-session-thumbnail-frame
+                >
+                  {thumbnailPath ? (
+                    <img
+                      src={sessionThumbnailUrl(thumbnailPath)}
+                      loading="lazy"
+                      alt=""
+                      aria-hidden="true"
+                      className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.015]"
+                      style={{ aspectRatio: `${slideSize.width}/${slideSize.height}` }}
+                    />
+                  ) : (
+                    <img
+                      src={sessionPlaceholder}
+                      alt=""
+                      aria-hidden="true"
+                      className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.015]"
+                      style={{ aspectRatio: `${slideSize.width}/${slideSize.height}` }}
+                    />
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                  <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--ui-surface-solid)]/92 px-2.5 py-1 text-xs font-semibold text-foreground shadow-[0_4px_12px_rgb(var(--ui-shadow-color)/0.16)] backdrop-blur-sm">
+                    <MessageSquare className="h-3 w-3" />
+                    {actionText}
+                  </span>
+                </div>
+
+                <div className="min-w-0 flex-1 p-4">
+                  <CardTitle className="line-clamp-2 min-h-10 text-base leading-5 text-foreground">
+                    {session.title}
+                  </CardTitle>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {dayjs.unix(session.updated_at).format('YYYY/MM/DD HH:mm')}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      className={`rounded-lg border px-2 py-1 font-semibold ${statusClassName}`}
+                    >
+                      {statusText}
+                    </span>
+                    <span className={`${sourceTagBaseClass} ${sourceTag.className}`}>
+                      <SourceIcon className={`h-3.5 w-3.5 ${sourceTag.iconClassName}`} />
+                      {sourceTag.label}
+                    </span>
+                    <span className="rounded-lg border border-border bg-secondary px-2 py-1 text-muted-foreground">
+                      {t('sessions.pagesCount', {
+                        generated: displayGeneratedCount,
+                        total: displayTotalCount
+                      })}
+                    </span>
+                    {session.generation_duration_sec ? (
+                      <span className="rounded-lg border border-border bg-secondary px-2 py-1 text-muted-foreground">
+                        {(() => {
+                          const d = dayjs.duration(session.generation_duration_sec!, 'second')
+                          const m = Math.floor(d.asMinutes())
+                          const s = d.seconds()
+                          return m > 0 ? `${m}m ${s}s` : `${s}s`
+                        })()}
+                      </span>
+                    ) : null}
+                    {!isFullyComplete && displayFailedCount > 0 && (
+                      <span className="rounded-lg border border-destructive/35 bg-[var(--ui-danger-soft)] px-2 py-1 text-destructive">
+                        {t('sessions.failedCount', { count: displayFailedCount })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-end gap-1 border-t border-border bg-secondary/45 px-3 py-2">
+                  <TooltipProvider delayDuration={180}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t('sessions.editTitleTooltip')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openRenameDialog(session)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end">
+                        {t('sessions.editTitleTooltip')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider delayDuration={180}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t('sessions.saveTemplateTooltip')}
+                            disabled={editorGate.generatedCount <= 0}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setSaveTemplateTarget(session)
+                            }}
+                          >
+                            <LayoutTemplate className="h-4 w-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end">
+                        {editorGate.generatedCount <= 0
+                          ? t('sessions.saveTemplateTooltipDisabled')
+                          : t('sessions.saveTemplateTooltip')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={t('common.delete')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteSessionTarget(session)
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+      {renameSession ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ui-overlay)] p-4 backdrop-blur-sm"
+          onClick={closeRenameDialog}
+        >
+          <div
+            className="w-full max-w-md rounded-lg border border-border bg-[var(--ui-surface-solid)] p-5 shadow-[0_24px_60px_rgb(var(--ui-shadow-color)/0.28)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">
+                  {t('sessions.editTitle')}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('sessions.renameDescription')}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={closeRenameDialog} disabled={renaming}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void handleRenameSubmit()
+              }}
+            >
+              <Input
+                autoFocus
+                value={renameTitle}
+                maxLength={120}
+                placeholder={t('sessions.renamePlaceholder')}
+                onChange={(event) => setRenameTitle(event.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={closeRenameDialog}
+                  disabled={renaming}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button type="submit" size="sm" disabled={renaming}>
+                  {renaming ? t('common.saving') : t('common.save')}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+      <Dialog
+        open={Boolean(deleteSessionTarget)}
+        onOpenChange={(open) => !open && closeDeleteDialog()}
+      >
+        <DialogContent showClose={false}>
+          <DialogHeader>
+            <DialogTitle>{t('sessions.deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('sessions.deleteConfirmDescription', { title: deleteSessionTarget?.title || '' })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={closeDeleteDialog}
+              disabled={deleting}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleDeleteSession()}
+              disabled={deleting}
+            >
+              {deleting ? t('common.saving') : t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <SaveTemplateDialog
+        open={Boolean(saveTemplateTarget)}
+        defaultName={saveTemplateTarget?.title || ''}
+        saving={savingTemplate}
+        onOpenChange={(open) => !open && setSaveTemplateTarget(null)}
+        onSubmit={(payload) => void handleSaveTemplate(payload)}
+      />
+    </div>
+  )
+}

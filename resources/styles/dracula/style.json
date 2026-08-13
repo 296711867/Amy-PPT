@@ -1,0 +1,17 @@
+{
+  "style": "dracula",
+  "name": {
+    "zh": "Dracula 紫",
+    "en": "Dracula"
+  },
+  "description": "紫夜笼罩屏幕，每一行代码都在荧光中呼吸",
+  "category": "深色 · 科技",
+  "aliases": [
+    "dracula",
+    "紫红",
+    "代码分享"
+  ],
+  "styleCase": "技术分享、教学科普、产品发布",
+  "version": "3.0.0",
+  "source": "builtin"
+}

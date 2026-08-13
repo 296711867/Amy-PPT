@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Amy-PPT logo">
+  <rect width="1024" height="1024" rx="224" fill="#FFF7EF"/>
+  <rect x="160" y="208" width="704" height="528" rx="104" fill="#27342F"/>
+  <rect x="220" y="268" width="584" height="408" rx="68" fill="#F58E77"/>
+  <path d="M352 614 478 350h68l126 264h-92l-22-52H464l-22 52h-90Zm144-128h58l-29-70-29 70Z" fill="#FFF7EF"/>
+  <rect x="440" y="766" width="144" height="48" rx="24" fill="#27342F"/>
+  <rect x="326" y="812" width="372" height="52" rx="26" fill="#27342F"/>
+  <circle cx="758" cy="270" r="70" fill="#FFD166"/>
+  <path d="m727 270 22 22 42-48" fill="none" stroke="#27342F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

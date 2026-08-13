@@ -1,0 +1,18 @@
+{
+  "style": "terminal-green",
+  "name": {
+    "zh": "终端绿",
+    "en": "Terminal Green"
+  },
+  "description": "绿屏荧光在黑暗中闪烁，终端美学最原始的浪漫",
+  "category": "深色 · 科技",
+  "aliases": [
+    "terminal",
+    "green",
+    "终端",
+    "绿屏"
+  ],
+  "styleCase": "技术分享、教学科普、产品发布",
+  "version": "3.0.0",
+  "source": "builtin"
+}

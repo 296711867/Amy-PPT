@@ -1,0 +1,261 @@
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useToastStore } from '../store'
+import { useT } from '../i18n'
+import { useModelAction } from '../hooks/useModelAction'
+import { ipc } from '@renderer/lib/ipc'
+import { ArrowRight, FileText, FileUp, Loader2, MessageCircle, Sparkles } from 'lucide-react'
+
+const MAX_PPTX_SIZE_MB = 500
+const MAX_PPTX_SIZE_BYTES = MAX_PPTX_SIZE_MB * 1024 * 1024
+
+export function HomePage(): ReactElement {
+  const navigate = useNavigate()
+  const { success, error, warning } = useToastStore()
+  const modelAction = useModelAction()
+  const { ensureModelActive } = modelAction
+  const t = useT()
+  const [importingPptx, setImportingPptx] = useState(false)
+  const [pptxImportProgress, setPptxImportProgress] = useState<string | null>(null)
+  const pptxInputRef = useRef<HTMLInputElement | null>(null)
+
+  const ensureHomeModelReady = useCallback(async (): Promise<boolean> => {
+    return Boolean(await ensureModelActive())
+  }, [ensureModelActive])
+
+  const handleQuickCreate = useCallback(async () => {
+    if (!(await ensureHomeModelReady())) return
+    navigate('/create/session')
+  }, [ensureHomeModelReady, navigate])
+
+  const handleExplore = useCallback(async () => {
+    navigate('/thinking')
+  }, [navigate])
+
+  const ensureUploadPrerequisites = useCallback(async (): Promise<boolean> => {
+    const validation = await ipc.validateUploadPrerequisites()
+    if (validation.ready) return true
+    warning(t('home.settingsRequiredTitle'), {
+      description: validation.message || t('home.settingsRequired'),
+      action: {
+        label: t('home.goToSettings'),
+        onClick: () => navigate('/settings')
+      }
+    })
+    return false
+  }, [navigate, t, warning])
+
+  const handleImportPptxClick = useCallback(async (): Promise<void> => {
+    if (importingPptx) return
+    if (!(await ensureHomeModelReady())) return
+    if (!(await ensureUploadPrerequisites())) return
+    pptxInputRef.current?.click()
+  }, [ensureHomeModelReady, ensureUploadPrerequisites, importingPptx])
+
+  const handlePptxFilesSelected = useCallback(
+    async (files: FileList | null): Promise<void> => {
+      const selectedFiles = Array.from(files || [])
+      if (pptxInputRef.current) {
+        pptxInputRef.current.value = ''
+      }
+      if (selectedFiles.length === 0) return
+      if (selectedFiles.length > 1) {
+        error(t('home.pptxSingleOnlyTitle'), {
+          description: t('home.pptxSingleOnly')
+        })
+        return
+      }
+      const selectedFile = selectedFiles[0]
+      if (!/\.pptx$/i.test(selectedFile.name)) {
+        error(t('home.unsupportedFileTitle'), {
+          description: t('home.unsupportedPptx')
+        })
+        return
+      }
+      if (selectedFile.size > MAX_PPTX_SIZE_BYTES) {
+        error(t('home.pptxTooLargeTitle'), {
+          description: t('home.pptxTooLarge', { maxSize: MAX_PPTX_SIZE_MB })
+        })
+        return
+      }
+      const filePath = window.electron?.getPathForFile?.(selectedFile) || ''
+      if (!filePath) {
+        error(t('home.pptxPathFailedTitle'), {
+          description: t('home.pptxPathFailed')
+        })
+        return
+      }
+      setImportingPptx(true)
+      setPptxImportProgress(t('home.pptxPreparing'))
+      try {
+        const modelConfigId = await ensureModelActive()
+        if (!modelConfigId) return
+        const result = await ipc.importPptx({
+          filePath,
+          title: selectedFile.name.replace(/\.pptx$/i, ''),
+          styleId: null,
+          modelConfigId
+        })
+        success(t('home.pptxImportDone'), {
+          description:
+            result.warnings.length > 0
+              ? t('home.pptxImportedWithWarnings', {
+                  pageCount: result.pageCount,
+                  warningCount: result.warnings.length
+                })
+              : t('home.pptxImported', { pageCount: result.pageCount })
+        })
+        navigate(`/sessions/${result.sessionId}`)
+      } catch (err) {
+        error(t('home.pptxImportFailed'), {
+          description: err instanceof Error ? err.message : t('common.retryLater')
+        })
+      } finally {
+        setImportingPptx(false)
+        setPptxImportProgress(null)
+      }
+    },
+    [ensureModelActive, error, navigate, success, t]
+  )
+
+  useEffect(() => {
+    return ipc.onPptxImportProgress((payload) => {
+      setPptxImportProgress(`${payload.label}${payload.progress ? ` · ${payload.progress}%` : ''}`)
+    })
+  }, [])
+
+  return (
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-9 text-foreground lg:px-8">
+      <section className="relative border-b border-border pb-8">
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-1.5 text-[11px] font-semibold text-foreground shadow-[0_6px_14px_rgb(var(--ui-shadow-color)/0.1)]">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              {t('home.eyebrow')}
+            </div>
+            <h1 className="organic-serif mt-5 text-[32px] font-semibold leading-none text-foreground sm:text-[40px]">
+              {t('thinking.homeTitle')}
+            </h1>
+            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+              {t('thinking.homeDescription')}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => void handleQuickCreate()}
+          className="group relative flex min-h-[240px] flex-col overflow-hidden rounded-lg border border-border bg-[var(--ui-feature-surface-2)] p-7 text-left text-foreground shadow-[0_14px_34px_rgb(var(--ui-shadow-color)/0.12)] transition-[border-color,filter,transform] hover:-translate-y-0.5 hover:border-[var(--ui-border-strong)] hover:brightness-[1.03] disabled:cursor-not-allowed disabled:opacity-65"
+        >
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[var(--ui-feature-accent-2)] text-[var(--ui-feature-on-accent)] shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.18)]">
+              <FileText className="h-5 w-5" />
+            </div>
+            <span className="rounded-lg bg-card/90 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-[0_6px_14px_rgb(var(--ui-shadow-color)/0.08)]">
+              {t('thinking.quickCreateBadge')}
+            </span>
+          </div>
+
+          <div className="relative mt-7">
+            <h2 className="organic-serif text-[30px] font-semibold leading-none text-foreground">
+              {t('thinking.quickCreate')}
+            </h2>
+            <p className="mt-3 max-w-[32rem] text-[14px] leading-relaxed text-muted-foreground">
+              {t('thinking.quickCreateDescription')}
+            </p>
+          </div>
+
+          <div className="relative mt-auto pt-7">
+            <span className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.22)] transition-colors group-hover:bg-[var(--ui-action-hover)]">
+              {t('thinking.startQuickCreate')}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void handleExplore()}
+          className="group relative flex min-h-[240px] flex-col overflow-hidden rounded-lg border border-border bg-[var(--ui-feature-surface-1)] p-7 text-left text-foreground shadow-[0_14px_34px_rgb(var(--ui-shadow-color)/0.12)] transition-[border-color,filter,transform] hover:-translate-y-0.5 hover:border-[var(--ui-border-strong)] hover:brightness-[1.03]"
+        >
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[var(--ui-feature-accent-1)] text-[var(--ui-feature-on-accent)] shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.18)]">
+              <MessageCircle className="h-5 w-5" />
+            </div>
+            <span className="rounded-lg bg-card/90 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-[0_6px_14px_rgb(var(--ui-shadow-color)/0.08)]">
+              {t('thinking.exploreProjectBadge')}
+            </span>
+          </div>
+
+          <div className="relative mt-7">
+            <h2 className="organic-serif text-[30px] font-semibold leading-none text-foreground">
+              {t('thinking.exploreProject')}
+            </h2>
+            <p className="mt-3 max-w-[32rem] text-[14px] leading-relaxed text-muted-foreground">
+              {t('thinking.exploreProjectDescription')}
+            </p>
+          </div>
+
+          <div className="relative mt-auto pt-7">
+            <span className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.2)] transition-colors group-hover:bg-[var(--ui-action-hover)]">
+              {t('thinking.startExplore')}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void handleImportPptxClick()}
+          disabled={importingPptx}
+          className="group relative flex min-h-[240px] flex-col overflow-hidden rounded-lg border border-border bg-[var(--ui-feature-surface-3)] p-7 text-left text-foreground shadow-[0_14px_34px_rgb(var(--ui-shadow-color)/0.1)] transition-[border-color,filter,transform] hover:-translate-y-0.5 hover:border-[var(--ui-border-strong)] hover:brightness-[1.03] disabled:cursor-not-allowed disabled:opacity-65"
+        >
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[var(--ui-feature-accent-3)] text-[var(--ui-feature-on-accent)] shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.16)]">
+              <FileUp className="h-5 w-5" />
+            </div>
+            <span className="rounded-lg bg-card/90 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-[0_6px_14px_rgb(var(--ui-shadow-color)/0.08)]">
+              PPTX
+            </span>
+          </div>
+
+          <div className="relative mt-7">
+            <h2 className="organic-serif text-[30px] font-semibold leading-none text-foreground">
+              {t('home.importPptx')}
+            </h2>
+            <p className="mt-3 max-w-[32rem] text-[14px] leading-relaxed text-muted-foreground">
+              {t('home.importPptxTooltip', { maxSize: MAX_PPTX_SIZE_MB })}
+            </p>
+          </div>
+
+          <div className="relative mt-auto pt-7">
+            <span className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[13px] font-semibold text-primary-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.2)] transition-colors group-hover:bg-[var(--ui-action-hover)]">
+              {importingPptx ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {pptxImportProgress || t('home.importingPptx')}
+                </>
+              ) : (
+                <>
+                  {t('home.importPptx')}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </span>
+          </div>
+        </button>
+      </section>
+
+      <input
+        ref={pptxInputRef}
+        type="file"
+        accept=".pptx"
+        multiple={false}
+        className="hidden"
+        onChange={(event) => void handlePptxFilesSelected(event.target.files)}
+      />
+    </div>
+  )
+}

@@ -1,0 +1,19 @@
+{
+  "style": "cyberpunk-neon",
+  "name": {
+    "zh": "赛博霓虹",
+    "en": "Cyberpunk Neon"
+  },
+  "description": "霓虹粉青撕裂纯黑夜幕，未来已来且不问你是否准备好",
+  "category": "效果 · 戏剧",
+  "aliases": [
+    "cyberpunk",
+    "neon",
+    "赛博",
+    "霓虹",
+    "cyberpunk"
+  ],
+  "styleCase": "技术分享、品牌营销、产品发布",
+  "version": "3.0.0",
+  "source": "builtin"
+}

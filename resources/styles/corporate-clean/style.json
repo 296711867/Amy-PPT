@@ -1,0 +1,18 @@
+{
+  "style": "corporate-clean",
+  "name": {
+    "zh": "企业洁净",
+    "en": "Corporate Clean"
+  },
+  "description": "纯白上海军蓝落笔，商务场合最稳妥的选择",
+  "category": "浅色 · 专业",
+  "aliases": [
+    "corporate",
+    "企业",
+    "正式",
+    "商务"
+  ],
+  "styleCase": "商业汇报、融资路演、年度庆典",
+  "version": "3.0.0",
+  "source": "builtin"
+}

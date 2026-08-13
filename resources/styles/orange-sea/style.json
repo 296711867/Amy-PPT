@@ -1,0 +1,19 @@
+{
+  "style": "orange-sea",
+  "name": {
+    "zh": "晴橙落日海",
+    "en": "Sunset Bay"
+  },
+  "description": "晴空蓝柔杏白落日橙的治愈渐变",
+  "category": "暖色 · 治愈",
+  "aliases": [
+    "落日海",
+    "晴橙",
+    "治愈",
+    "海边",
+    "夕阳"
+  ],
+  "styleCase": "旅游出行、疗愈冥想、教学科普",
+  "version": "3.0.0",
+  "source": "builtin"
+}

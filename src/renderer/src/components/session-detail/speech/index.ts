@@ -1,0 +1,1 @@
+export { SpeechScriptDrawer } from './SpeechScriptDrawer'

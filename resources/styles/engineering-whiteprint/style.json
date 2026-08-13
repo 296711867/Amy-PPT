@@ -1,0 +1,18 @@
+{
+  "style": "engineering-whiteprint",
+  "name": {
+    "zh": "工程白图",
+    "en": "Engineering Whiteprint"
+  },
+  "description": "坐标纸上海军墨线勾勒蓝图，工程思维可视化",
+  "category": "浅色 · 专业",
+  "aliases": [
+    "engineering",
+    "工程",
+    "白图",
+    "坐标纸"
+  ],
+  "styleCase": "技术分享、商业汇报、产品发布",
+  "version": "3.0.0",
+  "source": "builtin"
+}

@@ -1,0 +1,19 @@
+{
+  "style": "burgundy-premium",
+  "name": {
+    "zh": "勃艮第红高级感",
+    "en": "Burgundy Premium"
+  },
+  "description": "沉稳奢华的红金黑配色",
+  "category": "深色 · 奢华",
+  "aliases": [
+    "勃艮第红",
+    "burgundy",
+    "酒红",
+    "高级感",
+    "红金"
+  ],
+  "styleCase": "时尚潮流、品牌营销、艺术视觉",
+  "version": "3.0.0",
+  "source": "builtin"
+}
