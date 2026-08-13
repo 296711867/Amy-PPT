@@ -21,6 +21,8 @@ describe('source page skeleton planning', () => {
         reason: 'major # heading after the topic',
         confidence: 'high',
         layout_intent: 'concept',
+        content_structure: 'parallel',
+        module_count: 4,
         layout_id: 'four-cards-grid'
       }
     ])
@@ -38,9 +40,39 @@ describe('source page skeleton planning', () => {
           lineEnd: 28,
           reason: '',
           layoutIntent: 'concept',
+          contentStructure: 'parallel',
+          moduleCount: 4,
           layoutId: 'four-cards-grid'
         }
       ]
+    })
+  })
+
+  it('uses source content structure to replace an incompatible selected layout', () => {
+    const sourcePlan = sourcePlanFromSkeletonRows([
+      {
+        page_number: 1,
+        title: 'Three stages',
+        role: 'content',
+        source_heading: '## Three stages',
+        heading_level: 2,
+        line_start: 1,
+        line_end: 10,
+        reason: 'Ordered delivery stages',
+        confidence: 'high',
+        layout_intent: 'process',
+        content_structure: 'sequence',
+        module_count: 3,
+        layout_id: 'four-cards-grid'
+      }
+    ])
+
+    const [item] = mapSourcePlanToOutlineItems(sourcePlan!)
+
+    expect(item).toMatchObject({
+      contentStructure: 'sequence',
+      moduleCount: 3,
+      layoutId: 'three-cards-stack'
     })
   })
 

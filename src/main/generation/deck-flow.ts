@@ -316,6 +316,8 @@ export async function executeDeckGeneration(
         title: planned?.title?.trim() || page.title,
         contentOutline: planned?.contentOutline?.trim() || '',
         layoutIntent: planned?.layoutIntent,
+        contentStructure: planned?.contentStructure,
+        moduleCount: planned?.moduleCount,
         layoutId: planned?.layoutId
       }
     })

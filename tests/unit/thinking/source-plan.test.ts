@@ -87,6 +87,8 @@ describe('thinking source plan', () => {
         '- Role: content',
         '- Objective: Summarize five points',
         '- Layout Intent: concept',
+        '- Content Structure: grouped',
+        '- Module Count: 5',
         '- Layout: five-cards-2-3',
         '',
         'A concise summary.',
@@ -102,7 +104,11 @@ describe('thinking source plan', () => {
 
     expect(sourcePlan?.pageSkeleton[0]).toMatchObject({
       layoutIntent: 'concept',
+      contentStructure: 'grouped',
+      moduleCount: 5,
       layoutId: 'five-cards-2-3'
     })
+    expect(sourcePlan?.pageSkeleton[0].reason).not.toContain('Content Structure')
+    expect(sourcePlan?.pageSkeleton[0].reason).not.toContain('Module Count')
   })
 })

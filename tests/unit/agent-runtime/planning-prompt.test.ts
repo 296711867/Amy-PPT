@@ -9,7 +9,11 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('Never return fewer or more than 7 items.')
     expect(prompt).toContain('if the material does not naturally fill 7 slides')
     expect(prompt).toContain('## Content language')
-    expect(prompt).toContain('title, keyPoints, layoutIntent, and layoutId')
+    expect(prompt).toContain(
+      'title, keyPoints, layoutIntent, contentStructure, moduleCount, and layoutId'
+    )
+    expect(prompt).toContain('content structure -> candidate pool -> rotated final layout')
+    expect(prompt).toContain('sequence:')
     expect(prompt).toContain('five-cards-2-3-image')
     expect(prompt).not.toMatch(/\{\{[^}]+\}\}/)
   })

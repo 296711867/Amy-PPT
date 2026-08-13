@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   diversifyUniversalLayoutSequence,
+  formatContentStructureCandidatePrompt,
   formatUniversalLayoutPrompt,
+  getUniversalLayoutCandidates,
   getUniversalLayoutImageCount,
   resolveUniversalLayoutId
 } from '../../../src/shared/universal-layouts'
@@ -29,14 +31,62 @@ describe('universal PPT layouts', () => {
 
   it('rotates repeated module counts across different silhouettes', () => {
     const result = diversifyUniversalLayoutSequence([
-      { layoutId: 'three-cards-row' },
-      { layoutId: 'three-cards-row' },
-      { layoutId: 'three-cards-row' },
-      { layoutId: 'three-cards-row' }
+      { layoutId: 'three-cards-row', moduleCount: 3, contentStructure: 'parallel' as const },
+      { layoutId: 'three-cards-row', moduleCount: 3, contentStructure: 'parallel' as const },
+      { layoutId: 'three-cards-row', moduleCount: 3, contentStructure: 'parallel' as const },
+      { layoutId: 'three-cards-row', moduleCount: 3, contentStructure: 'parallel' as const }
     ])
-    expect(new Set(result.map((item) => item.layoutId)).size).toBeGreaterThanOrEqual(3)
+    expect(new Set(result.map((item) => item.layoutId)).size).toBeGreaterThanOrEqual(2)
     expect(result[0].layoutId).not.toBe(result[1].layoutId)
     expect(result[1].layoutId).not.toBe(result[2].layoutId)
+  })
+
+  it('builds an explicit candidate pool from content structure before choosing a layout', () => {
+    expect(
+      getUniversalLayoutCandidates({ moduleCount: 3, contentStructure: 'sequence' }).map(
+        (layout) => layout.id
+      )[0]
+    ).toBe('three-cards-stack')
+    expect(
+      getUniversalLayoutCandidates({ moduleCount: 2, contentStructure: 'image-support' }).map(
+        (layout) => layout.id
+      )
+    ).toEqual(['image-left-two-cards', 'two-cards-left-image'])
+    expect(
+      getUniversalLayoutCandidates({ moduleCount: 4, contentStructure: 'gallery' }).every(
+        (layout) => layout.family === 'gallery'
+      )
+    ).toBe(true)
+    expect(getUniversalLayoutCandidates({ moduleCount: 5, contentStructure: 'gallery' })).toEqual(
+      []
+    )
+  })
+
+  it('rejects an incompatible explicit layout and fills missing layouts from the candidate pool', () => {
+    expect(
+      resolveUniversalLayoutId({
+        value: 'four-cards-grid',
+        moduleCount: 3,
+        contentStructure: 'sequence'
+      })
+    ).toBe('three-cards-stack')
+
+    const result = diversifyUniversalLayoutSequence([
+      { moduleCount: 2, contentStructure: 'parallel' as const, layoutIntent: 'concept' as const },
+      { moduleCount: 2, contentStructure: 'parallel' as const, layoutIntent: 'concept' as const }
+    ])
+    expect(result.map((item) => item.layoutId)).toEqual([
+      'two-cards-split',
+      'two-text-asymmetric'
+    ])
+  })
+
+  it('exposes the content structure candidate map to the planning agent', () => {
+    const prompt = formatContentStructureCandidatePrompt()
+    expect(prompt).toContain('sequence:')
+    expect(prompt).toContain('three-cards-stair')
+    expect(prompt).toContain('image-support:')
+    expect(prompt).toContain('image-left-two-cards')
   })
 
   it('keeps an explicit valid layout and emits a hard geometry contract', () => {

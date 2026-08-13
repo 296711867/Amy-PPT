@@ -239,6 +239,8 @@ export async function executeTemplateDeckGeneration(
           layoutIntent: snapshot?.layout_intent
             ? normalizeLayoutIntent(snapshot.layout_intent)
             : undefined,
+          contentStructure: undefined,
+          moduleCount: undefined,
           layoutId: normalizeUniversalLayoutId(snapshot?.layout_id),
           imageAssetPath: snapshot?.image_asset_path || undefined,
           imageAssetPaths: snapshot?.image_asset_paths || undefined
@@ -273,6 +275,8 @@ export async function executeTemplateDeckGeneration(
         title: planned?.title?.trim() || page.title,
         contentOutline: planned?.contentOutline?.trim() || '',
         layoutIntent: planned?.layoutIntent,
+        contentStructure: planned?.contentStructure,
+        moduleCount: planned?.moduleCount,
         layoutId: planned?.layoutId,
         imageAssetPath: planned?.imageAssetPath,
         imageAssetPaths: planned?.imageAssetPaths

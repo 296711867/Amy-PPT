@@ -338,7 +338,9 @@ describe('source-grounded prompt rules', () => {
     expect(engineGenerate).toContain('sourceDocumentPaths?: string[]')
     expect(engineGenerate).toContain('Source document context:')
     expect(engineGenerate).toContain('formatUniversalLayoutCatalogPrompt()')
-    expect(engineGenerate).toContain('title, keyPoints, layoutIntent, layoutId')
+    expect(engineGenerate).toContain(
+      'title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId'
+    )
     expect(engineGenerate).toContain('resolveUniversalLayoutId({')
   })
 

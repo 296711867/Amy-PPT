@@ -1,5 +1,5 @@
 import type { LayoutIntent } from './layout-intent'
-import type { UniversalLayoutId } from './universal-layouts'
+import type { ContentStructure, UniversalLayoutId } from './universal-layouts'
 import type { GenerationFailureInfo } from './generation-error'
 
 /** A generated slide's semantic plan, shared by planning, generation, and page tools. */
@@ -7,6 +7,10 @@ export interface OutlineItem {
   title: string
   contentOutline: string
   layoutIntent?: LayoutIntent
+  /** Semantic shape of the content before a concrete layout is selected. */
+  contentStructure?: ContentStructure
+  /** Number of meaningful content modules the selected layout must accommodate. */
+  moduleCount?: number
   /** M3a resolves a session layout master into a flexible generation constraint. */
   layoutId?: UniversalLayoutId | string
   layoutPrompt?: string
@@ -104,6 +108,8 @@ export interface DocumentPlanPageSkeletonItem {
   lineEnd: number
   reason: string
   layoutIntent?: LayoutIntent
+  contentStructure?: ContentStructure
+  moduleCount?: number
   layoutId?: string
 }
 

@@ -6,7 +6,11 @@ import {
   type SourceDocumentPlan
 } from '@shared/generation'
 import { normalizeLayoutIntent } from '@shared/layout-intent'
-import { normalizeUniversalLayoutId } from '@shared/universal-layouts'
+import {
+  normalizeContentStructure,
+  normalizeUniversalLayoutId,
+  resolveUniversalLayoutId
+} from '@shared/universal-layouts'
 
 const MAX_SOURCE_PLAN_PAGES = 500
 const LAYOUT_INTENTS = new Set([
@@ -63,6 +67,12 @@ const normalizeSourcePlanItem = (
     ...(readString(record.layoutIntent)
       ? { layoutIntent: normalizeLayoutIntent(record.layoutIntent) }
       : {}),
+    ...(normalizeContentStructure(record.contentStructure)
+      ? { contentStructure: normalizeContentStructure(record.contentStructure) }
+      : {}),
+    ...(readPositiveInt(record.moduleCount)
+      ? { moduleCount: Math.min(6, readPositiveInt(record.moduleCount) as number) }
+      : {}),
     ...(normalizeUniversalLayoutId(record.layoutId)
       ? { layoutId: normalizeUniversalLayoutId(record.layoutId) }
       : {})
@@ -112,6 +122,8 @@ export const sourcePlanFromSkeletonRows = (rows: unknown[]): SourceDocumentPlan 
           lineEnd: record.line_end ?? record.lineEnd,
           reason: record.reason,
           layoutIntent: record.layout_intent ?? record.layoutIntent,
+          contentStructure: record.content_structure ?? record.contentStructure,
+          moduleCount: record.module_count ?? record.moduleCount,
           layoutId: record.layout_id ?? record.layoutId
         },
         index + 1
@@ -169,6 +181,10 @@ export const mapSourcePlanToOutlineItems = (sourcePlan: SourceDocumentPlan): Out
   sourcePlan.pageSkeleton.map((item) => {
     const inferredLayoutIntent = inferLayoutIntentFromSkeletonTitle(item)
     const isSectionAgenda = isSectionAgendaReason(item.reason)
+    const layoutIntent =
+      item.layoutIntent ||
+      (LAYOUT_INTENTS.has(inferredLayoutIntent || '') ? inferredLayoutIntent : 'concept')
+    const moduleCount = item.moduleCount
     return {
       title: item.title,
       contentOutline: (isSectionAgenda
@@ -181,9 +197,16 @@ export const mapSourcePlanToOutlineItems = (sourcePlan: SourceDocumentPlan): Out
           ])
         .filter(Boolean)
         .join('\n'),
-      layoutIntent:
-        item.layoutIntent ||
-        (LAYOUT_INTENTS.has(inferredLayoutIntent || '') ? inferredLayoutIntent : 'concept'),
-      layoutId: normalizeUniversalLayoutId(item.layoutId)
+      layoutIntent,
+      contentStructure: item.contentStructure,
+      moduleCount,
+      layoutId: moduleCount
+        ? resolveUniversalLayoutId({
+            value: item.layoutId,
+            moduleCount,
+            intent: layoutIntent,
+            contentStructure: item.contentStructure
+          })
+        : normalizeUniversalLayoutId(item.layoutId)
     }
   })

@@ -2,7 +2,10 @@ import { CONTENT_LANGUAGE_RULES, SOURCE_MATERIAL_PLANNING_RULES } from './shared
 import type { AvailableFont } from '../../../presentation/fonts/font-registry'
 import { requireSlideSize, type SlideSizePreset } from '@shared/slide-size'
 import { createPromptCatalog } from '../catalog'
-import { formatUniversalLayoutCatalogPrompt } from '@shared/universal-layouts'
+import {
+  formatContentStructureCandidatePrompt,
+  formatUniversalLayoutCatalogPrompt
+} from '@shared/universal-layouts'
 
 import planningSystemTemplate from '../templates/planning/system.md?raw'
 import designContractSystemTemplate from '../templates/planning/design-contract-system.md?raw'
@@ -12,6 +15,7 @@ type PlanningSystemTemplateVars = {
     contentLanguageRules: string
     sourceMaterialPlanningRules: string
     totalPages: number
+    contentStructureCandidates: string
     universalLayoutCatalog: string
   }
 }
@@ -41,6 +45,7 @@ export function buildPlanningSystemPrompt(totalPages: number = 0): string {
     contentLanguageRules: CONTENT_LANGUAGE_RULES,
     sourceMaterialPlanningRules: SOURCE_MATERIAL_PLANNING_RULES,
     totalPages,
+    contentStructureCandidates: formatContentStructureCandidatePrompt(),
     universalLayoutCatalog: formatUniversalLayoutCatalogPrompt()
   })
 }

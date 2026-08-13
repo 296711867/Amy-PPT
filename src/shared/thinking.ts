@@ -1,6 +1,6 @@
 import type { FontSelection, SourceDocumentPlan } from './generation'
 import type { LayoutIntent } from './layout-intent'
-import type { UniversalLayoutId } from './universal-layouts'
+import type { ContentStructure, UniversalLayoutId } from './universal-layouts'
 
 export type ThinkingStage = 'collect' | 'outline' | 'draft' | 'refine' | 'ready'
 
@@ -95,5 +95,7 @@ export interface ThinkingPageOutlineUpdate {
   summary: string
   keyPoints: string[]
   layoutIntent?: LayoutIntent
+  contentStructure?: ContentStructure
+  moduleCount?: number
   layoutId?: UniversalLayoutId
 }

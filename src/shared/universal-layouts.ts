@@ -34,6 +34,25 @@ export const UNIVERSAL_LAYOUT_IDS = [
 export type UniversalLayoutId = (typeof UNIVERSAL_LAYOUT_IDS)[number]
 export type UniversalLayoutFamily = 'text' | 'mixed' | 'gallery'
 
+export const CONTENT_STRUCTURE_IDS = [
+  'single-focus',
+  'parallel',
+  'comparison',
+  'sequence',
+  'hierarchy',
+  'grouped',
+  'image-support',
+  'gallery'
+] as const
+
+export type ContentStructure = (typeof CONTENT_STRUCTURE_IDS)[number]
+
+export type UniversalLayoutCandidateQuery = {
+  moduleCount: number
+  intent?: LayoutIntent
+  contentStructure?: ContentStructure
+}
+
 export type UniversalLayoutDefinition = {
   id: UniversalLayoutId
   intent: LayoutIntent
@@ -335,6 +354,27 @@ export const UNIVERSAL_LAYOUTS: readonly UniversalLayoutDefinition[] = [
 
 const UNIVERSAL_LAYOUT_BY_ID = new Map(UNIVERSAL_LAYOUTS.map((layout) => [layout.id, layout]))
 
+const CONTENT_STRUCTURE_SET = new Set<string>(CONTENT_STRUCTURE_IDS)
+
+const CONTENT_STRUCTURE_GUIDANCE: Record<ContentStructure, string> = {
+  'single-focus': 'one thesis, quote, conclusion, or dominant idea',
+  parallel: 'peer ideas with equal importance',
+  comparison: 'alternatives, before/after states, or paired evidence',
+  sequence: 'ordered steps, stages, dependencies, or progression',
+  hierarchy: 'one or two primary ideas supported by secondary points',
+  grouped: 'points that form two or more meaningful clusters',
+  'image-support': 'one replaceable image supporting text modules',
+  gallery: 'multiple distinct visuals with captions or short labels'
+}
+
+export const normalizeContentStructure = (value: unknown): ContentStructure | undefined => {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-')
+  return CONTENT_STRUCTURE_SET.has(normalized) ? (normalized as ContentStructure) : undefined
+}
+
 export const getUniversalLayout = (value: unknown): UniversalLayoutDefinition | null => {
   const layout = UNIVERSAL_LAYOUT_BY_ID.get(String(value || '').trim() as UniversalLayoutId)
   return layout ? { ...layout } : null
@@ -362,61 +402,155 @@ const pickUnusedLayout = (
   )
 }
 
+const structureScore = (
+  layout: UniversalLayoutDefinition,
+  structure: ContentStructure | undefined
+): number => {
+  if (!structure) return 0
+  const silhouette = layout.silhouette
+  switch (structure) {
+    case 'single-focus':
+      return Number(layout.moduleCount === 1) * 20 + Number(silhouette.includes('center')) * 4
+    case 'parallel':
+      return Number(/row|grid|even|flat|stack/.test(silhouette)) * 8
+    case 'comparison':
+      return Number(/split|asymmetric|columns|even/.test(silhouette)) * 8
+    case 'sequence':
+      return Number(/stair|stack/.test(silhouette)) * 8
+    case 'hierarchy':
+      return Number(/feature|asymmetric|offset/.test(silhouette)) * 8
+    case 'grouped':
+      return Number(/columns|two-three|grid/.test(silhouette)) * 8
+    case 'image-support':
+      return Number(layout.family === 'mixed') * 20
+    case 'gallery':
+      return Number(layout.family === 'gallery') * 20
+  }
+}
+
+const intentScore = (layout: UniversalLayoutDefinition, intent: LayoutIntent | undefined): number => {
+  if (intent === 'process' || intent === 'timeline') {
+    return Number(/stair|stack/.test(layout.silhouette)) * 5
+  }
+  if (intent === 'comparison') {
+    return Number(/split|asymmetric|columns|even/.test(layout.silhouette)) * 5
+  }
+  if (intent === 'summary' || intent === 'quote') {
+    return Number(/single|feature/.test(layout.silhouette)) * 5
+  }
+  return 0
+}
+
+const isStructureCompatible = (
+  layout: UniversalLayoutDefinition,
+  structure: ContentStructure | undefined
+): boolean => {
+  if (!structure) return true
+  const silhouette = layout.silhouette
+  switch (structure) {
+    case 'single-focus':
+      return layout.moduleCount === 1
+    case 'parallel':
+      return /row|grid|even|flat|stack|asymmetric/.test(silhouette)
+    case 'comparison':
+      return /split|asymmetric|columns|even|row|grid/.test(silhouette)
+    case 'sequence':
+      return /stair|stack/.test(silhouette)
+    case 'hierarchy':
+      return /feature|asymmetric|offset/.test(silhouette)
+    case 'grouped':
+      return /columns|two-three|grid/.test(silhouette)
+    case 'image-support':
+      return layout.family === 'mixed'
+    case 'gallery':
+      return layout.family === 'gallery'
+  }
+}
+
+/**
+ * The authoritative "content structure -> candidate layouts" bridge.
+ * Agents may rank these candidates, while the host validates and rotates the final choice.
+ */
+export const getUniversalLayoutCandidates = (
+  query: UniversalLayoutCandidateQuery
+): UniversalLayoutDefinition[] => {
+  const moduleCount = Math.max(1, Math.min(6, Math.floor(query.moduleCount)))
+  const structure = normalizeContentStructure(query.contentStructure)
+  const requiredFamily: UniversalLayoutFamily | undefined =
+    structure === 'image-support'
+      ? 'mixed'
+      : structure === 'gallery'
+        ? 'gallery'
+        : query.intent === 'image-focus'
+          ? undefined
+          : 'text'
+
+  let candidates = UNIVERSAL_LAYOUTS.filter(
+    (layout) =>
+      layout.moduleCount === moduleCount && (!requiredFamily || layout.family === requiredFamily)
+  )
+
+  const structureCandidates = candidates.filter((layout) =>
+    isStructureCompatible(layout, structure)
+  )
+  if (structureCandidates.length > 0) candidates = structureCandidates
+
+  if (query.intent === 'image-focus' && !structure) {
+    const visualCandidates = candidates.filter((layout) => layout.imageCount > 0)
+    if (visualCandidates.length > 0) candidates = visualCandidates
+  }
+
+  return [...candidates].sort((a, b) => {
+    const scoreDifference =
+      structureScore(b, structure) + intentScore(b, query.intent) -
+      (structureScore(a, structure) + intentScore(a, query.intent))
+    return scoreDifference || UNIVERSAL_LAYOUT_IDS.indexOf(a.id) - UNIVERSAL_LAYOUT_IDS.indexOf(b.id)
+  })
+}
+
 export const resolveUniversalLayoutId = (args: {
   value?: unknown
   moduleCount: number
   intent?: LayoutIntent
+  contentStructure?: ContentStructure
   recentLayoutIds?: readonly UniversalLayoutId[]
 }): UniversalLayoutId | undefined => {
   const recentLayoutIds = args.recentLayoutIds || []
   const explicit = getUniversalLayout(args.value)
-  if (explicit && !recentLayoutIds.includes(explicit.id)) return explicit.id
-  if (explicit) {
-    const alternatives = UNIVERSAL_LAYOUTS.filter(
-      (layout) =>
-        layout.id !== explicit.id &&
-        layout.family === explicit.family &&
-        layout.moduleCount === explicit.moduleCount &&
-        layout.imageCount === explicit.imageCount
-    )
-    return pickUnusedLayout(alternatives, recentLayoutIds) || explicit.id
+  let candidates = getUniversalLayoutCandidates(args)
+  if (candidates.length === 0) {
+    candidates = getUniversalLayoutCandidates({
+      moduleCount: args.moduleCount,
+      intent: args.intent
+    })
   }
-
-  const count = Math.max(1, Math.min(6, Math.floor(args.moduleCount)))
-  const family: UniversalLayoutFamily = args.intent === 'image-focus' ? 'gallery' : 'text'
-  let candidates = UNIVERSAL_LAYOUTS.filter(
-    (layout) => layout.family === family && layout.moduleCount === count
-  )
-  if (candidates.length === 0 && args.intent === 'image-focus') {
-    candidates = UNIVERSAL_LAYOUTS.filter(
-      (layout) => layout.moduleCount === count && layout.imageCount > 0
-    )
-  }
-  if (args.intent === 'process') {
-    candidates = [...candidates].sort(
-      (a, b) => Number(b.silhouette.includes('stair')) - Number(a.silhouette.includes('stair'))
-    )
-  } else if (args.intent === 'comparison') {
-    candidates = [...candidates].sort(
-      (a, b) =>
-        Number(b.silhouette.includes('split') || b.silhouette.includes('columns')) -
-        Number(a.silhouette.includes('split') || a.silhouette.includes('columns'))
-    )
-  }
+  const explicitIsCompatible = explicit && candidates.some((layout) => layout.id === explicit.id)
+  if (explicitIsCompatible && !recentLayoutIds.includes(explicit.id)) return explicit.id
   return pickUnusedLayout(candidates, recentLayoutIds)
 }
 
-export const diversifyUniversalLayoutSequence = <T extends { layoutId?: unknown }>(
+export const diversifyUniversalLayoutSequence = <
+  T extends {
+    layoutId?: unknown
+    moduleCount?: number
+    contentStructure?: ContentStructure
+    layoutIntent?: LayoutIntent
+  }
+>(
   items: readonly T[]
 ): Array<T & { layoutId?: UniversalLayoutId }> => {
   const recentLayoutIds: UniversalLayoutId[] = []
   return items.map((item) => {
     const layout = getUniversalLayout(item.layoutId)
-    if (!layout) return { ...item, layoutId: undefined }
+    const moduleCount = Number.isFinite(item.moduleCount)
+      ? Math.max(1, Math.min(6, Math.floor(item.moduleCount as number)))
+      : layout?.moduleCount
+    if (!moduleCount) return { ...item, layoutId: undefined }
     const layoutId = resolveUniversalLayoutId({
-      value: layout.id,
-      moduleCount: layout.moduleCount,
-      intent: layout.intent,
+      value: layout?.id,
+      moduleCount,
+      intent: item.layoutIntent || layout?.intent,
+      contentStructure: item.contentStructure,
       recentLayoutIds: recentLayoutIds.slice(-2)
     })
     if (layoutId) recentLayoutIds.push(layoutId)
@@ -429,6 +563,18 @@ export const formatUniversalLayoutCatalogPrompt = (): string =>
     (layout) =>
       `- ${layout.id}: family=${layout.family}; contentModules=${layout.moduleCount}; imageSlots=${layout.imageCount}; silhouette=${layout.silhouette}; ${layout.prompt}`
   ).join('\n')
+
+export const formatContentStructureCandidatePrompt = (): string =>
+  CONTENT_STRUCTURE_IDS.map((structure) => {
+    const candidateIds = Array.from({ length: 6 }, (_unused, index) => index + 1)
+      .flatMap((moduleCount) =>
+        getUniversalLayoutCandidates({ moduleCount, contentStructure: structure }).map(
+          (layout) => layout.id
+        )
+      )
+      .filter((id, index, all) => all.indexOf(id) === index)
+    return `- ${structure}: ${CONTENT_STRUCTURE_GUIDANCE[structure]}; candidates=${candidateIds.join(', ') || 'none'}`
+  }).join('\n')
 
 export const formatUniversalLayoutPrompt = (value: unknown): string => {
   const layout = getUniversalLayout(value)

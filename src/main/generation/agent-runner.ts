@@ -31,6 +31,7 @@ import {
   diversifyUniversalLayoutSequence,
   formatUniversalLayoutCatalogPrompt,
   formatUniversalLayoutPrompt,
+  normalizeContentStructure,
   normalizeUniversalLayoutId,
   resolveUniversalLayoutId,
   type UniversalLayoutId
@@ -297,7 +298,7 @@ const buildPlanningRetryUserPrompt = (
     `- The previous planning response failed validation: ${previousError}`,
     `- Retry now and return exactly ${totalPages} items.`,
     '- Return only a raw JSON array. Do not wrap it in Markdown. Do not add explanations.',
-    '- Each item must have exactly these fields: title, keyPoints, layoutIntent, layoutId.',
+    '- Each item must have exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId.',
     '- layoutId must be a universal layout catalog ID or null.',
     '- keyPoints must be an array with 1-10 short strings.'
   ].join('\n')
@@ -388,6 +389,12 @@ export const planDeckWithLLM = async (args: {
     const items: OutlineItem[] = (parsed as Array<Record<string, unknown>>).map((item, index) => {
       const title = String(item.title ?? '').trim()
       const keyPoints = normalizeKeyPoints(item.keyPoints)
+      const requestedModuleCount = Number(item.moduleCount)
+      const moduleCount = Number.isFinite(requestedModuleCount)
+        ? Math.max(1, Math.min(6, Math.floor(requestedModuleCount)))
+        : Math.max(1, Math.min(6, keyPoints.length))
+      const contentStructure = normalizeContentStructure(item.contentStructure)
+      const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
       if (!title) {
         throw new Error(
           uiText(
@@ -409,11 +416,14 @@ export const planDeckWithLLM = async (args: {
       return {
         title,
         contentOutline: normalizeOutlineText(keyPoints.join('；')),
-        layoutIntent: normalizeLayoutIntent(item.layoutIntent),
+        layoutIntent,
+        contentStructure,
+        moduleCount,
         layoutId: resolveUniversalLayoutId({
           value: item.layoutId,
-          moduleCount: keyPoints.length,
-          intent: normalizeLayoutIntent(item.layoutIntent)
+          moduleCount,
+          intent: layoutIntent,
+          contentStructure
         })
       }
     })
@@ -563,6 +573,8 @@ export const planNewPage = async (args: {
   title: string
   contentOutline: string
   layoutIntent: LayoutIntent
+  contentStructure?: import('@shared/universal-layouts').ContentStructure
+  moduleCount?: number
   layoutId?: UniversalLayoutId
 }> => {
   const client = resolveModel(
@@ -607,8 +619,8 @@ export const planNewPage = async (args: {
     'Universal layout catalog:',
     formatUniversalLayoutCatalogPrompt(),
     '',
-    'Choose a catalog layoutId when the slide has 2-5 modules. Use null only when none fits.',
-    'Return only a JSON object with exactly these fields: title, keyPoints, layoutIntent, layoutId.',
+    'Choose contentStructure first, then moduleCount, then a compatible catalog layoutId. Nearby slides with the same structure should use a different silhouette.',
+    'Return only a JSON object with exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId.',
     'Do not add explanations, Markdown, or extra text.',
     'keyPoints must contain 1-10 short phrases. If the user explicitly lists topics for this slide, preserve each listed topic as a separate key point when possible.'
   ]
@@ -652,13 +664,19 @@ export const planNewPage = async (args: {
   const keyPoints = normalizeKeyPoints(item.keyPoints)
   const contentOutline = normalizeOutlineText(keyPoints.join('；'))
   const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
+  const contentStructure = normalizeContentStructure(item.contentStructure)
+  const requestedModuleCount = Number(item.moduleCount)
+  const moduleCount = Number.isFinite(requestedModuleCount)
+    ? Math.max(1, Math.min(6, Math.floor(requestedModuleCount)))
+    : Math.max(1, Math.min(6, keyPoints.length))
   const layoutId = resolveUniversalLayoutId({
     value: item.layoutId,
-    moduleCount: keyPoints.length,
-    intent: layoutIntent
+    moduleCount,
+    intent: layoutIntent,
+    contentStructure
   })
 
-  return { title, contentOutline, layoutIntent, layoutId }
+  return { title, contentOutline, layoutIntent, contentStructure, moduleCount, layoutId }
 }
 
 export const buildDesignContractWithLLM = async (args: {

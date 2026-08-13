@@ -1,7 +1,10 @@
 import path from 'path'
 import type { SourceDocumentPlan } from '@shared/generation'
 import { normalizeLayoutIntent } from '@shared/layout-intent'
-import { normalizeUniversalLayoutId } from '@shared/universal-layouts'
+import {
+  normalizeContentStructure,
+  normalizeUniversalLayoutId
+} from '@shared/universal-layouts'
 
 const MAX_THINKING_PAGE_OUTLINE_CHARS = 520
 const MAX_THINKING_PAGE_KEY_POINTS = 10
@@ -30,7 +33,11 @@ export const buildThinkingPageOutline = (blockLines: string[]): string => {
       collectingSummary = false
       continue
     }
-    if (/^-\s*(Role|Objective)\s*:/i.test(line)) continue
+    if (
+      /^-\s*(Role|Objective|Layout Intent|Content Structure|Module Count|Layout)\s*:/i.test(line)
+    ) {
+      continue
+    }
     if (/^-\s+/.test(line)) {
       keyPointLines.push(line.replace(/^-\s+/, '').trim())
       collectingSummary = false
@@ -80,6 +87,8 @@ export function buildThinkingSourcePlan(
       const blockLines = lines.slice(heading.lineNumber, lineEnd)
       const roleText = readThinkingPageField(blockLines, 'Role')
       const layoutIntentText = readThinkingPageField(blockLines, 'Layout Intent')
+      const contentStructureText = readThinkingPageField(blockLines, 'Content Structure')
+      const moduleCountText = readThinkingPageField(blockLines, 'Module Count')
       const layoutIdText = readThinkingPageField(blockLines, 'Layout')
       const pageOutline = buildThinkingPageOutline(blockLines)
       const roleBasis = `${heading.title}\n${roleText}`
@@ -99,6 +108,10 @@ export function buildThinkingSourcePlan(
         lineEnd,
         reason: pageOutline || roleText || 'Thinking page section',
         layoutIntent: layoutIntentText ? normalizeLayoutIntent(layoutIntentText) : undefined,
+        contentStructure: normalizeContentStructure(contentStructureText),
+        moduleCount: /^\d+$/.test(moduleCountText)
+          ? Math.max(1, Math.min(6, Number.parseInt(moduleCountText, 10)))
+          : undefined,
         layoutId: normalizeUniversalLayoutId(layoutIdText)
       }
     })
