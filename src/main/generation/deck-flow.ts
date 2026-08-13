@@ -318,6 +318,8 @@ export async function executeDeckGeneration(
         layoutIntent: planned?.layoutIntent,
         contentStructure: planned?.contentStructure,
         moduleCount: planned?.moduleCount,
+        visualAspect: planned?.visualAspect,
+        contentDensity: planned?.contentDensity,
         layoutId: planned?.layoutId
       }
     })
@@ -600,6 +602,10 @@ export async function executeDeckGeneration(
       title: page.title,
       contentOutline: outlineItems[index]?.contentOutline || '',
       layoutIntent: outlineItems[index]?.layoutIntent,
+      contentStructure: outlineItems[index]?.contentStructure,
+      moduleCount: outlineItems[index]?.moduleCount,
+      visualAspect: outlineItems[index]?.visualAspect,
+      contentDensity: outlineItems[index]?.contentDensity,
       layoutId: outlineItems[index]?.layoutId,
       imageAssetPath: outlineItems[index]?.imageAssetPath,
       imageAssetPaths: outlineItems[index]?.imageAssetPaths

@@ -10,10 +10,13 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('if the material does not naturally fill 7 slides')
     expect(prompt).toContain('## Content language')
     expect(prompt).toContain(
-      'title, keyPoints, layoutIntent, contentStructure, moduleCount, and layoutId'
+      'title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId'
     )
-    expect(prompt).toContain('content structure -> candidate pool -> rotated final layout')
+    expect(prompt).toContain(
+      'content structure -> module/image geometry -> candidate pool -> rotated final layout'
+    )
     expect(prompt).toContain('sequence:')
+    expect(prompt).toContain('six-images-row-portrait')
     expect(prompt).toContain('five-cards-2-3-image')
     expect(prompt).not.toMatch(/\{\{[^}]+\}\}/)
   })

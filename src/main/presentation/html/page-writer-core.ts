@@ -767,7 +767,11 @@ export async function validatePersistedPageAfterEdit(args: {
     slideSize: SlideSizePreset
   }) => Promise<RenderedPageValidationResult>
 }): Promise<QualityViolation[]> {
-  const html = await fs.promises.readFile(args.targetPath, 'utf-8')
+  const editedHtml = await fs.promises.readFile(args.targetPath, 'utf-8')
+  const html = replaceDataIcons(editedHtml).html
+  if (html !== editedHtml) {
+    await fs.promises.writeFile(args.targetPath, html, 'utf-8')
+  }
   const persistedValidation = validatePersistedPageHtml(html, args.pageId)
   if (!persistedValidation.valid) {
     throw new PageWriteValidationError(

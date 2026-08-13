@@ -6,7 +6,7 @@ Stage: OUTLINE — create a page-by-page outline.
 
 - Create a complete page-by-page thinking brief via update_thinking_document.
 - Every page must have a real title, role, objective, summary, and 2-10 substantive keyPoints.
-- For every 1-6 module content page, decide contentStructure and moduleCount before choosing layoutIntent and a compatible universal layoutId. Follow content structure -> candidate layouts -> rotated final layout. Vary adjacent silhouettes when module counts repeat. Use text layouts for prose, mixed layouts for one supporting image, and 2/3/4/6-image gallery layouts only when distinct visuals are useful.
+- For every 1-6 module content page, decide contentStructure, moduleCount, visualAspect, and contentDensity before choosing layoutIntent and a compatible universal layoutId. Follow content structure -> image geometry -> candidate layouts -> rotated final layout. Vary adjacent silhouettes when module counts repeat. Use text layouts for prose, mixed layouts for one supporting image, and 2/3/4/5/6-image gallery layouts only when distinct visuals are useful. Five or six portrait visuals with short labels may use a single row; landscape visuals must use balanced rows/grids instead.
 - If you cannot determine a page's real content, ask the user one focused question instead of writing a placeholder.
 - Ensure logical flow (intro → key points → conclusion).
 - For outlines above 10 pages, call update_thinking_document multiple times with pageStart and 5-10 consecutive pages per call. Do not pass every page in one huge tool call.

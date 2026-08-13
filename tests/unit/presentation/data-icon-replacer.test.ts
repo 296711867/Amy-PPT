@@ -17,12 +17,59 @@ describe('replaceDataIcons', () => {
     expect(out).not.toContain('data-icon')
   })
 
-  it('preserves inline style alongside class', () => {
-    const html = '<svg data-icon="star" class="w-10 h-10" style="color:red"></svg>'
+  it('preserves presentation, accessibility, and animation metadata', () => {
+    const html =
+      '<svg data-icon="star" class="w-10 h-10" style="color:red" aria-label="Featured" data-motion="bounce"></svg>'
     const { html: out } = replaceDataIcons(html)
     expect(out).toContain('style="color:red"')
     expect(out).toContain('w-10 h-10')
+    expect(out).toContain('aria-label="Featured"')
+    expect(out).toContain('data-motion="bounce"')
     expect(out).toMatch(/<path/)
+  })
+
+  it('keeps only safe root attributes and replaces untrusted children', () => {
+    const html =
+      '<svg data-icon="rocket" class="w-12 h-12" aria-label="Launch" data-anim="fade-up" data-unknown="drop" onclick="alert(1)" href="https://example.com/icon.svg" xlink:href="https://example.com/sprite.svg#rocket"><script>alert(2)</script><circle data-old-child="1"/></svg>'
+    const { html: out, unknownIds } = replaceDataIcons(html)
+
+    expect(unknownIds).toEqual([])
+    expect(out).not.toMatch(/onclick=/i)
+    expect(out).not.toMatch(/(?:xlink:)?href=/i)
+    expect(out).not.toContain('data-unknown')
+    expect(out).not.toContain('<script')
+    expect(out).not.toContain('data-old-child')
+    expect(out).toContain('aria-label="Launch"')
+    expect(out).toContain('data-anim="fade-up"')
+    expect(out).toMatch(/<path[^>]*d="/)
+  })
+
+  it('drops styles that can load external resources while preserving normal color styles', () => {
+    const unsafe = replaceDataIcons(
+      '<svg data-icon="rocket" style="filter:url(https://example.com/filter.svg#x);color:red"></svg>'
+    ).html
+    const safe = replaceDataIcons('<svg data-icon="rocket" style="color:red"></svg>').html
+
+    expect(unsafe).not.toContain('style=')
+    expect(unsafe).not.toContain('example.com')
+    expect(safe).toContain('style="color:red"')
+  })
+
+  it('keeps an empty id for validation instead of silently deleting it', () => {
+    const html = '<svg data-icon="  " class="w-8 h-8"></svg>'
+    const { html: out, unknownIds } = replaceDataIcons(html)
+
+    expect(unknownIds).toEqual(['(empty)'])
+    expect(out).toContain('data-icon="  "')
+  })
+
+  it('does not convert data-icon references on non-svg elements', () => {
+    const html = '<div data-icon="rocket" class="w-12 h-12"></div>'
+    const { html: out, unknownIds } = replaceDataIcons(html)
+
+    expect(unknownIds).toEqual(['rocket'])
+    expect(out).toContain('<div data-icon="rocket"')
+    expect(out).not.toMatch(/<path/)
   })
 
   it('leaves unknown icon ids untouched and reports them', () => {

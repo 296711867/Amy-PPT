@@ -15,6 +15,7 @@ import { type HtmlToPptxEmbeddedFont, type HtmlToPptxSlide } from '@arcsin1/html
 import { writeHtmlToPptx } from '@arcsin1/html2pptx/node'
 import { collectEmbeddedFonts } from './html-pptx/font-collect'
 import { captureHtmlPageToPptxImageSlide, extractHtmlPageToPptxSlide } from './html-pptx/renderer'
+import { assertPptxPagesHaveResolvedIcons } from './html-pptx/icon-preflight'
 import { resolvePptxExportLayout } from './html-pptx/static-background'
 import {
   exportHtmlPagesToVideo,
@@ -639,6 +640,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const pages = requestedPageId
       ? allPages.filter((page) => page.id === requestedPageId)
       : allPages
+    await assertPptxPagesHaveResolvedIcons(pages)
     if (requestedPageId && pages.length === 0) {
       throw new Error(`页面不存在：${requestedPageId}`)
     }

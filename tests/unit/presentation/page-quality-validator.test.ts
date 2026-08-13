@@ -152,6 +152,50 @@ describe('validatePageQuality', () => {
     })
   })
 
+  describe('data-icon references', () => {
+    it('rejects an unknown icon id that remains after replacement', () => {
+      const html = wrap(
+        '<div class="px-24"><h1 class="text-5xl">Icon reference</h1><svg data-icon="not-a-real-icon-id" class="w-12 h-12"></svg></div>'
+      )
+      const violations = validatePageQuality(html, wide).filter(
+        (item) => item.code === 'unknown-icon-id'
+      )
+
+      expect(violations).toEqual([
+        expect.objectContaining({
+          severity: 'error',
+          detail: expect.stringContaining('not-a-real-icon-id')
+        })
+      ])
+    })
+
+    it('rejects an empty icon id', () => {
+      const html = wrap(
+        '<div class="px-24"><h1 class="text-5xl">Icon reference</h1><svg data-icon=""></svg></div>'
+      )
+      const violations = validatePageQuality(html, wide).filter(
+        (item) => item.code === 'unknown-icon-id'
+      )
+
+      expect(violations).toEqual([
+        expect.objectContaining({ severity: 'error', detail: expect.stringContaining('data-icon') })
+      ])
+    })
+
+    it('rejects data-icon on a non-svg element', () => {
+      const html = wrap(
+        '<div class="px-24"><h1 class="text-5xl">Icon reference</h1><div data-icon="rocket"></div><svg viewBox="0 0 24 24"></svg></div>'
+      )
+      const violations = validatePageQuality(html, wide).filter(
+        (item) => item.code === 'unknown-icon-id'
+      )
+
+      expect(violations).toEqual([
+        expect.objectContaining({ severity: 'error', detail: expect.stringContaining('<div>') })
+      ])
+    })
+  })
+
   describe('combined', () => {
     it('returns empty for a clean compliant page', () => {
       const html = wrap(

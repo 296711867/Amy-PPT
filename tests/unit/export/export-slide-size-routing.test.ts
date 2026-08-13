@@ -19,6 +19,7 @@ describe('export slide-size routing', () => {
     expect(pptxHandler).toContain('const slideSize = requireSessionSlideSize(session)')
     expect(pptxHandler).toContain('assertPptxExportSupported(slideSize)')
     expect(pptxHandler).toContain('const pptxLayout = resolvePptxExportLayout(slideSize)')
+    expect(pptxHandler).toContain('await assertPptxPagesHaveResolvedIcons(pages)')
     expect(pptxHandler).toContain('widthIn: pptxLayout.slideWidthIn')
     expect(pptxHandler).toContain('heightIn: pptxLayout.slideHeightIn')
   })

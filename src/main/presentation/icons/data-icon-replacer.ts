@@ -1,6 +1,39 @@
 import * as cheerio from 'cheerio'
 import { getIconInner, getIconStrokeAttrs, getIconViewBox } from './icon-registry'
 
+const SAFE_ROOT_ATTRIBUTES = new Set([
+  'class',
+  'style',
+  'id',
+  'role',
+  'tabindex',
+  'focusable',
+  'width',
+  'height',
+  'x',
+  'y',
+  'preserveaspectratio',
+  'opacity',
+  'transform',
+  'vector-effect',
+  'color'
+])
+
+const UNSAFE_STYLE_VALUE =
+  /(?:url\s*\(|expression\s*\(|@import|javascript\s*:|behavior\s*:|-moz-binding)/i
+
+const isSafeRootAttribute = (name: string, value: string): boolean => {
+  const normalized = name.toLowerCase()
+  if (normalized === 'style') return !UNSAFE_STYLE_VALUE.test(value)
+  return (
+    SAFE_ROOT_ATTRIBUTES.has(normalized) ||
+    normalized.startsWith('aria-') ||
+    normalized === 'data-motion' ||
+    normalized === 'data-anim' ||
+    normalized.startsWith('data-anim-')
+  )
+}
+
 /**
  * 把 HTML 里的 `data-icon="id"` 引用替换成真实 lucide SVG inner markup。
  *
@@ -22,7 +55,12 @@ export function replaceDataIcons(html: string): { html: string; unknownIds: stri
     const $el = $(el)
     const id = ($el.attr('data-icon') || '').trim()
     if (!id) {
-      $el.removeAttr('data-icon')
+      if (!unknownIds.includes('(empty)')) unknownIds.push('(empty)')
+      return
+    }
+    const tagName = String($el.prop('tagName') || '').toLowerCase()
+    if (tagName !== 'svg') {
+      if (!unknownIds.includes(id)) unknownIds.push(id)
       return
     }
     const inner = getIconInner(id)
@@ -31,14 +69,20 @@ export function replaceDataIcons(html: string): { html: string; unknownIds: stri
       if (!unknownIds.includes(id)) unknownIds.push(id)
       return
     }
+    for (const [name, value] of Object.entries($el.attr() || {})) {
+      if (name.toLowerCase() === 'data-icon') continue
+      if (!isSafeRootAttribute(name, value)) $el.removeAttr(name)
+    }
     // 已知 id：保留原 class/style，构造标准描边 svg
-    const cls = $el.attr('class') || ''
-    const style = $el.attr('style') || ''
-    const classAttr = cls ? ` class="${cls}"` : ''
-    const styleAttr = style ? ` style="${style}"` : ''
-    $el.replaceWith(
-      `<svg${classAttr}${styleAttr} viewBox="${viewBox}" ${strokeAttrs}>${inner}</svg>`
-    )
+    $el.attr('viewBox', viewBox)
+    const trustedSvg = cheerio.load(`<svg ${strokeAttrs}></svg>`, {
+      scriptingEnabled: false
+    })('svg')
+    for (const [name, value] of Object.entries(trustedSvg.attr() || {})) {
+      $el.attr(name, value)
+    }
+    $el.html(inner)
+    $el.removeAttr('data-icon')
   })
 
   return { html: $.html(), unknownIds }

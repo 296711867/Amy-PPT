@@ -3,7 +3,9 @@ import type { SourceDocumentPlan } from '@shared/generation'
 import { normalizeLayoutIntent } from '@shared/layout-intent'
 import {
   normalizeContentStructure,
-  normalizeUniversalLayoutId
+  normalizeContentDensity,
+  normalizeUniversalLayoutId,
+  normalizeVisualAspect
 } from '@shared/universal-layouts'
 
 const MAX_THINKING_PAGE_OUTLINE_CHARS = 520
@@ -34,7 +36,9 @@ export const buildThinkingPageOutline = (blockLines: string[]): string => {
       continue
     }
     if (
-      /^-\s*(Role|Objective|Layout Intent|Content Structure|Module Count|Layout)\s*:/i.test(line)
+      /^-\s*(Role|Objective|Layout Intent|Content Structure|Module Count|Visual Aspect|Content Density|Layout)\s*:/i.test(
+        line
+      )
     ) {
       continue
     }
@@ -89,6 +93,8 @@ export function buildThinkingSourcePlan(
       const layoutIntentText = readThinkingPageField(blockLines, 'Layout Intent')
       const contentStructureText = readThinkingPageField(blockLines, 'Content Structure')
       const moduleCountText = readThinkingPageField(blockLines, 'Module Count')
+      const visualAspectText = readThinkingPageField(blockLines, 'Visual Aspect')
+      const contentDensityText = readThinkingPageField(blockLines, 'Content Density')
       const layoutIdText = readThinkingPageField(blockLines, 'Layout')
       const pageOutline = buildThinkingPageOutline(blockLines)
       const roleBasis = `${heading.title}\n${roleText}`
@@ -111,6 +117,10 @@ export function buildThinkingSourcePlan(
         contentStructure: normalizeContentStructure(contentStructureText),
         moduleCount: /^\d+$/.test(moduleCountText)
           ? Math.max(1, Math.min(6, Number.parseInt(moduleCountText, 10)))
+          : undefined,
+        visualAspect: visualAspectText ? normalizeVisualAspect(visualAspectText) : undefined,
+        contentDensity: contentDensityText
+          ? normalizeContentDensity(contentDensityText)
           : undefined,
         layoutId: normalizeUniversalLayoutId(layoutIdText)
       }

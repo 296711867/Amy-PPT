@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import * as cheerio from 'cheerio'
 
 /**
  * 图标库注册表：加载 lucide 全集（resources/icons/lucide-icons.json），
@@ -148,6 +149,99 @@ const POPULAR_BY_ID = new Map(POPULAR_ICONS.map((item) => [item.id, item.label])
 
 let cache: IconLibraryCache | null = null
 
+const SAFE_ICON_TAGS = new Set(['path', 'circle', 'ellipse', 'line', 'polygon', 'polyline', 'rect'])
+const SAFE_ICON_ATTRIBUTES = new Set([
+  'cx',
+  'cy',
+  'd',
+  'fill',
+  'height',
+  'points',
+  'r',
+  'rx',
+  'ry',
+  'width',
+  'x',
+  'x1',
+  'x2',
+  'y',
+  'y1',
+  'y2'
+])
+
+const validateRootStrokeAttributes = (strokeAttrs: string): void => {
+  const $ = cheerio.load(`<svg ${strokeAttrs}></svg>`, { scriptingEnabled: false }, false)
+  const attributes = $('svg').first().attr() || {}
+  const expected: Record<string, string> = {
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round'
+  }
+  if (
+    Object.keys(attributes).length !== Object.keys(expected).length ||
+    Object.entries(expected).some(([name, value]) => attributes[name] !== value)
+  ) {
+    throw new Error('Icon library has unsafe or unsupported root SVG attributes')
+  }
+}
+
+const validateIconLibraryData = (data: IconLibraryData): void => {
+  if (data.viewBox !== '0 0 24 24') {
+    throw new Error(`Icon library has an unsupported viewBox: ${data.viewBox}`)
+  }
+  validateRootStrokeAttributes(data.strokeAttrs)
+  const entries = Object.entries(data.icons || {})
+  if (!Number.isInteger(data.count) || data.count !== entries.length) {
+    throw new Error(`Icon library count mismatch: declared ${data.count}, loaded ${entries.length}`)
+  }
+
+  for (const [id, inner] of entries) {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(id) || typeof inner !== 'string' || !inner.trim()) {
+      throw new Error(`Icon library entry "${id}" has an invalid id or empty markup`)
+    }
+  }
+
+  const combinedMarkup = entries
+    .map(([, inner], index) => `<g data-registry-index="${index}">${inner}</g>`)
+    .join('')
+  const $ = cheerio.load(`<svg>${combinedMarkup}</svg>`, { scriptingEnabled: false }, false)
+  const groups = $('svg').first().children('g[data-registry-index]').toArray()
+  if (groups.length !== entries.length || $('svg').first().children().length !== entries.length) {
+    throw new Error('Icon library contains malformed markup that escapes its registry entry')
+  }
+
+  groups.forEach((group, index) => {
+    const [id] = entries[index]
+    const $group = $(group)
+    if ($group.attr('data-registry-index') !== String(index) || $group.text().trim()) {
+      throw new Error(`Icon library entry "${id}" contains malformed or textual content`)
+    }
+    let invalid: string | null = null
+    $group.find('*').each((_index, element) => {
+      if (invalid) return
+      const $element = $(element)
+      const tagName = String($element.prop('tagName') || '').toLowerCase()
+      if (!SAFE_ICON_TAGS.has(tagName)) {
+        invalid = `tag <${tagName || 'unknown'}>`
+        return
+      }
+      for (const [name, value] of Object.entries($element.attr() || {})) {
+        if (!SAFE_ICON_ATTRIBUTES.has(name.toLowerCase())) {
+          invalid = `attribute ${name}`
+          return
+        }
+        if (/(?:url\s*\(|javascript\s*:)/i.test(value)) {
+          invalid = `unsafe value in ${name}`
+          return
+        }
+      }
+    })
+    if (invalid) throw new Error(`Icon library entry "${id}" has unsupported ${invalid}`)
+  })
+}
+
 function resolveIconsJsonPath(): string {
   // dev/test 下 cwd 有 resources/；打包后落在 app.asar.unpacked。用 existsSync 兜底，兼容非 electron 环境。
   const devPath = path.join(process.cwd(), 'resources', 'icons', 'lucide-icons.json')
@@ -160,6 +254,7 @@ export function loadIconLibrary(): IconLibraryData {
   if (cache) return cache.data
   const raw = fs.readFileSync(resolveIconsJsonPath(), 'utf-8')
   const data = JSON.parse(raw) as IconLibraryData
+  validateIconLibraryData(data)
   const ids = Object.keys(data.icons)
   cache = { data, idSet: new Set(ids), ids }
   return data

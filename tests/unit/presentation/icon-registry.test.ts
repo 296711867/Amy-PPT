@@ -13,8 +13,18 @@ describe('icon-registry', () => {
   it('loads the full lucide library (1000+ icons)', () => {
     const data = loadIconLibrary()
     expect(data.count).toBeGreaterThan(1000)
+    expect(data.count).toBe(Object.keys(data.icons).length)
     expect(data.viewBox).toBe('0 0 24 24')
     expect(data.strokeAttrs).toContain('stroke="currentColor"')
+  })
+
+  it('loads only basic geometry without scripts, links, or external resources', () => {
+    const data = loadIconLibrary()
+    const allMarkup = Object.values(data.icons).join('')
+
+    expect(allMarkup).not.toMatch(/<(?:script|style|foreignObject|image|use)\b/i)
+    expect(allMarkup).not.toMatch(/(?:href|\bon\w+)\s*=/i)
+    expect(allMarkup).not.toMatch(/(?:url\s*\(|javascript\s*:)/i)
   })
 
   it('getIconInner returns markup for known id, null for unknown', () => {

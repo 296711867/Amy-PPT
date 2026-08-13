@@ -62,6 +62,31 @@ describe('content expansion rules — always-on, not source-gated', () => {
     expect(deckPrompt).toContain('Selected layout master: Chart with takeaway')
   })
 
+  it('passes the planned module count and image geometry into page generation', () => {
+    const pagePrompt = buildSinglePageGenerationPrompt({
+      topic: 'App review',
+      deckTitle: 'App review',
+      pageId: 'page-3',
+      pageNumber: 3,
+      pageTitle: 'Six app screens',
+      pageOutline: 'Home; Search; Post; Messages; Profile; Settings',
+      slideSize: baseContext.slideSize,
+      layoutIntent: 'image-focus',
+      contentStructure: 'gallery',
+      moduleCount: 6,
+      visualAspect: 'portrait',
+      contentDensity: 'light',
+      layoutId: 'six-images-row-portrait',
+      layoutPrompt: 'Use exactly six slim portrait image frames in one horizontal row.'
+    })
+
+    expect(pagePrompt).toContain('Planned content structure: gallery')
+    expect(pagePrompt).toContain('Planned visible modules: 6')
+    expect(pagePrompt).toContain('Visual aspect: portrait')
+    expect(pagePrompt).toContain('Image-frame geometry is fixed as portrait')
+    expect(pagePrompt).toContain('Do not create extra equal-weight cards')
+  })
+
   it('scenario expansion rules expand only when the page is truly thin', () => {
     const scenario = readSource('src/main/agent-runtime/prompt/composers/canvas-scenario.ts')
 

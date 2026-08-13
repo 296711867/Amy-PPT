@@ -30,7 +30,7 @@ export function buildPlanningUserPrompt(args: {
     "",
     "Plan each slide title, key points, layout intent, and universal layout ID. Use short phrases, not long paragraphs.",
     sourcePlanningRules,
-    "Output must be a JSON array. Each item must be exactly { title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId }; choose contentStructure first, then moduleCount, then a compatible catalog layoutId; layoutId is a catalog ID or null; keyPoints must contain 1-10 strings.",
+    "Output must be a JSON array. Each item must be exactly { title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, layoutId }; choose semantic structure and image geometry before a compatible catalog layoutId; layoutId is a catalog ID or null; keyPoints must contain 1-10 strings.",
     `The array length must be exactly ${args.totalPages}.`,
     "User requirements:",
     args.userMessage,

@@ -41,6 +41,42 @@ afterEach(async () => {
 })
 
 describe('presentation persistence capabilities', () => {
+  it('expands a known data-icon into trusted inline SVG before persistence', async () => {
+    const projectDir = await createTemporaryDirectory()
+    const pagePath = path.join(projectDir, 'page-icon.html')
+    const result = await persistPageHtmlFromFragment({
+      content:
+        '<section class="px-24"><h1 class="text-5xl">Launch plan</h1><p class="text-xl">The delivery sequence is ready for presentation.</p><svg data-icon="rocket" class="w-12 h-12 text-blue-500" aria-label="Launch"></svg></section>',
+      pageId: 'page-icon',
+      projectDir,
+      targetPath: pagePath,
+      slideSize: requireSlideSizePreset('wide-16-9')
+    })
+
+    expect(result.html).toMatch(/<path[^>]*d="/)
+    expect(result.html).toContain('aria-label="Launch"')
+    expect(result.html).toContain('text-blue-500')
+    expect(result.html).not.toContain('data-icon')
+    await expect(fs.promises.readFile(pagePath, 'utf-8')).resolves.toBe(result.html)
+  })
+
+  it('rejects an unknown data-icon before writing the page file', async () => {
+    const projectDir = await createTemporaryDirectory()
+    const pagePath = path.join(projectDir, 'page-unknown-icon.html')
+
+    await expect(
+      persistPageHtmlFromFragment({
+        content:
+          '<section class="px-24"><h1 class="text-5xl">Launch plan</h1><p class="text-xl">The delivery sequence is ready for presentation.</p><svg data-icon="not-a-real-icon-id" class="w-12 h-12"></svg></section>',
+        pageId: 'page-unknown-icon',
+        projectDir,
+        targetPath: pagePath,
+        slideSize: requireSlideSizePreset('wide-16-9')
+      })
+    ).rejects.toMatchObject<PageWriteValidationError>({ kind: 'harness-quality' })
+    await expect(fs.promises.stat(pagePath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('owns page validation, runtime injection, serialized persistence, and verification', async () => {
     const projectDir = await createTemporaryDirectory()
     const pagePath = path.join(projectDir, 'page-1.html')
@@ -220,6 +256,40 @@ describe('presentation persistence capabilities', () => {
       })
     ).rejects.toMatchObject<PageWriteValidationError>({ kind: 'rendered-quality' })
     await expect(fs.promises.readFile(pagePath, 'utf-8')).resolves.toBe(persisted.html)
+  })
+
+  it('expands known data-icons introduced by selector edits before validation', async () => {
+    const projectDir = await createTemporaryDirectory()
+    const pagePath = path.join(projectDir, 'page-selector-icon.html')
+    const persisted = await persistPageHtmlFromFragment({
+      content:
+        '<section class="px-24"><h1 class="text-5xl">Selector icon</h1><p class="text-xl">The original page is valid before the selector edit.</p><svg viewBox="0 0 24 24" class="w-12 h-12"><path d="M3 12h18"/></svg></section>',
+      pageId: 'page-selector-icon',
+      projectDir,
+      targetPath: pagePath,
+      slideSize: requireSlideSizePreset('wide-16-9')
+    })
+    await fs.promises.writeFile(
+      pagePath,
+      persisted.html.replace(
+        '<svg viewBox="0 0 24 24" class="w-12 h-12"><path d="M3 12h18"></path></svg>',
+        '<svg data-icon="rocket" class="w-12 h-12" aria-label="Launch"></svg>'
+      ),
+      'utf-8'
+    )
+
+    await expect(
+      validatePersistedPageAfterEdit({
+        pageId: 'page-selector-icon',
+        targetPath: pagePath,
+        slideSize: requireSlideSizePreset('wide-16-9')
+      })
+    ).resolves.toEqual([])
+
+    const editedHtml = await fs.promises.readFile(pagePath, 'utf-8')
+    expect(editedHtml).toMatch(/<path[^>]*d="/)
+    expect(editedHtml).toContain('aria-label="Launch"')
+    expect(editedHtml).not.toContain('data-icon')
   })
 
   it('keeps template skeleton validation and index persistence in presentation', async () => {

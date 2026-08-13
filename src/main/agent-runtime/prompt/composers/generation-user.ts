@@ -19,6 +19,7 @@ import {
   STABLE_HTML_FRAGMENT_PROTOCOL
 } from './shared'
 import { buildCanvasScenarioBrief, resolveCanvasScenario } from './canvas-scenario'
+import { getUniversalLayoutImageAspect } from '@shared/universal-layouts'
 
 export function buildSinglePageGenerationPrompt(args: {
   topic: string
@@ -29,6 +30,10 @@ export function buildSinglePageGenerationPrompt(args: {
   pageOutline: string
   slideSize: import('@shared/slide-size').SlideSizePreset
   layoutIntent?: SessionDeckGenerationContext['outlineItems'][number]['layoutIntent']
+  contentStructure?: SessionDeckGenerationContext['outlineItems'][number]['contentStructure']
+  moduleCount?: SessionDeckGenerationContext['outlineItems'][number]['moduleCount']
+  visualAspect?: SessionDeckGenerationContext['outlineItems'][number]['visualAspect']
+  contentDensity?: SessionDeckGenerationContext['outlineItems'][number]['contentDensity']
   layoutId?: SessionDeckGenerationContext['outlineItems'][number]['layoutId']
   layoutPrompt?: SessionDeckGenerationContext['outlineItems'][number]['layoutPrompt']
   imageAssetPath?: string
@@ -115,6 +120,7 @@ export function buildSinglePageGenerationPrompt(args: {
       : []
   const hasSourceRange = /Source range:\s*lines\s+\d+\s*-\s*\d+/i.test(args.pageOutline || '')
   const canvasScenario = resolveCanvasScenario(args.slideSize)
+  const requiredImageAspect = getUniversalLayoutImageAspect(args.layoutId)
   const sourceRangeInstructions =
     !isSectionAgendaPage &&
     args.sourceDocumentPaths &&
@@ -151,9 +157,18 @@ export function buildSinglePageGenerationPrompt(args: {
     `Slide title: ${args.pageTitle}`,
     `Content points: ${args.pageOutline || 'Expand from the topic with moderate information density.'}`,
     args.layoutIntent ? formatLayoutIntentPrompt(args.layoutIntent) : '',
+    args.contentStructure
+      ? `Planned content structure: ${args.contentStructure}. Planned visible modules: ${args.moduleCount || 'use the selected layout count'}. Content density: ${args.contentDensity || 'standard'}. Visual aspect: ${args.visualAspect || 'auto'}.`
+      : '',
     args.layoutId && args.layoutPrompt ? args.layoutPrompt : '',
     args.layoutId
       ? '- The selected layout ID is a hard PPT composition contract. Preserve its exact module count, row/column relationship, alignment system, and image-slot rule.'
+      : '',
+    args.layoutId
+      ? '- Do not create extra equal-weight cards, image frames, columns, or repeated panels beyond the selected module count. Supporting text must stay inside the planned modules or in one concise page-level takeaway.'
+      : '',
+    requiredImageAspect
+      ? `- Image-frame geometry is fixed as ${requiredImageAspect}. Do not convert portrait rows into landscape grids or mixed feature collages. Preserve identical aspect-ratio CSS for equal image slots.`
       : '',
     args.imageAssetPaths?.length
       ? [

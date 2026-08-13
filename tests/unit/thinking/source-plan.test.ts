@@ -89,6 +89,8 @@ describe('thinking source plan', () => {
         '- Layout Intent: concept',
         '- Content Structure: grouped',
         '- Module Count: 5',
+        '- Visual Aspect: landscape',
+        '- Content Density: standard',
         '- Layout: five-cards-2-3',
         '',
         'A concise summary.',
@@ -106,9 +108,12 @@ describe('thinking source plan', () => {
       layoutIntent: 'concept',
       contentStructure: 'grouped',
       moduleCount: 5,
+      visualAspect: 'landscape',
+      contentDensity: 'standard',
       layoutId: 'five-cards-2-3'
     })
     expect(sourcePlan?.pageSkeleton[0].reason).not.toContain('Content Structure')
     expect(sourcePlan?.pageSkeleton[0].reason).not.toContain('Module Count')
+    expect(sourcePlan?.pageSkeleton[0].reason).not.toContain('Visual Aspect')
   })
 })

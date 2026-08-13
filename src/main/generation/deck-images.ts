@@ -5,7 +5,10 @@ import type { ImageModelProvider } from '@shared/image-generation'
 import type { ImagePolicy, OutlineItem } from '@shared/generation'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
-import { getUniversalLayoutImageCount } from '@shared/universal-layouts'
+import {
+  getUniversalLayoutImageAspect,
+  getUniversalLayoutImageCount
+} from '@shared/universal-layouts'
 
 const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
   'jimeng',
@@ -18,6 +21,13 @@ const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
 ])
 
 const PLACEHOLDER_PATH = './assets/amy-image-placeholder.png'
+
+export const resolveDeckImageGenerationSize = (layoutId: unknown): string => {
+  const aspect = getUniversalLayoutImageAspect(layoutId)
+  if (aspect === 'portrait') return '3:4'
+  if (aspect === 'square') return '1:1'
+  return '16:9'
+}
 
 const hasCompleteGeneratedImageSet = (item: OutlineItem, imageCount: number): boolean =>
   Array.isArray(item.imageAssetPaths) &&
@@ -129,19 +139,22 @@ export async function prepareDeckImageAssets(args: {
     args.onStatus?.({ pageNumber: index + 1, state: 'preparing' })
     const imageAssetPaths: string[] = []
     let failureCount = 0
+    const generationSize = resolveDeckImageGenerationSize(item.layoutId)
+    const imageAspect = getUniversalLayoutImageAspect(item.layoutId) || 'landscape'
     for (let slotIndex = 0; slotIndex < imageCount; slotIndex += 1) {
       const prompt = [
         `Create visual ${slotIndex + 1} of ${imageCount} for the presentation slide "${item.title}".`,
         `Slide content: ${item.contentOutline}`,
         'Each slot on this slide must show a distinct subject, angle, moment, example, or supporting detail.',
         `Make this visual specifically useful for slot ${slotIndex + 1}; do not repeat the composition of another slot.`,
+        `Compose for a ${imageAspect} PowerPoint frame. Important subjects must remain readable after object-fit: cover cropping.`,
         'Use a clean editorial composition suitable for insertion into a PowerPoint image frame.',
         'No text, no letters, no watermark, no UI screenshot, and no decorative border.'
       ].join('\n')
       try {
         const [result] = await adapter.generate(modelConfig, {
           prompt,
-          size: '16:9',
+          size: generationSize,
           count: 1,
           signal: args.signal
         })

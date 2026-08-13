@@ -56,4 +56,6 @@ Override it for private or self-hosted releases with `AMY_PPT_UPDATE_MANIFEST_UR
 
 ## License
 
-Amy-PPT is a derivative work distributed under the Apache License 2.0. Original attribution is retained in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+Amy-PPT is a derivative project based on [arcsin1/oh-my-ppt](https://github.com/arcsin1/oh-my-ppt).
+
+The upstream project was developed by arcsin1 `<zy19931129@gmail.com>` and released under the Apache License 2.0, Copyright 2026 arcsin1. Amy-PPT remains licensed under the Apache License 2.0 and retains the upstream license and attribution. See this repository's [LICENSE](./LICENSE) and [NOTICE](./NOTICE).

@@ -6,7 +6,12 @@ import { writeContextMd, writeThinkingMd } from './workspace'
 import { isValidTransition, VALID_TRANSITIONS } from './stage-manager'
 import type { ThinkingStage } from '@shared/thinking'
 import { LAYOUT_INTENTS } from '@shared/layout-intent'
-import { CONTENT_STRUCTURE_IDS, UNIVERSAL_LAYOUT_IDS } from '@shared/universal-layouts'
+import {
+  CONTENT_DENSITIES,
+  CONTENT_STRUCTURE_IDS,
+  UNIVERSAL_LAYOUT_IDS,
+  VISUAL_ASPECTS
+} from '@shared/universal-layouts'
 
 const THINKING_STAGES = ['collect', 'outline', 'draft', 'refine', 'ready'] as const
 
@@ -106,6 +111,8 @@ const thinkingDocumentSchema = z.object({
         layoutIntent: z.enum(LAYOUT_INTENTS).optional(),
         contentStructure: z.enum(CONTENT_STRUCTURE_IDS).optional(),
         moduleCount: z.coerce.number().int().min(1).max(6).optional(),
+        visualAspect: z.enum(VISUAL_ASPECTS).optional(),
+        contentDensity: z.enum(CONTENT_DENSITIES).optional(),
         layoutId: z.enum(UNIVERSAL_LAYOUT_IDS).optional()
       })
     )
@@ -199,6 +206,8 @@ type ThinkingPageInput = {
   layoutIntent?: import('@shared/layout-intent').LayoutIntent
   contentStructure?: import('@shared/universal-layouts').ContentStructure
   moduleCount?: number
+  visualAspect?: import('@shared/universal-layouts').VisualAspect
+  contentDensity?: import('@shared/universal-layouts').ContentDensity
   layoutId?: import('@shared/universal-layouts').UniversalLayoutId
 }
 
@@ -232,6 +241,8 @@ function buildPageSection(page: ThinkingPageInput, pageNumber: number): string {
     ...(page.layoutIntent ? [`- Layout Intent: ${page.layoutIntent}`] : []),
     ...(page.contentStructure ? [`- Content Structure: ${page.contentStructure}`] : []),
     ...(page.moduleCount ? [`- Module Count: ${page.moduleCount}`] : []),
+    ...(page.visualAspect ? [`- Visual Aspect: ${page.visualAspect}`] : []),
+    ...(page.contentDensity ? [`- Content Density: ${page.contentDensity}`] : []),
     ...(page.layoutId ? [`- Layout: ${page.layoutId}`] : []),
     '',
     summary,

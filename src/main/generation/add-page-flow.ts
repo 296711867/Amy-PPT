@@ -200,6 +200,10 @@ export async function executeAddPageGeneration(
     title: string
     contentOutline: string
     layoutIntent: LayoutIntent
+    contentStructure?: import('@shared/universal-layouts').ContentStructure
+    moduleCount?: number
+    visualAspect?: import('@shared/universal-layouts').VisualAspect
+    contentDensity?: import('@shared/universal-layouts').ContentDensity
     layoutId?: UniversalLayoutId
     imagePolicy?: ImagePolicy
     imageAssetPath?: string
@@ -401,6 +405,10 @@ export async function executeAddPageGeneration(
             title: planResult.title,
             contentOutline: planResult.contentOutline,
             layoutIntent: planResult.layoutIntent,
+            contentStructure: planResult.contentStructure,
+            moduleCount: planResult.moduleCount,
+            visualAspect: planResult.visualAspect,
+            contentDensity: planResult.contentDensity,
             layoutId: planResult.layoutId,
             imageAssetPath: planResult.imageAssetPath,
             imageAssetPaths: planResult.imageAssetPaths

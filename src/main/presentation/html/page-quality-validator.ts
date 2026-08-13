@@ -349,6 +349,20 @@ export function validatePageQuality(
   $('[data-icon]').each((_i, el) => {
     const $el = $(el)
     const id = ($el.attr('data-icon') || '').trim()
+    const tagName = String($el.prop('tagName') || '').toLowerCase()
+    if (!id || tagName !== 'svg') {
+      violations.push({
+        code: 'unknown-icon-id',
+        severity: 'error',
+        detail: !id
+          ? '图标引用缺少 data-icon id。'
+          : `图标 id "${id}" 使用在 <${tagName || 'unknown'}> 上，data-icon 只能用于 <svg>。`,
+        fix: !id
+          ? '填写有效图标 id，或删除这个空图标；不确定时调用 search_icons。'
+          : `改为 <svg data-icon="${id}" class="..."></svg>，不要把 data-icon 写在 div/span 等标签上。`
+      })
+      return
+    }
     if (id && !isKnownIconId(id)) {
       violations.push({
         code: 'unknown-icon-id',

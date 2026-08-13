@@ -1,7 +1,8 @@
 Amy-PPT
 Copyright 2026 PAN
 
-Amy-PPT is a derivative work based on the open-source Oh My PPT project.
+Amy-PPT is a derivative work based on the open-source Oh My PPT project:
+https://github.com/arcsin1/oh-my-ppt
 The original work is Copyright 2026 arcsin1 <zy19931129@gmail.com>.
 This distribution retains the original Apache License 2.0 notices and includes substantial
 Amy-PPT product, UI, layout-rule, agent-harness, and narrative-review modifications.

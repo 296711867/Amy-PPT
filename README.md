@@ -98,4 +98,6 @@ tests/unit/     Vitest 定向回归测试
 
 ## License
 
-Amy-PPT 基于 Apache License 2.0 开源项目进行二次开发。发行时保留原项目的许可证和署名信息，详见 [LICENSE](./LICENSE) 与 [NOTICE](./NOTICE)。
+Amy-PPT 是基于 [arcsin1/oh-my-ppt](https://github.com/arcsin1/oh-my-ppt) 的二次开发项目。
+
+上游项目由 arcsin1 `<zy19931129@gmail.com>` 开发并依据 Apache License 2.0 发布，Copyright 2026 arcsin1。Amy-PPT 继续采用 Apache License 2.0，并保留原项目的许可证与署名信息。详见本仓库的 [LICENSE](./LICENSE) 与 [NOTICE](./NOTICE)。

@@ -8,7 +8,9 @@ import {
 import { normalizeLayoutIntent } from '@shared/layout-intent'
 import {
   normalizeContentStructure,
+  normalizeContentDensity,
   normalizeUniversalLayoutId,
+  normalizeVisualAspect,
   resolveUniversalLayoutId
 } from '@shared/universal-layouts'
 
@@ -73,6 +75,12 @@ const normalizeSourcePlanItem = (
     ...(readPositiveInt(record.moduleCount)
       ? { moduleCount: Math.min(6, readPositiveInt(record.moduleCount) as number) }
       : {}),
+    ...(readString(record.visualAspect)
+      ? { visualAspect: normalizeVisualAspect(record.visualAspect) }
+      : {}),
+    ...(readString(record.contentDensity)
+      ? { contentDensity: normalizeContentDensity(record.contentDensity) }
+      : {}),
     ...(normalizeUniversalLayoutId(record.layoutId)
       ? { layoutId: normalizeUniversalLayoutId(record.layoutId) }
       : {})
@@ -124,6 +132,8 @@ export const sourcePlanFromSkeletonRows = (rows: unknown[]): SourceDocumentPlan 
           layoutIntent: record.layout_intent ?? record.layoutIntent,
           contentStructure: record.content_structure ?? record.contentStructure,
           moduleCount: record.module_count ?? record.moduleCount,
+          visualAspect: record.visual_aspect ?? record.visualAspect,
+          contentDensity: record.content_density ?? record.contentDensity,
           layoutId: record.layout_id ?? record.layoutId
         },
         index + 1
@@ -200,12 +210,16 @@ export const mapSourcePlanToOutlineItems = (sourcePlan: SourceDocumentPlan): Out
       layoutIntent,
       contentStructure: item.contentStructure,
       moduleCount,
+      visualAspect: item.visualAspect,
+      contentDensity: item.contentDensity,
       layoutId: moduleCount
         ? resolveUniversalLayoutId({
             value: item.layoutId,
             moduleCount,
             intent: layoutIntent,
-            contentStructure: item.contentStructure
+            contentStructure: item.contentStructure,
+            visualAspect: item.visualAspect,
+            contentDensity: item.contentDensity
           })
         : normalizeUniversalLayoutId(item.layoutId)
     }

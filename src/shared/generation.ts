@@ -1,5 +1,10 @@
 import type { LayoutIntent } from './layout-intent'
-import type { ContentStructure, UniversalLayoutId } from './universal-layouts'
+import type {
+  ContentDensity,
+  ContentStructure,
+  UniversalLayoutId,
+  VisualAspect
+} from './universal-layouts'
 import type { GenerationFailureInfo } from './generation-error'
 
 /** A generated slide's semantic plan, shared by planning, generation, and page tools. */
@@ -11,6 +16,10 @@ export interface OutlineItem {
   contentStructure?: ContentStructure
   /** Number of meaningful content modules the selected layout must accommodate. */
   moduleCount?: number
+  /** Intended image-frame orientation, decided during planning before layout selection. */
+  visualAspect?: VisualAspect
+  /** Visible content load used to prefer rows, stacks, grids, or feature compositions. */
+  contentDensity?: ContentDensity
   /** M3a resolves a session layout master into a flexible generation constraint. */
   layoutId?: UniversalLayoutId | string
   layoutPrompt?: string
@@ -110,6 +119,8 @@ export interface DocumentPlanPageSkeletonItem {
   layoutIntent?: LayoutIntent
   contentStructure?: ContentStructure
   moduleCount?: number
+  visualAspect?: VisualAspect
+  contentDensity?: ContentDensity
   layoutId?: string
 }
 

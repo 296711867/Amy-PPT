@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { prepareDeckImageAssets } from '../../../src/main/generation/deck-images'
+import {
+  prepareDeckImageAssets,
+  resolveDeckImageGenerationSize
+} from '../../../src/main/generation/deck-images'
 
 describe('deck image preparation', () => {
   const imageOutline = [
@@ -16,6 +19,14 @@ describe('deck image preparation', () => {
       layoutId: 'four-cards-grid'
     }
   ]
+
+  it('derives image generation size from the selected layout geometry', () => {
+    expect(resolveDeckImageGenerationSize('six-images-row-portrait')).toBe('3:4')
+    expect(resolveDeckImageGenerationSize('image-left-two-cards')).toBe('3:4')
+    expect(resolveDeckImageGenerationSize('four-images-grid-square')).toBe('1:1')
+    expect(resolveDeckImageGenerationSize('five-images-2-3')).toBe('16:9')
+    expect(resolveDeckImageGenerationSize('four-cards-grid')).toBe('16:9')
+  })
 
   it('uses the bundled placeholder when AI image generation is disabled', async () => {
     const onStatus = vi.fn()

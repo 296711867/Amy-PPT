@@ -31,8 +31,10 @@ import {
   diversifyUniversalLayoutSequence,
   formatUniversalLayoutCatalogPrompt,
   formatUniversalLayoutPrompt,
+  normalizeContentDensity,
   normalizeContentStructure,
   normalizeUniversalLayoutId,
+  normalizeVisualAspect,
   resolveUniversalLayoutId,
   type UniversalLayoutId
 } from '@shared/universal-layouts'
@@ -298,7 +300,7 @@ const buildPlanningRetryUserPrompt = (
     `- The previous planning response failed validation: ${previousError}`,
     `- Retry now and return exactly ${totalPages} items.`,
     '- Return only a raw JSON array. Do not wrap it in Markdown. Do not add explanations.',
-    '- Each item must have exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId.',
+    '- Each item must have exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, layoutId.',
     '- layoutId must be a universal layout catalog ID or null.',
     '- keyPoints must be an array with 1-10 short strings.'
   ].join('\n')
@@ -394,6 +396,8 @@ export const planDeckWithLLM = async (args: {
         ? Math.max(1, Math.min(6, Math.floor(requestedModuleCount)))
         : Math.max(1, Math.min(6, keyPoints.length))
       const contentStructure = normalizeContentStructure(item.contentStructure)
+      const visualAspect = normalizeVisualAspect(item.visualAspect)
+      const contentDensity = normalizeContentDensity(item.contentDensity)
       const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
       if (!title) {
         throw new Error(
@@ -419,11 +423,15 @@ export const planDeckWithLLM = async (args: {
         layoutIntent,
         contentStructure,
         moduleCount,
+        visualAspect,
+        contentDensity,
         layoutId: resolveUniversalLayoutId({
           value: item.layoutId,
           moduleCount,
           intent: layoutIntent,
-          contentStructure
+          contentStructure,
+          visualAspect,
+          contentDensity
         })
       }
     })
@@ -575,6 +583,8 @@ export const planNewPage = async (args: {
   layoutIntent: LayoutIntent
   contentStructure?: import('@shared/universal-layouts').ContentStructure
   moduleCount?: number
+  visualAspect?: import('@shared/universal-layouts').VisualAspect
+  contentDensity?: import('@shared/universal-layouts').ContentDensity
   layoutId?: UniversalLayoutId
 }> => {
   const client = resolveModel(
@@ -619,8 +629,8 @@ export const planNewPage = async (args: {
     'Universal layout catalog:',
     formatUniversalLayoutCatalogPrompt(),
     '',
-    'Choose contentStructure first, then moduleCount, then a compatible catalog layoutId. Nearby slides with the same structure should use a different silhouette.',
-    'Return only a JSON object with exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, layoutId.',
+    'Choose contentStructure, moduleCount, visualAspect, and contentDensity before choosing a compatible catalog layoutId. Five or six portrait visuals with short labels may use one row; landscape visuals must use rows or grids. Nearby slides with the same structure should use a different silhouette.',
+    'Return only a JSON object with exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, layoutId.',
     'Do not add explanations, Markdown, or extra text.',
     'keyPoints must contain 1-10 short phrases. If the user explicitly lists topics for this slide, preserve each listed topic as a separate key point when possible.'
   ]
@@ -665,6 +675,8 @@ export const planNewPage = async (args: {
   const contentOutline = normalizeOutlineText(keyPoints.join('；'))
   const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
   const contentStructure = normalizeContentStructure(item.contentStructure)
+  const visualAspect = normalizeVisualAspect(item.visualAspect)
+  const contentDensity = normalizeContentDensity(item.contentDensity)
   const requestedModuleCount = Number(item.moduleCount)
   const moduleCount = Number.isFinite(requestedModuleCount)
     ? Math.max(1, Math.min(6, Math.floor(requestedModuleCount)))
@@ -673,10 +685,21 @@ export const planNewPage = async (args: {
     value: item.layoutId,
     moduleCount,
     intent: layoutIntent,
-    contentStructure
+    contentStructure,
+    visualAspect,
+    contentDensity
   })
 
-  return { title, contentOutline, layoutIntent, contentStructure, moduleCount, layoutId }
+  return {
+    title,
+    contentOutline,
+    layoutIntent,
+    contentStructure,
+    moduleCount,
+    visualAspect,
+    contentDensity,
+    layoutId
+  }
 }
 
 export const buildDesignContractWithLLM = async (args: {
@@ -941,6 +964,10 @@ export const runDeepAgentDeckGeneration = async (args: {
     title: string
     contentOutline?: string | null
     layoutIntent?: OutlineItem['layoutIntent']
+    contentStructure?: OutlineItem['contentStructure']
+    moduleCount?: OutlineItem['moduleCount']
+    visualAspect?: OutlineItem['visualAspect']
+    contentDensity?: OutlineItem['contentDensity']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -993,6 +1020,10 @@ export const runDeepAgentDeckGeneration = async (args: {
     title: string
     outline: string
     layoutIntent?: OutlineItem['layoutIntent']
+    contentStructure?: OutlineItem['contentStructure']
+    moduleCount?: OutlineItem['moduleCount']
+    visualAspect?: OutlineItem['visualAspect']
+    contentDensity?: OutlineItem['contentDensity']
     layoutId: string
     layoutPrompt: string
     imageAssetPath?: string
@@ -1004,6 +1035,10 @@ export const runDeepAgentDeckGeneration = async (args: {
     title: string
     contentOutline?: string | null
     layoutIntent?: OutlineItem['layoutIntent']
+    contentStructure?: OutlineItem['contentStructure']
+    moduleCount?: OutlineItem['moduleCount']
+    visualAspect?: OutlineItem['visualAspect']
+    contentDensity?: OutlineItem['contentDensity']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -1016,6 +1051,10 @@ export const runDeepAgentDeckGeneration = async (args: {
       title: page.title,
       outline: page.contentOutline || '',
       layoutIntent: page.layoutIntent,
+      contentStructure: page.contentStructure,
+      moduleCount: page.moduleCount,
+      visualAspect: page.visualAspect,
+      contentDensity: page.contentDensity,
       layoutId: universalLayoutId || layoutTemplate.id,
       layoutPrompt: universalLayoutId
         ? formatUniversalLayoutPrompt(universalLayoutId)
@@ -1039,6 +1078,10 @@ export const runDeepAgentDeckGeneration = async (args: {
               title,
               contentOutline: args.outlineItems[index]?.contentOutline || '',
               layoutIntent: args.outlineItems[index]?.layoutIntent,
+              contentStructure: args.outlineItems[index]?.contentStructure,
+              moduleCount: args.outlineItems[index]?.moduleCount,
+              visualAspect: args.outlineItems[index]?.visualAspect,
+              contentDensity: args.outlineItems[index]?.contentDensity,
               layoutId: args.outlineItems[index]?.layoutId,
               imageAssetPath: args.outlineItems[index]?.imageAssetPath,
               imageAssetPaths: args.outlineItems[index]?.imageAssetPaths
@@ -1275,6 +1318,10 @@ export const runDeepAgentDeckGeneration = async (args: {
             title: page.title,
             contentOutline: page.outline,
             layoutIntent: page.layoutIntent,
+            contentStructure: page.contentStructure,
+            moduleCount: page.moduleCount,
+            visualAspect: page.visualAspect,
+            contentDensity: page.contentDensity,
             layoutId: page.layoutId,
             layoutPrompt: page.layoutPrompt,
             imageAssetPath: page.imageAssetPath,
@@ -1323,6 +1370,10 @@ export const runDeepAgentDeckGeneration = async (args: {
                   pageOutline: page.outline,
                   slideSize: args.slideSize,
                   layoutIntent: page.layoutIntent,
+                  contentStructure: page.contentStructure,
+                  moduleCount: page.moduleCount,
+                  visualAspect: page.visualAspect,
+                  contentDensity: page.contentDensity,
                   layoutId: page.layoutId,
                   layoutPrompt: page.layoutPrompt,
                   imageAssetPath: page.imageAssetPath,

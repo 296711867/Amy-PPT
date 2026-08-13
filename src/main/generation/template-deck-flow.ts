@@ -241,6 +241,8 @@ export async function executeTemplateDeckGeneration(
             : undefined,
           contentStructure: undefined,
           moduleCount: undefined,
+          visualAspect: undefined,
+          contentDensity: undefined,
           layoutId: normalizeUniversalLayoutId(snapshot?.layout_id),
           imageAssetPath: snapshot?.image_asset_path || undefined,
           imageAssetPaths: snapshot?.image_asset_paths || undefined
@@ -277,6 +279,8 @@ export async function executeTemplateDeckGeneration(
         layoutIntent: planned?.layoutIntent,
         contentStructure: planned?.contentStructure,
         moduleCount: planned?.moduleCount,
+        visualAspect: planned?.visualAspect,
+        contentDensity: planned?.contentDensity,
         layoutId: planned?.layoutId,
         imageAssetPath: planned?.imageAssetPath,
         imageAssetPaths: planned?.imageAssetPaths
@@ -552,6 +556,10 @@ export async function executeTemplateDeckGeneration(
       title: page.title,
       contentOutline: outlineItems[index]?.contentOutline || '',
       layoutIntent: outlineItems[index]?.layoutIntent,
+      contentStructure: outlineItems[index]?.contentStructure,
+      moduleCount: outlineItems[index]?.moduleCount,
+      visualAspect: outlineItems[index]?.visualAspect,
+      contentDensity: outlineItems[index]?.contentDensity,
       layoutId: outlineItems[index]?.layoutId,
       imageAssetPath: outlineItems[index]?.imageAssetPath,
       imageAssetPaths: outlineItems[index]?.imageAssetPaths

@@ -14,7 +14,7 @@ describe('universal PPT layouts', () => {
     expect(resolveUniversalLayoutId({ moduleCount: 2, intent: 'process' })).toBe('two-cards-stair')
     expect(resolveUniversalLayoutId({ moduleCount: 4, intent: 'concept' })).toBe('four-cards-grid')
     expect(resolveUniversalLayoutId({ moduleCount: 5, intent: 'image-focus' })).toBe(
-      'five-cards-2-3-image'
+      'five-images-2-3'
     )
   })
 
@@ -57,9 +57,19 @@ describe('universal PPT layouts', () => {
         (layout) => layout.family === 'gallery'
       )
     ).toBe(true)
-    expect(getUniversalLayoutCandidates({ moduleCount: 5, contentStructure: 'gallery' })).toEqual(
-      []
-    )
+    expect(
+      getUniversalLayoutCandidates({ moduleCount: 5, contentStructure: 'gallery' }).map(
+        (layout) => layout.id
+      )
+    ).toEqual([
+      'five-images-2-3',
+      'five-images-feature',
+      'five-images-row-portrait',
+      'five-images-2-3-square'
+    ])
+    expect(
+      getUniversalLayoutCandidates({ moduleCount: 2, contentStructure: 'single-focus' })
+    ).toEqual([])
   })
 
   it('rejects an incompatible explicit layout and fills missing layouts from the candidate pool', () => {
@@ -87,6 +97,72 @@ describe('universal PPT layouts', () => {
     expect(prompt).toContain('three-cards-stair')
     expect(prompt).toContain('image-support:')
     expect(prompt).toContain('image-left-two-cards')
+  })
+
+  it('selects gallery geometry from image count and visual aspect', () => {
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 5,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'portrait',
+        contentDensity: 'light'
+      })
+    ).toBe('five-images-row-portrait')
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 6,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'portrait',
+        contentDensity: 'light'
+      })
+    ).toBe('six-images-row-portrait')
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 6,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'landscape',
+        contentDensity: 'standard'
+      })
+    ).toBe('six-images-grid')
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 5,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'mixed'
+      })
+    ).toBe('five-images-feature')
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 4,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'square'
+      })
+    ).toBe('four-images-grid-square')
+    expect(
+      resolveUniversalLayoutId({
+        moduleCount: 6,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'square'
+      })
+    ).toBe('six-images-grid-square')
+  })
+
+  it('does not accept a layout whose image geometry conflicts with the plan', () => {
+    expect(
+      resolveUniversalLayoutId({
+        value: 'six-images-grid',
+        moduleCount: 6,
+        intent: 'image-focus',
+        contentStructure: 'gallery',
+        visualAspect: 'portrait'
+      })
+    ).toBe('six-images-row-portrait')
   })
 
   it('keeps an explicit valid layout and emits a hard geometry contract', () => {
