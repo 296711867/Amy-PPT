@@ -415,6 +415,7 @@ export interface CreateSessionPayload {
   referenceDocumentPath?: string
   fontSelection?: FontSelection
   imagePolicy?: import('@shared/generation').ImagePolicy
+  deckBackgroundPolicy?: import('@shared/generation').DeckBackgroundPolicy
   sourcePlan?: SourceDocumentPlan
 }
 
@@ -450,13 +451,15 @@ export interface UploadPrerequisitesResult {
   message?: string
 }
 
-export type FontRole = 'title' | 'body'
+export type FontRole = 'title' | 'subtitle' | 'body'
 export type FontScript = 'latin' | 'cjk'
+export type FontSource = 'google' | 'uploaded' | 'system'
 
 export interface FontFileEntry {
   file: string
   weight: number
   style: 'normal' | 'italic'
+  format?: 'woff2' | 'truetype' | 'opentype'
   size?: number
   sha256?: string
 }
@@ -464,7 +467,7 @@ export interface FontFileEntry {
 export interface FontListItem {
   id: string
   family: string
-  source: 'google' | 'uploaded'
+  source: FontSource
   category: string
   role: FontRole[]
   scripts: FontScript[]
@@ -475,6 +478,7 @@ export interface FontListItem {
 
 export interface FontRegistryResponse {
   googleFonts: FontListItem[]
+  systemFonts: FontListItem[]
   userFonts: FontListItem[]
 }
 
@@ -1115,6 +1119,17 @@ export const ipc = {
   chooseFontFiles: () =>
     getIpc().invoke('fonts:chooseFiles') as Promise<{ canceled: boolean; filePaths: string[] }>,
   loadFontPreviewCss: () => getIpc().invoke('fonts:previewCss') as Promise<string>,
+  listFontSchemes: () =>
+    getIpc().invoke('fonts:listSchemes') as Promise<{
+      items: import('@shared/font-schemes').AvailableFontScheme[]
+    }>,
+  saveFontScheme: (payload: import('@shared/font-schemes').FontScheme) =>
+    getIpc().invoke('fonts:saveScheme', payload) as Promise<{
+      success: true
+      scheme: import('@shared/font-schemes').AvailableFontScheme
+    }>,
+  deleteFontScheme: (schemeId: string) =>
+    getIpc().invoke('fonts:deleteScheme', schemeId) as Promise<{ success: true }>,
   saveSettings: (settings: Record<string, unknown>) =>
     getIpc().invoke('settings:save', settings) as Promise<{ success: boolean }>,
   upsertModelConfig: (payload: {

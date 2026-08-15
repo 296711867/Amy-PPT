@@ -178,6 +178,8 @@ export function createPageWriteTools(args: {
     try {
       const designFonts = {
         titleFont: context.designContract?.titleFont || 'Inter',
+        subtitleFont:
+          context.designContract?.subtitleFont || context.designContract?.bodyFont || 'Inter',
         bodyFont: context.designContract?.bodyFont || 'Inter'
       }
       persisted = await persistPageHtmlFromFragment({

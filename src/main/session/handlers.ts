@@ -8,7 +8,11 @@ import { getStyleDetail, hasStyleSkill } from '../styles/catalog'
 import type { IpcContext } from '../ipc/context'
 import { resolveModelConfigForTask } from '../config/model-config-utils'
 import { readAppLocale, uiText } from '../config/locale-utils'
-import { normalizeFontSelection, normalizeImagePolicy } from '@shared/generation'
+import {
+  normalizeDeckBackgroundPolicy,
+  normalizeFontSelection,
+  normalizeImagePolicy
+} from '@shared/generation'
 import { requireSlideSizePreset } from '@shared/slide-size'
 import { normalizeSourcePlan } from '../generation/source-plan'
 import { ensureSessionRuntimeCompatible } from './runtime-assets'
@@ -353,6 +357,7 @@ export function registerSessionHandlers(ctx: IpcContext): void {
     const slideSize = requireSlideSizePreset(record.slideSizeId)
     const fontSelection = normalizeFontSelection(record.fontSelection)
     const imagePolicy = normalizeImagePolicy(record.imagePolicy)
+    const deckBackgroundPolicy = normalizeDeckBackgroundPolicy(record.deckBackgroundPolicy)
     const sourcePlan = normalizeSourcePlan(record.sourcePlan)
     const referenceDocumentPath =
       typeof record.referenceDocumentPath === 'string' ? record.referenceDocumentPath.trim() : ''
@@ -494,6 +499,7 @@ export function registerSessionHandlers(ctx: IpcContext): void {
     await db.updateSessionMetadata(sessionId, {
       fontSelection,
       imagePolicy,
+      deckBackgroundPolicy,
       ...(isThinkingSource ? { source: 'thinking' } : {})
     })
 

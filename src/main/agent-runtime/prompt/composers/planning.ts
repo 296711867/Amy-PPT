@@ -53,22 +53,25 @@ export function buildPlanningSystemPrompt(totalPages: number = 0): string {
 export function buildDesignContractSystemPrompt(args: {
   styleSkill?: string | null
   availableFonts?: AvailableFont[]
-  requestedFontPair?: { titleFont: string; bodyFont: string } | null
+  requestedFontPair?: { titleFont: string; subtitleFont: string; bodyFont: string } | null
   languageHint?: string | null
   slideSize: SlideSizePreset
 }): string {
   const styleSkill = args.styleSkill
   const availableFonts = args.availableFonts || []
   const requestedFontPair = args.requestedFontPair || null
+  const requestedSubtitleFont = requestedFontPair?.subtitleFont || requestedFontPair?.bodyFont || ''
   const slideSize = requireSlideSize(args.slideSize)
   const fontInstruction = requestedFontPair
     ? [
-        '- titleFont and bodyFont are fixed by the user selection. Copy them exactly:',
+        '- titleFont, subtitleFont, and bodyFont are fixed by the user selection. Copy them exactly:',
         `  - titleFont: ${requestedFontPair.titleFont}`,
+        `  - subtitleFont: ${requestedSubtitleFont}`,
         `  - bodyFont: ${requestedFontPair.bodyFont}`
       ].join('\n')
     : [
         '- titleFont: choose one exact family from availableFonts whose role includes "title".',
+        '- subtitleFont: choose one exact family from availableFonts whose role includes "subtitle".',
         '- bodyFont: choose one exact family from availableFonts whose role includes "body".',
         '- Both titleFont and bodyFont must support the main writing system implied by languageHint.',
         '- If using a display/handwriting font for titleFont, choose a highly readable bodyFont.'

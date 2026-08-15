@@ -8,15 +8,19 @@ import { is } from '@electron-toolkit/utils'
 import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { normalizeFontFileFormat, type FontFileFormat } from '@shared/font-file'
 
-export type FontSource = 'google' | 'uploaded'
-export type FontRole = 'title' | 'body'
+export { normalizeFontFileFormat } from '@shared/font-file'
+
+export type FontSource = 'google' | 'uploaded' | 'system'
+export type FontRole = 'title' | 'subtitle' | 'body'
 export type FontScript = 'latin' | 'cjk'
 
 export interface FontFileEntry {
   file: string
   weight: number
   style: 'normal' | 'italic'
+  format?: FontFileFormat
   size?: number
   sha256?: string
 }
@@ -67,6 +71,11 @@ export interface GoogleFontEntry {
   scripts: FontScript[]
 }
 
+export interface SystemFontEntry extends GoogleFontEntry {
+  source: 'system'
+  fileNames: string[]
+}
+
 /**
  * Built-in Google Fonts catalog (local-first).
  * Key = font family name (must match titleFont/bodyFont in design contract).
@@ -77,103 +86,193 @@ const GOOGLE_FONTS: Record<string, GoogleFontEntry> = {
     id: 'google:poppins',
     family: 'Poppins',
     category: 'sans-body',
-    role: ['body', 'title'],
+    role: ['body', 'subtitle', 'title'],
     scripts: ['latin']
   },
   Inter: {
     id: 'google:inter',
     family: 'Inter',
     category: 'sans-body',
-    role: ['body', 'title'],
+    role: ['body', 'subtitle', 'title'],
     scripts: ['latin']
   },
   Montserrat: {
     id: 'google:montserrat',
     family: 'Montserrat',
     category: 'sans-title',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['latin']
   },
   'Space Grotesk': {
     id: 'google:space-grotesk',
     family: 'Space Grotesk',
     category: 'sans-title',
-    role: ['title', 'body'],
+    role: ['title', 'subtitle', 'body'],
     scripts: ['latin']
   },
   'Bebas Neue': {
     id: 'google:bebas-neue',
     family: 'Bebas Neue',
     category: 'display',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['latin']
   },
   'Playfair Display': {
     id: 'google:playfair-display',
     family: 'Playfair Display',
     category: 'serif',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['latin']
   },
   Merriweather: {
     id: 'google:merriweather',
     family: 'Merriweather',
     category: 'serif',
-    role: ['body', 'title'],
+    role: ['body', 'subtitle', 'title'],
     scripts: ['latin']
   },
   Caveat: {
     id: 'google:caveat',
     family: 'Caveat',
     category: 'handwriting',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['latin']
   },
   'Dancing Script': {
     id: 'google:dancing-script',
     family: 'Dancing Script',
     category: 'handwriting',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['latin']
   },
   'Fira Code': {
     id: 'google:fira-code',
     family: 'Fira Code',
     category: 'mono',
-    role: ['body'],
+    role: ['body', 'subtitle'],
     scripts: ['latin']
   },
   'Noto Sans SC': {
     id: 'google:noto-sans-sc',
     family: 'Noto Sans SC',
     category: 'cjk-sans',
-    role: ['body', 'title'],
+    role: ['body', 'subtitle', 'title'],
     scripts: ['cjk', 'latin']
   },
   'Noto Serif SC': {
     id: 'google:noto-serif-sc',
     family: 'Noto Serif SC',
     category: 'cjk-serif',
-    role: ['body', 'title'],
+    role: ['body', 'subtitle', 'title'],
     scripts: ['cjk', 'latin']
   },
   'ZCOOL XiaoWei': {
     id: 'google:zcool-xiaowei',
     family: 'ZCOOL XiaoWei',
     category: 'cjk-display',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['cjk']
   },
   'Ma Shan Zheng': {
     id: 'google:ma-shan-zheng',
     family: 'Ma Shan Zheng',
     category: 'cjk-display',
-    role: ['title'],
+    role: ['title', 'subtitle'],
     scripts: ['cjk']
   }
 }
 
 export const AVAILABLE_GOOGLE_FONTS = GOOGLE_FONTS
+
+const SYSTEM_FONTS: Record<string, SystemFontEntry> = {
+  'Microsoft YaHei': {
+    id: 'system:microsoft-yahei',
+    family: 'Microsoft YaHei',
+    source: 'system',
+    category: 'cjk-sans',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['cjk', 'latin'],
+    fileNames: ['msyh.ttc', 'msyhbd.ttc']
+  },
+  Arial: {
+    id: 'system:arial',
+    family: 'Arial',
+    source: 'system',
+    category: 'sans-body',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['latin'],
+    fileNames: ['arial.ttf']
+  },
+  Aptos: {
+    id: 'system:aptos',
+    family: 'Aptos',
+    source: 'system',
+    category: 'sans-body',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['latin'],
+    fileNames: ['Aptos.ttf', 'AptosDisplay.ttf']
+  },
+  Calibri: {
+    id: 'system:calibri',
+    family: 'Calibri',
+    source: 'system',
+    category: 'sans-body',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['latin'],
+    fileNames: ['calibri.ttf']
+  },
+  DengXian: {
+    id: 'system:dengxian',
+    family: 'DengXian',
+    source: 'system',
+    category: 'cjk-sans',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['cjk', 'latin'],
+    fileNames: ['Deng.ttf', 'Dengb.ttf']
+  },
+  'Segoe UI': {
+    id: 'system:segoe-ui',
+    family: 'Segoe UI',
+    source: 'system',
+    category: 'sans-body',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['latin'],
+    fileNames: ['segoeui.ttf']
+  },
+  PangMenZhengDao: {
+    id: 'system:pangmenzhengdao',
+    family: 'PangMenZhengDao',
+    source: 'system',
+    category: 'cjk-display',
+    role: ['title'],
+    scripts: ['cjk', 'latin'],
+    fileNames: ['庞门正道标题体.ttf']
+  },
+  OPPOSans: {
+    id: 'system:oppo-sans',
+    family: 'OPPOSans',
+    source: 'system',
+    category: 'cjk-sans',
+    role: ['title', 'subtitle', 'body'],
+    scripts: ['cjk', 'latin'],
+    fileNames: ['OPPOSans-B.ttf', 'OPPOSans-M.ttf', 'OPPOSans-R.ttf']
+  }
+}
+
+export const AVAILABLE_SYSTEM_FONTS = SYSTEM_FONTS
+
+const getWindowsFontsRoot = (): string =>
+  process.platform === 'win32'
+    ? path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts')
+    : ''
+
+export const isSystemFontAvailable = (font: SystemFontEntry): boolean => {
+  const root = getWindowsFontsRoot()
+  return Boolean(root) && font.fileNames.some((file) => fs.existsSync(path.join(root, file)))
+}
+
+export const getAvailableSystemFonts = (): SystemFontEntry[] =>
+  Object.values(SYSTEM_FONTS).filter(isSystemFontAvailable)
 
 const DEFAULT_REGISTRY: FontRegistryFile = { version: 1, fonts: [] }
 
@@ -209,8 +308,10 @@ export function getUserFontFilesRoot(): string {
 
 const normalizeRoles = (value: unknown): FontRole[] => {
   const roles = Array.isArray(value) ? value : []
-  const normalized = roles.filter((item): item is FontRole => item === 'title' || item === 'body')
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : ['title', 'body']
+  const normalized = roles.filter(
+    (item): item is FontRole => item === 'title' || item === 'subtitle' || item === 'body'
+  )
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : ['title', 'subtitle', 'body']
 }
 
 const normalizeScripts = (value: unknown): FontScript[] => {
@@ -228,6 +329,7 @@ const normalizeFontFile = (value: unknown): FontFileEntry | null => {
     file,
     weight: Number.isFinite(weight) ? Math.max(1, Math.floor(weight)) : 400,
     style: record.style === 'italic' ? 'italic' : 'normal',
+    format: normalizeFontFileFormat(record.format, file),
     size: Number.isFinite(Number(record.size)) ? Math.max(0, Math.floor(Number(record.size))) : undefined,
     sha256: typeof record.sha256 === 'string' ? record.sha256 : undefined
   }
@@ -313,6 +415,14 @@ export async function getAvailableFonts(): Promise<AvailableFont[]> {
       role: entry.role,
       scripts: entry.scripts
     })),
+    ...getAvailableSystemFonts().map((entry): AvailableFont => ({
+      id: entry.id,
+      family: entry.family,
+      source: 'system',
+      category: entry.category,
+      role: entry.role,
+      scripts: entry.scripts
+    })),
     ...registry.fonts.map((entry): AvailableFont => ({
       id: entry.id,
       family: entry.family,
@@ -329,6 +439,8 @@ export async function assertFontFamilyAvailable(family: string, fieldName: strin
   const normalized = normalizeFamily(family)
   if (!normalized) throw new Error(`${fieldName} 不能为空`)
   if (GOOGLE_FONTS[normalized]) return
+  const system = SYSTEM_FONTS[normalized]
+  if (system && isSystemFontAvailable(system)) return
   const uploaded = await getUserFont(normalized)
   if (uploaded) return
   throw new Error(`${fieldName} 不在可用字体列表中：${normalized}`)
@@ -337,7 +449,10 @@ export async function assertFontFamilyAvailable(family: string, fieldName: strin
 export async function assertFontFamilyNameAvailableForUpload(family: string, currentFontId?: string): Promise<void> {
   const normalized = normalizeFamily(family)
   if (!normalized) throw new Error('字体族名称不能为空')
-  if (GOOGLE_FONTS[normalized]) throw new Error(`字体族名称与内置 Google Fonts 重名：${normalized}`)
+  if (GOOGLE_FONTS[normalized]) throw new Error(`字体族名称与内置字体重名：${normalized}`)
+  if (SYSTEM_FONTS[normalized] && isSystemFontAvailable(SYSTEM_FONTS[normalized])) {
+    throw new Error(`字体族已由系统提供：${normalized}`)
+  }
   const registry = await readUserFontRegistry()
   const duplicate = registry.fonts.find(
     (entry) => entry.family === normalized && entry.id !== currentFontId
@@ -480,6 +595,8 @@ export async function resolveProjectFontResources(
     }
 
     const uploaded = userRegistry.fonts.find((entry) => entry.family === family)
+    const system = SYSTEM_FONTS[family]
+    if (system && isSystemFontAvailable(system)) continue
     if (!uploaded) throw new Error(`字体不在可用字体列表中：${family}`)
     for (const file of uploaded.files) {
       assets.push({
@@ -487,7 +604,7 @@ export async function resolveProjectFontResources(
         targetPath: path.join(projectDir, 'assets', 'fonts', 'user-fonts', uploaded.id, file.file)
       })
       css.push(
-        `@font-face{font-family:"${cssEscapeString(uploaded.family)}";src:url("./assets/fonts/user-fonts/${uploaded.id}/${cssEscapeString(file.file)}") format("woff2");font-weight:${file.weight};font-style:${file.style};font-display:swap}`
+        `@font-face{font-family:"${cssEscapeString(uploaded.family)}";src:url("./assets/fonts/user-fonts/${uploaded.id}/${cssEscapeString(file.file)}") format("${normalizeFontFileFormat(file.format, file.file)}");font-weight:${file.weight};font-style:${file.style};font-display:swap}`
       )
     }
   }
@@ -508,20 +625,23 @@ export async function copyProjectFontResources(resources: ProjectFontResources):
  */
 export async function buildFontHeadTags(args: {
   titleFont: string
+  subtitleFont?: string
   bodyFont: string
   projectDir: string
 }): Promise<string> {
   const titleFont = normalizeFamily(args.titleFont)
+  const subtitleFont = normalizeFamily(args.subtitleFont || args.bodyFont)
   const bodyFont = normalizeFamily(args.bodyFont)
   await assertFontFamilyAvailable(titleFont, 'titleFont')
+  await assertFontFamilyAvailable(subtitleFont, 'subtitleFont')
   await assertFontFamilyAvailable(bodyFont, 'bodyFont')
 
   // Copy font files to project assets
-  await ensureGoogleFontsForProject([titleFont, bodyFont], args.projectDir)
-  await ensureUserFontsForProject([titleFont, bodyFont], args.projectDir)
+  await ensureGoogleFontsForProject([titleFont, subtitleFont, bodyFont], args.projectDir)
+  await ensureUserFontsForProject([titleFont, subtitleFont, bodyFont], args.projectDir)
 
   const userRegistry = await readUserFontRegistry()
-  const families = Array.from(new Set([titleFont, bodyFont]))
+  const families = Array.from(new Set([titleFont, subtitleFont, bodyFont]))
   const tags: string[] = []
 
   for (const family of families) {
@@ -531,18 +651,20 @@ export async function buildFontHeadTags(args: {
       tags.push(...faceTags)
       continue
     }
+    const system = SYSTEM_FONTS[family]
+    if (system && isSystemFontAvailable(system)) continue
     const uploaded = userRegistry.fonts.find((entry) => entry.family === family)
     if (!uploaded) throw new Error(`字体不在可用字体列表中：${family}`)
     for (const file of uploaded.files) {
       const fontUrl = `./assets/fonts/user-fonts/${uploaded.id}/${file.file}`
       tags.push(
-        `<style data-ppt-fonts="user">@font-face{font-family:"${cssEscapeString(uploaded.family)}";src:url("${cssEscapeString(fontUrl)}") format("woff2");font-weight:${file.weight};font-style:${file.style};font-display:swap}</style>`
+        `<style data-ppt-fonts="user">@font-face{font-family:"${cssEscapeString(uploaded.family)}";src:url("${cssEscapeString(fontUrl)}") format("${normalizeFontFileFormat(file.format, file.file)}");font-weight:${file.weight};font-style:${file.style};font-display:swap}</style>`
       )
     }
   }
 
   tags.push(
-    `<style data-ppt-fonts="1">:root{--ppt-title-font:"${cssEscapeString(titleFont)}";--ppt-body-font:"${cssEscapeString(bodyFont)}"}</style>`
+    `<style data-ppt-fonts="1">:root{--ppt-title-font:"${cssEscapeString(titleFont)}";--ppt-subtitle-font:"${cssEscapeString(subtitleFont)}";--ppt-body-font:"${cssEscapeString(bodyFont)}"}</style>`
   )
   return tags.join('\n    ')
 }

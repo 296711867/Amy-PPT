@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 const logMocks = vi.hoisted(() => ({
@@ -188,10 +189,15 @@ describe('git history style snapshot', () => {
       reason: 'generation page update failed'
     })
 
-    expect(internals.moveHeadToCommit).toHaveBeenCalledWith('/tmp/session-1', 'commit-before')
-    expect(internals.restoreCommitPaths).toHaveBeenCalledWith('/tmp/session-1', 'commit-before', [
-      'page-1.html'
-    ])
+    expect(internals.moveHeadToCommit).toHaveBeenCalledWith(
+      path.resolve('/tmp/session-1'),
+      'commit-before'
+    )
+    expect(internals.restoreCommitPaths).toHaveBeenCalledWith(
+      path.resolve('/tmp/session-1'),
+      'commit-before',
+      ['page-1.html']
+    )
     expect(completeSessionOperation).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'operation-style-page',

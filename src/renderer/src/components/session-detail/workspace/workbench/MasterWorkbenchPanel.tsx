@@ -260,7 +260,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 min-w-[56px] shrink-0 gap-1 rounded-full border-0 bg-transparent px-2 text-[10px] font-bold text-[#4f5f40] shadow-none hover:bg-[#fffaf1]/54 hover:text-[#314028]"
+            className="h-6 min-w-[56px] shrink-0 gap-1 rounded-full border-0 bg-transparent px-2 text-[10px] font-bold text-[var(--ui-workspace-text-muted)] shadow-none hover:bg-[var(--ui-workspace-surface)]/70 hover:text-[var(--ui-workspace-text)]"
             disabled={busy}
           >
             <Palette className="h-3 w-3" />
@@ -270,15 +270,15 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onSelect={() => setStyleOpen(true)}>
-            <Palette className="h-3.5 w-3.5 text-[#637552]" />
+            <Palette className="h-3.5 w-3.5 text-[var(--ui-workspace-selected)]" />
             {t('sessionDetail.masterStyle')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setElementsOpen(true)}>
-            <Layers3 className="h-3.5 w-3.5 text-[#637552]" />
+            <Layers3 className="h-3.5 w-3.5 text-[var(--ui-workspace-selected)]" />
             {t('sessionDetail.masterGlobalElements')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setLayoutLibraryOpen(true)}>
-            <LayoutTemplate className="h-3.5 w-3.5 text-[#637552]" />
+            <LayoutTemplate className="h-3.5 w-3.5 text-[var(--ui-workspace-selected)]" />
             {t('sessionDetail.masterLayoutLibrary')}
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -300,13 +300,13 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
           </DialogHeader>
 
           {loading ? (
-            <div className="flex justify-center py-10 text-[#667257]">
+            <div className="flex justify-center py-10 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : (
             <fieldset disabled={busy} className="space-y-5">
               <div className="space-y-3">
-                <label className="flex cursor-pointer items-center justify-between gap-4 text-sm text-[#4a563d]">
+                <label className="flex cursor-pointer items-center justify-between gap-4 text-sm text-foreground">
                   <span>{t('sessionDetail.masterOverrideBackground')}</span>
                   <Checkbox
                     checked={config.backgroundMode === 'override'}
@@ -318,8 +318,8 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
                 <MasterGradientEditor />
               </div>
 
-              <div className="grid gap-x-8 gap-y-6 border-t border-[#e6ddcf] pt-5 sm:grid-cols-2">
-                <div className="space-y-3 text-sm text-[#4a563d]">
+              <div className="grid gap-x-8 gap-y-6 border-t border-border pt-5 sm:grid-cols-2">
+                <div className="space-y-3 text-sm text-foreground">
                   <span>{t('sessionDetail.masterTitleFont')}</span>
                   <Select
                     value={resolveFontValue(config.titleFontFamily, config.titleFontPreset)}
@@ -343,7 +343,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
                       ))}
                     </SelectContent>
                   </Select>
-                  <label className="flex items-center gap-4 text-sm text-[#667257]">
+                  <label className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{t('sessionDetail.masterTitleFontSize')}</span>
                     <span className="relative block w-[128px]">
                       <Input
@@ -356,14 +356,14 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
                         className="h-8 pr-7 text-center text-xs"
                         onChange={(event) => updateFontSize('title', event.target.value)}
                       />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#89917d]">
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                         px
                       </span>
                     </span>
                   </label>
                 </div>
 
-                <div className="space-y-3 text-sm text-[#4a563d]">
+                <div className="space-y-3 text-sm text-foreground">
                   <span>{t('sessionDetail.masterBodyFont')}</span>
                   <Select
                     value={resolveFontValue(config.bodyFontFamily, config.bodyFontPreset)}
@@ -387,7 +387,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
                       ))}
                     </SelectContent>
                   </Select>
-                  <label className="flex items-center gap-4 text-sm text-[#667257]">
+                  <label className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{t('sessionDetail.masterBodyFontSize')}</span>
                     <span className="relative block w-[128px]">
                       <Input
@@ -400,7 +400,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
                         className="h-8 pr-7 text-center text-xs"
                         onChange={(event) => updateFontSize('body', event.target.value)}
                       />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#89917d]">
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                         px
                       </span>
                     </span>
@@ -409,11 +409,11 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
               </div>
 
               {status && status.unlinkedPageCount > 0 && (
-                <p className="text-xs leading-4 text-[#667257]">
+                <p className="text-xs leading-4 text-muted-foreground">
                   {t('sessionDetail.masterUnlinkedHint', { count: status.unlinkedPageCount })}
                 </p>
               )}
-              {error && <p className="text-xs leading-4 text-[#a14f4a]">{error}</p>}
+              {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
             </fieldset>
           )}
 
@@ -467,7 +467,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
           </DialogHeader>
 
           {loading ? (
-            <div className="flex justify-center py-10 text-[#667257]">
+            <div className="flex justify-center py-10 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : (
@@ -475,7 +475,7 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
               <MasterElementsEditor />
 
               {selectedPageId && (
-                <div className="flex w-fit items-center gap-2 text-sm text-[#4a563d]">
+                <div className="flex w-fit items-center gap-2 text-sm text-foreground">
                   <label htmlFor="master-hide-elements-on-slide" className="cursor-pointer">
                     {t('sessionDetail.masterHideElementsOnSlide')}
                   </label>
@@ -488,11 +488,11 @@ export function MasterWorkbenchPanel(): React.JSX.Element | null {
               )}
 
               {status && status.unlinkedPageCount > 0 && (
-                <p className="text-xs leading-4 text-[#667257]">
+                <p className="text-xs leading-4 text-muted-foreground">
                   {t('sessionDetail.masterUnlinkedHint', { count: status.unlinkedPageCount })}
                 </p>
               )}
-              {error && <p className="text-xs leading-4 text-[#a14f4a]">{error}</p>}
+              {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
             </fieldset>
           )}
 

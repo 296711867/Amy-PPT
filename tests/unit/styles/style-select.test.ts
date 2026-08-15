@@ -72,7 +72,9 @@ describe('StyleSelect', () => {
       ])
 
       const newestFavorite = optionButtons[1]
-      expect(newestFavorite?.querySelector('svg')?.getAttribute('class')).toContain('fill-[#d6a942]')
+      expect(newestFavorite?.querySelector('svg')?.getAttribute('class')).toContain(
+        'fill-primary'
+      )
     } finally {
       await act(async () => root.unmount())
       container.remove()

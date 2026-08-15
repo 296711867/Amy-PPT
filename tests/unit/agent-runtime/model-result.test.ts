@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { extractJsonBlock, extractModelText } from '../../../src/main/agent-runtime/model/result'
+import {
+  assertModelText,
+  extractJsonBlock,
+  extractModelText,
+  readModelResponseDiagnostics
+} from '../../../src/main/agent-runtime/model/result'
 
 describe('extractModelText', () => {
   it('extracts strings and supported structured message content', () => {
@@ -14,6 +19,33 @@ describe('extractModelText', () => {
   it('returns an empty string for unsupported model values', () => {
     expect(extractModelText(null)).toBe('')
     expect(extractModelText({ content: [{ text: 123 }] })).toBe('')
+  })
+})
+
+describe('model response diagnostics', () => {
+  it('recognizes an empty response that exhausted its output budget', () => {
+    const response = {
+      content: '',
+      response_metadata: {
+        finish_reason: 'length',
+        tokenUsage: { completionTokens: 4096 }
+      }
+    }
+
+    expect(readModelResponseDiagnostics(response)).toEqual({
+      finishReason: 'length',
+      outputTokens: 4096
+    })
+    expect(() => assertModelText(response, { maxTokens: 4096, locale: 'zh' })).toThrow(
+      '模型已耗尽 4096 个输出 token，但没有返回可见文本'
+    )
+  })
+
+  it('returns visible text and explains unexplained empty responses', () => {
+    expect(assertModelText({ content: '  {"ok":true}  ' })).toBe('{"ok":true}')
+    expect(() => assertModelText({ content: '' }, { locale: 'zh' })).toThrow(
+      '模型返回了空响应，没有可见文本'
+    )
   })
 })
 

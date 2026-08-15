@@ -3,7 +3,7 @@ import fs from 'fs'
 import pLimit from 'p-limit'
 import log from 'electron-log/main.js'
 import { createSessionDeckAgent, createSessionEditAgent } from '../agent-runtime/agent'
-import { extractJsonBlock, extractModelText, resolveModel } from '../agent-runtime/model'
+import { assertModelText, extractJsonBlock, extractModelText, resolveModel } from '../agent-runtime/model'
 import type { GenerationAgentManager } from './context'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
 import {
@@ -58,6 +58,7 @@ import { readSessionLayoutLibrary } from '../session/master-service'
 import { classifyGenerationError, type GenerationFailureInfo } from '@shared/generation-error'
 import { createGenerationCircuitBreaker } from '@shared/generation-circuit-breaker'
 import { hasCommittedGeneratedPage } from './page-commit'
+import { validateAssignedDeckBackground } from './deck-backgrounds'
 import {
   formatDeckQualityFeedback,
   inspectPresentationDeckQuality,
@@ -217,6 +218,7 @@ const normalizeDesignContract = (value: unknown): DesignContract => {
     chartStyle: readText('chartStyle'),
     shapeLanguage: readText('shapeLanguage'),
     titleFont: readText('titleFont'),
+    subtitleFont: readText('subtitleFont') || readText('bodyFont'),
     bodyFont: readText('bodyFont')
   }
 }
@@ -325,11 +327,12 @@ const detectFontLanguageHint = (text: string): string => {
 
 const resolveFontPair = (
   value: FontSelection | undefined
-): { titleFont: string; bodyFont: string } | null => {
+): { titleFont: string; subtitleFont: string; bodyFont: string } | null => {
   if (!value || value.mode !== 'pair') return null
   const titleFont = String(value.title?.family || '').trim()
   const bodyFont = String(value.body?.family || '').trim()
-  return titleFont && bodyFont ? { titleFont, bodyFont } : null
+  const subtitleFont = String(value.subtitle?.family || bodyFont).trim()
+  return titleFont && subtitleFont && bodyFont ? { titleFont, subtitleFont, bodyFont } : null
 }
 
 export const planDeckWithLLM = async (args: {
@@ -741,6 +744,7 @@ export const buildDesignContractWithLLM = async (args: {
   const requestedFontPair = resolveFontPair(args.fontSelection)
   if (requestedFontPair) {
     await assertFontFamilyAvailable(requestedFontPair.titleFont, 'titleFont')
+    await assertFontFamilyAvailable(requestedFontPair.subtitleFont, 'subtitleFont')
     await assertFontFamilyAvailable(requestedFontPair.bodyFont, 'bodyFont')
   }
   const languageHint = detectFontLanguageHint(
@@ -802,6 +806,7 @@ export const buildDesignContractWithLLM = async (args: {
     if (requestedFontPair) {
       if (
         contract.titleFont !== requestedFontPair.titleFont ||
+        contract.subtitleFont !== requestedFontPair.subtitleFont ||
         contract.bodyFont !== requestedFontPair.bodyFont
       ) {
         throw new Error(
@@ -871,7 +876,10 @@ export const buildDesignContractWithLLM = async (args: {
         ],
         { signal: combinedSignal }
       )
-      const responseText = extractModelText(response)
+      const responseText = assertModelText(response, {
+        maxTokens: args.maxTokens,
+        locale: args.appLocale
+      })
       log.info('[llm] design_contract response', {
         attempt,
         textLength: responseText.length,
@@ -971,6 +979,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
+    backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
   }>
   designContract?: DesignContract
   projectDir: string
@@ -988,6 +997,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
+    backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
     htmlPath: string
   }) => Promise<void>
   onPageFailed?: (page: {
@@ -1028,6 +1038,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     layoutPrompt: string
     imageAssetPath?: string
     imageAssetPaths?: string[]
+    backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
   }
   const resolvePageRef = (page: {
     pageNumber: number
@@ -1042,6 +1053,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
+    backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
   }): PageRef => {
     const universalLayoutId = normalizeUniversalLayoutId(page.layoutId)
     const layoutTemplate = resolveLayoutMasterTemplate(layoutLibrary, page.layoutIntent)
@@ -1060,7 +1072,8 @@ export const runDeepAgentDeckGeneration = async (args: {
         ? formatUniversalLayoutPrompt(universalLayoutId)
         : formatLayoutMasterPrompt(layoutTemplate),
       imageAssetPath: page.imageAssetPath,
-      imageAssetPaths: page.imageAssetPaths
+      imageAssetPaths: page.imageAssetPaths,
+      backgroundAsset: page.backgroundAsset
     }
   }
   const pageRefs: PageRef[] =
@@ -1084,7 +1097,8 @@ export const runDeepAgentDeckGeneration = async (args: {
               contentDensity: args.outlineItems[index]?.contentDensity,
               layoutId: args.outlineItems[index]?.layoutId,
               imageAssetPath: args.outlineItems[index]?.imageAssetPath,
-              imageAssetPaths: args.outlineItems[index]?.imageAssetPaths
+              imageAssetPaths: args.outlineItems[index]?.imageAssetPaths,
+              backgroundAsset: args.outlineItems[index]?.backgroundAsset
             })
           )
         })()
@@ -1378,6 +1392,7 @@ export const runDeepAgentDeckGeneration = async (args: {
                   layoutPrompt: page.layoutPrompt,
                   imageAssetPath: page.imageAssetPath,
                   imageAssetPaths: page.imageAssetPaths,
+                  backgroundAsset: page.backgroundAsset,
                   sourceDocumentPaths: pageSourceDocumentPaths,
                   referenceDocumentSnippets,
                   isRetryMode: args.generationMode === 'retry',
@@ -1459,6 +1474,21 @@ export const runDeepAgentDeckGeneration = async (args: {
         )
       }
 
+      const backgroundErrors = validateAssignedDeckBackground(
+        afterPageHtml,
+        page.backgroundAsset,
+        args.appLocale
+      )
+      if (backgroundErrors.length > 0) {
+        throw new Error(
+          uiText(
+            args.appLocale,
+            `PPT 背景图约束未通过 (${page.pageId})：${backgroundErrors.join('；')}。请将分配的背景图作为创意根节点的第一个子元素后重试。`,
+            `PPT background constraint failed (${page.pageId}): ${backgroundErrors.join('; ')}. Add the assigned background image as the first child of the creative root and retry.`
+          )
+        )
+      }
+
       if (streamError) {
         log.warn('[deepagent] preserved validated page after post-write stream failure', {
           sessionId: args.sessionId,
@@ -1494,6 +1524,7 @@ export const runDeepAgentDeckGeneration = async (args: {
         layoutId: page.layoutId,
         imageAssetPath: page.imageAssetPath,
         imageAssetPaths: page.imageAssetPaths,
+        backgroundAsset: page.backgroundAsset,
         htmlPath: currentPagePath
       })
 

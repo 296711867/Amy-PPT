@@ -1,7 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { rmWithRetry } from '../../helpers/rm-retry'
 
 vi.mock('electron', () => ({
   app: {
@@ -54,8 +55,9 @@ describe('style favorites', () => {
       expect(unfavorited?.favoriteAt).toBeNull()
       expect(unfavorited?.updatedAt).toBe(before?.updatedAt)
     } finally {
+      vi.useRealTimers()
       await db.close()
-      await rm(tmp, { recursive: true, force: true })
+      await rmWithRetry(tmp)
     }
   })
 })

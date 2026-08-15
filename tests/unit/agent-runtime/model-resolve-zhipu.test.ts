@@ -30,7 +30,7 @@ describe('resolveModel zhipu provider', () => {
     openaiCtor.mockClear()
   })
 
-  it('routes zhipu through OpenAI Chat Completions with omit thinking', async () => {
+  it('routes zhipu through OpenAI Chat Completions with thinking disabled', async () => {
     const { resolveModel } = await import('../../../src/main/agent-runtime/model/resolve')
 
     resolveModel(
@@ -51,8 +51,8 @@ describe('resolveModel zhipu provider', () => {
     expect(opts.configuration).toEqual({
       baseURL: 'https://open.bigmodel.cn/api/paas/v4'
     })
-    // 关键点：智谱强制 omit thinking，modelKwargs 必须为空对象（不带 thinking 字段）
-    expect(opts.modelKwargs).toEqual({})
+    // Structured JSON needs visible output, so GLM reasoning is disabled explicitly.
+    expect(opts.modelKwargs).toEqual({ thinking: { type: 'disabled' } })
   })
 
   it('keeps a custom self-hosted gateway base url for zhipu', async () => {
@@ -70,6 +70,27 @@ describe('resolveModel zhipu provider', () => {
     expect(openaiCtor).toHaveBeenCalledTimes(1)
     const opts = openaiCtor.mock.calls[0][0] as Record<string, unknown>
     expect(opts.configuration).toEqual({ baseURL: 'https://gateway.example.com/v1' })
+    expect(opts.modelKwargs).toEqual({ thinking: { type: 'disabled' } })
+  })
+
+  it('respects the explicit omit mode for older Zhipu-compatible gateways', async () => {
+    const { resolveModel } = await import('../../../src/main/agent-runtime/model/resolve')
+    const { runWithModelTemperatureControl } = await import(
+      '../../../src/main/agent-runtime/model/runtime'
+    )
+
+    runWithModelTemperatureControl({ thinkingParameterMode: 'omit' }, () =>
+      resolveModel(
+        'zhipu',
+        'secret-key',
+        'glm-compatible',
+        'https://gateway.example.com/v1',
+        undefined,
+        4096
+      )
+    )
+
+    const opts = openaiCtor.mock.calls[0][0] as Record<string, unknown>
     expect(opts.modelKwargs).toEqual({})
   })
 })

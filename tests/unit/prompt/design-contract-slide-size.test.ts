@@ -42,13 +42,20 @@ describe('size-aware design contract prompt', () => {
         { family: 'Noto Sans SC', roles: ['title', 'body'] },
         { family: 'Inter', roles: ['body'] }
       ],
-      requestedFontPair: { titleFont: 'Noto Sans SC', bodyFont: 'Inter' },
+      requestedFontPair: {
+        titleFont: 'Noto Sans SC',
+        subtitleFont: 'Inter',
+        bodyFont: 'Inter'
+      },
       languageHint: 'zh-CN',
       slideSize: resolveSlideSize({ id: 'wide-16-9' })
     })
 
-    expect(prompt).toContain('titleFont and bodyFont are fixed by the user selection')
+    expect(prompt).toContain(
+      'titleFont, subtitleFont, and bodyFont are fixed by the user selection'
+    )
     expect(prompt).toContain('titleFont: Noto Sans SC')
+    expect(prompt).toContain('subtitleFont: Inter')
     expect(prompt).toContain('bodyFont: Inter')
     expect(prompt).toContain('languageHint: zh-CN')
     expect(prompt).toContain('"family":"Noto Sans SC"')

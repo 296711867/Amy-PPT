@@ -33,7 +33,7 @@ export function WorkspaceTabs({
       aria-disabled={disabled || undefined}
       >
         <div className="flex max-w-full items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-[#d4e4c1]/30 p-0.5 shadow-[inset_0_1px_4px_rgba(62,74,50,0.08)]">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--ui-workspace-selected-soft)]/45 p-0.5 shadow-[inset_0_1px_4px_rgb(var(--ui-workspace-shadow-color)/0.08)]">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -41,8 +41,8 @@ export function WorkspaceTabs({
                 className={cn(
                   'inline-flex h-6 min-w-[68px] shrink-0 items-center justify-center gap-1 rounded-full px-2 text-[10px] font-bold leading-none transition-all',
                   activeTab === tab.id
-                    ? 'bg-[#5d6b4d] text-white shadow-[0_4px_10px_rgba(62,74,50,0.16)]'
-                    : 'text-[#4f5f40] hover:bg-[#fffaf1]/54 hover:text-[#314028]'
+                    ? 'bg-[var(--ui-workspace-selected)] text-[var(--ui-workspace-on-selected)] shadow-[0_4px_10px_rgb(var(--ui-workspace-shadow-color)/0.16)]'
+                    : 'text-[var(--ui-workspace-text-muted)] hover:bg-[var(--ui-workspace-surface)]/70 hover:text-[var(--ui-workspace-text)]'
                 )}
                 onClick={() => onActivate(tab.id)}
                 disabled={disabled}

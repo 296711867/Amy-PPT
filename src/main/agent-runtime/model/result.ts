@@ -20,6 +20,67 @@ export const extractModelText = (value: unknown): string => {
   return ''
 }
 
+export type ModelResponseDiagnostics = {
+  finishReason: string
+  outputTokens: number | null
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+
+const readNumber = (record: Record<string, unknown> | null, keys: string[]): number | null => {
+  if (!record) return null
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value
+  }
+  return null
+}
+
+export const readModelResponseDiagnostics = (value: unknown): ModelResponseDiagnostics => {
+  const response = asRecord(value)
+  const responseMetadata = asRecord(response?.response_metadata)
+  const usageMetadata = asRecord(response?.usage_metadata)
+  const tokenUsage = asRecord(responseMetadata?.tokenUsage)
+  const finishReason = String(
+    responseMetadata?.finish_reason ?? responseMetadata?.finishReason ?? response?.finish_reason ?? ''
+  ).trim()
+  const outputTokens =
+    readNumber(usageMetadata, ['output_tokens', 'outputTokens']) ??
+    readNumber(tokenUsage, ['completionTokens', 'output_tokens', 'outputTokens'])
+
+  return { finishReason, outputTokens }
+}
+
+export const assertModelText = (
+  value: unknown,
+  options: { maxTokens?: number; locale?: 'zh' | 'en' } = {}
+): string => {
+  const text = extractModelText(value).trim()
+  if (text) return text
+
+  const diagnostics = readModelResponseDiagnostics(value)
+  const exhaustedBudget =
+    diagnostics.finishReason.toLowerCase() === 'length' ||
+    (typeof options.maxTokens === 'number' &&
+      diagnostics.outputTokens !== null &&
+      diagnostics.outputTokens >= options.maxTokens)
+  if (options.locale === 'en') {
+    throw new Error(
+      exhaustedBudget
+        ? `The model used the full ${diagnostics.outputTokens ?? options.maxTokens} output-token budget but returned no visible text. Disable deep thinking for structured JSON generation or increase max tokens.`
+        : 'The model returned an empty response with no visible text. Check the provider protocol and model compatibility.'
+    )
+  }
+  throw new Error(
+    exhaustedBudget
+      ? `模型已耗尽 ${diagnostics.outputTokens ?? options.maxTokens} 个输出 token，但没有返回可见文本。请关闭结构化 JSON 生成中的深度思考，或提高最大输出 token。`
+      : '模型返回了空响应，没有可见文本。请检查 Provider 协议与模型兼容性。'
+  )
+}
+
 export const extractJsonBlock = (raw: string): string => {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fenced?.[1]) return fenced[1].trim()

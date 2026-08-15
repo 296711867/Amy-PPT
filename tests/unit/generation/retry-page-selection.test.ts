@@ -16,7 +16,7 @@ const sessionPage = (args: {
   }) as never
 
 describe('selectRetrySessionPages', () => {
-  it('selects only pages belonging to the requested failed run', () => {
+  it('prefers the requested failed-run record only among duplicate page numbers', () => {
     const oldPage = sessionPage({ id: 'old-1', slug: 'page-old', pageNumber: 1, updatedAt: 1 })
     const latestPage = sessionPage({
       id: 'latest-1',
@@ -32,6 +32,39 @@ describe('selectRetrySessionPages', () => {
 
     expect(result.selected).toEqual([latestPage])
     expect(result.staleIds).toEqual(['old-1'])
+  })
+
+  it('keeps completed pages outside a failed-run subset', () => {
+    const first = sessionPage({ id: 'page-1', slug: 'page-one', pageNumber: 1, updatedAt: 1 })
+    const failedSecond = sessionPage({
+      id: 'page-2',
+      slug: 'page-two',
+      pageNumber: 2,
+      updatedAt: 2
+    })
+    const third = sessionPage({ id: 'page-3', slug: 'page-three', pageNumber: 3, updatedAt: 3 })
+    const failedFifth = sessionPage({
+      id: 'page-5',
+      slug: 'page-five',
+      pageNumber: 5,
+      updatedAt: 5
+    })
+
+    const result = selectRetrySessionPages({
+      sessionPages: [first, failedSecond, third, failedFifth],
+      sourceRunPages: [
+        { page_id: 'page-two' } as never,
+        { page_id: 'page-five' } as never
+      ]
+    })
+
+    expect(result.selected.map((page) => page.id)).toEqual([
+      'page-1',
+      'page-2',
+      'page-3',
+      'page-5'
+    ])
+    expect(result.staleIds).toEqual([])
   })
 
   it('falls back to the newest active record for each page number', () => {

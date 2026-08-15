@@ -29,6 +29,7 @@ const formatDesignContract = (contract: DesignContract): string =>
     `- Chart style: ${contract.chartStyle}`,
     `- Shape language: ${contract.shapeLanguage}`,
     `- Title font: ${contract.titleFont}`,
+    `- Subtitle font: ${contract.subtitleFont}`,
     `- Body font: ${contract.bodyFont}`
   ].join('\n')
 

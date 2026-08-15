@@ -29,6 +29,7 @@ import type { ModelTimeoutProfile } from '@shared/model-timeout'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
 import type { ImagePolicy } from '@shared/generation'
 import { prepareDeckImageAssets } from './deck-images'
+import { readDeckBackgroundManifest, resolveDeckBackgroundAsset } from './deck-backgrounds'
 
 const pageSlugId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)
 
@@ -371,6 +372,12 @@ export async function executeAddPageGeneration(
     sessionId: context.sessionId
   })
   let agentSummary = ''
+  const backgroundManifest = await readDeckBackgroundManifest(context.projectDir)
+  const newPageBackground = resolveDeckBackgroundAsset(
+    backgroundManifest,
+    newPageNumber,
+    targetPage ? existingPages.length : existingPages.length + 1
+  )
   try {
     const generationResult = await generatePagesWithRetry({
       runArgs: {
@@ -411,7 +418,8 @@ export async function executeAddPageGeneration(
             contentDensity: planResult.contentDensity,
             layoutId: planResult.layoutId,
             imageAssetPath: planResult.imageAssetPath,
-            imageAssetPaths: planResult.imageAssetPaths
+            imageAssetPaths: planResult.imageAssetPaths,
+            backgroundAsset: newPageBackground
           }
         ],
         designContract,

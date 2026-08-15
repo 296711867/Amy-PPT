@@ -97,7 +97,10 @@ export function resolveModel(
           baseUrl: resolvedBaseUrl,
           temperatureOptions,
           maxTokens: resolvedMaxTokens,
-          thinkingParameterMode: 'omit'
+          // GLM-4.5/4.6 may otherwise consume the whole output budget as hidden
+          // reasoning and leave message.content empty during JSON generation.
+          // Keep the explicit "omit" setting available for older gateways.
+          thinkingParameterMode
         }),
         callbacks: [usageCallback]
       })

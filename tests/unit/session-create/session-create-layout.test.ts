@@ -23,7 +23,8 @@ const state = vi.hoisted(() => ({
       }
     ]
   })),
-  listFonts: vi.fn(async () => ({ googleFonts: [], userFonts: [] })),
+  listFonts: vi.fn(async () => ({ googleFonts: [], userFonts: [], systemFonts: [] })),
+  listFontSchemes: vi.fn(async () => ({ items: [] })),
   translate: vi.fn((key: string) => key),
   success: vi.fn(),
   error: vi.fn(),
@@ -50,12 +51,14 @@ vi.mock('../../../src/renderer/src/store', () => ({
 vi.mock('@renderer/lib/ipc', () => ({
   ipc: {
     listStyles: state.listStyles,
-    listFonts: state.listFonts
+    listFonts: state.listFonts,
+    listFontSchemes: state.listFontSchemes
   }
 }))
 
 vi.mock('@renderer/i18n', () => ({
-  useT: () => state.translate
+  useT: () => state.translate,
+  useLang: () => ({ lang: 'zh', setLang: vi.fn(), t: state.translate })
 }))
 
 vi.mock('../../../src/renderer/src/hooks/useModelAction', () => ({

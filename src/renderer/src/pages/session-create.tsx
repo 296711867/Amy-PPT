@@ -20,7 +20,8 @@ import { useSettingsStore } from '../store'
 import { useToastStore } from '../store'
 import { ModelSplitButton } from '../components/model/ModelActionButton'
 import { useModelAction } from '../hooks/useModelAction'
-import { ipc, type FontListItem } from '@renderer/lib/ipc'
+import { ipc } from '@renderer/lib/ipc'
+import { FontSchemeSelector } from '../components/font/FontSchemeSelector'
 import {
   normalizeAnimationPreferences,
   type AnimationPreferenceId,
@@ -104,9 +105,10 @@ export function SessionCreatePage(): ReactElement {
   const [pageCount, setPageCount] = useState(String(DEFAULT_PAGE_COUNT))
   const [slideSizeId, setSlideSizeId] = useState<SlideSizePresetId>(DEFAULT_SLIDE_SIZE_ID)
   const [generateImagesWithAi, setGenerateImagesWithAi] = useState(false)
+  const [generateDeckBackgrounds, setGenerateDeckBackgrounds] = useState(false)
+  const [contentBackgroundCount, setContentBackgroundCount] = useState<'1' | '2' | '3'>('1')
   const [selectedStyleId, setSelectedStyleId] = useState('')
-  const [selectedTitleFontId, setSelectedTitleFontId] = useState('auto')
-  const [selectedBodyFontId, setSelectedBodyFontId] = useState('auto')
+  const [fontSelection, setFontSelection] = useState<FontSelection>({ mode: 'auto' })
   const [styleOptions, setStyleOptions] = useState<
     Array<{
       id: string
@@ -118,7 +120,6 @@ export function SessionCreatePage(): ReactElement {
       favoriteAt?: number | null
     }>
   >([])
-  const [fontOptions, setFontOptions] = useState<FontListItem[]>([])
   const [attachedReferenceFile, setAttachedReferenceFile] = useState<AttachedReferenceFile | null>(
     null
   )
@@ -212,32 +213,9 @@ export function SessionCreatePage(): ReactElement {
     [error, t]
   )
 
-  const loadFontOptions = useCallback(async (): Promise<void> => {
-    try {
-      const { googleFonts, userFonts } = await ipc.listFonts()
-      const options = [...userFonts, ...googleFonts]
-      setFontOptions(options)
-      const ids = new Set(options.map((font) => `${font.source}:${font.id}`))
-      setSelectedTitleFontId((current) =>
-        current === 'auto' || ids.has(current) ? current : 'auto'
-      )
-      setSelectedBodyFontId((current) =>
-        current === 'auto' || ids.has(current) ? current : 'auto'
-      )
-    } catch {
-      setFontOptions([])
-      setSelectedTitleFontId('auto')
-      setSelectedBodyFontId('auto')
-    }
-  }, [])
-
   useEffect(() => {
     void loadStyleOptions()
   }, [loadStyleOptions])
-
-  useEffect(() => {
-    void loadFontOptions()
-  }, [loadFontOptions])
 
   const handleSubmit = async (modelConfigId: string): Promise<void> => {
     if (parsingDocument) {
@@ -264,26 +242,6 @@ export function SessionCreatePage(): ReactElement {
       return
     }
     const selectedStyle = styleOptions.find((option) => option.id === selectedStyleId)!
-    const findFontBySelectId = (id: string): FontListItem | undefined =>
-      fontOptions.find((font) => `${font.source}:${font.id}` === id)
-    const selectedTitleFont = findFontBySelectId(selectedTitleFontId)
-    const selectedBodyFont = findFontBySelectId(selectedBodyFontId)
-    const fontSelection: FontSelection =
-      selectedTitleFont && selectedBodyFont
-        ? {
-            mode: 'pair',
-            title: {
-              source: selectedTitleFont.source,
-              family: selectedTitleFont.family,
-              id: selectedTitleFont.id
-            },
-            body: {
-              source: selectedBodyFont.source,
-              family: selectedBodyFont.family,
-              id: selectedBodyFont.id
-            }
-          }
-        : { mode: 'auto' }
     const topicText = topic.trim()
     const briefText = brief.trim()
     const safePageCount = Number.parseInt(pageCount.trim(), 10)
@@ -308,7 +266,11 @@ export function SessionCreatePage(): ReactElement {
         referenceDocumentPath: referenceDocumentPath || undefined,
         sourcePlan: acceptedSourcePlan,
         fontSelection,
-        imagePolicy: generateImagesWithAi ? 'ai' : 'placeholder'
+        imagePolicy: generateImagesWithAi ? 'ai' : 'placeholder',
+        deckBackgroundPolicy: {
+          enabled: generateDeckBackgrounds,
+          contentBackgroundCount: Number(contentBackgroundCount) as 1 | 2 | 3
+        }
       })
       success(t('home.sessionCreated'), {
         description: t('home.generationStarted'),
@@ -518,46 +480,6 @@ export function SessionCreatePage(): ReactElement {
     setAcceptedSourcePlan(shouldApplySourceOutline ? draft.sourcePlan : undefined)
     setSuggestionDialogOpen(false)
   }
-
-  const titleFontOptions = fontOptions.filter((font) => font.role.includes('title'))
-  const bodyFontOptions = fontOptions.filter((font) => font.role.includes('body'))
-  const availableTitleFonts = titleFontOptions.length > 0 ? titleFontOptions : fontOptions
-  const availableBodyFonts = bodyFontOptions.length > 0 ? bodyFontOptions : fontOptions
-  const getSelectedFontLabel = (id: string): string => {
-    if (id === 'auto') return t('home.fontSchemeAuto')
-    const selectedFont = fontOptions.find((font) => `${font.source}:${font.id}` === id)
-    return selectedFont?.family || t('home.fontSchemeAuto')
-  }
-  const renderFontSelectItem = (font: FontListItem, roleLabel: string): ReactElement => {
-    const isUploaded = font.source === 'uploaded'
-    const sourceLabel = isUploaded ? t('home.fontSourceUploaded') : t('home.fontSourceBuiltIn')
-    return (
-      <SelectItem
-        key={`${font.source}:${font.id}`}
-        value={`${font.source}:${font.id}`}
-        textValue={font.family}
-        className={compactSelectItemClass}
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${
-              isUploaded ? 'bg-[#eef9ec] text-[#4a7a46]' : 'bg-[#eef6ff] text-[#3e6685]'
-            }`}
-          >
-            {sourceLabel}
-          </span>
-          <span className="min-w-0 truncate">{font.family}</span>
-          <span className="ml-auto shrink-0 text-[10px] text-[#8b927f]">{roleLabel}</span>
-        </span>
-      </SelectItem>
-    )
-  }
-  const fontSelectHint =
-    selectedTitleFontId === 'auto' && selectedBodyFontId === 'auto'
-      ? t('home.fontSchemeAutoHint')
-      : selectedTitleFontId !== 'auto' && selectedBodyFontId !== 'auto'
-        ? t('home.fontSchemeManualHint')
-        : t('home.fontSchemePartialHint')
 
   return (
     <div className="session-create-page mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 px-5 py-4 sm:px-6">
@@ -932,59 +854,7 @@ export function SessionCreatePage(): ReactElement {
 
                 <section>
                   <label className="mb-2 block">{t('home.fontScheme')}</label>
-                  <div className="grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-[#d8ccb5]/70 bg-white/75 shadow-[inset_0_1px_2px_rgba(73,61,44,0.04)]">
-                    <Select value={selectedTitleFontId} onValueChange={setSelectedTitleFontId}>
-                      <SelectTrigger className="h-8 min-w-0 rounded-none border-0 border-r border-[#d8ccb5]/70 bg-transparent px-2.5 py-1.5 text-xs shadow-none focus:ring-1">
-                        <span className="min-w-0 flex-1 truncate text-left">
-                          <span className="mr-1.5 text-[10px] font-medium text-[#8b927f]">
-                            {t('home.fontPairTitle')}
-                          </span>
-                          <SelectValue placeholder={t('home.fontSchemeAuto')}>
-                            {getSelectedFontLabel(selectedTitleFontId)}
-                          </SelectValue>
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent className={compactSelectContentClass}>
-                        <SelectItem value="auto" className={compactSelectItemClass}>
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="min-w-0 truncate">{t('home.fontSchemeAuto')}</span>
-                            <span className="ml-auto shrink-0 text-[10px] text-[#8b927f]">
-                              {t('home.fontPairTitle')}
-                            </span>
-                          </span>
-                        </SelectItem>
-                        {availableTitleFonts.map((font) =>
-                          renderFontSelectItem(font, t('home.fontPairTitle'))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Select value={selectedBodyFontId} onValueChange={setSelectedBodyFontId}>
-                      <SelectTrigger className="h-8 min-w-0 rounded-none border-0 bg-transparent px-2.5 py-1.5 text-xs shadow-none focus:ring-1">
-                        <span className="min-w-0 flex-1 truncate text-left">
-                          <span className="mr-1.5 text-[10px] font-medium text-[#8b927f]">
-                            {t('home.fontPairBody')}
-                          </span>
-                          <SelectValue placeholder={t('home.fontSchemeAuto')}>
-                            {getSelectedFontLabel(selectedBodyFontId)}
-                          </SelectValue>
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent className={compactSelectContentClass}>
-                        <SelectItem value="auto" className={compactSelectItemClass}>
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="min-w-0 truncate">{t('home.fontSchemeAuto')}</span>
-                            <span className="ml-auto shrink-0 text-[10px] text-[#8b927f]">
-                              {t('home.fontPairBody')}
-                            </span>
-                          </span>
-                        </SelectItem>
-                        {availableBodyFonts.map((font) =>
-                          renderFontSelectItem(font, t('home.fontPairBody'))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-[#7f8a70]">{fontSelectHint}</p>
+                  <FontSchemeSelector value={fontSelection} onChange={setFontSelection} compact />
                 </section>
 
                 <section>
@@ -1001,6 +871,46 @@ export function SessionCreatePage(): ReactElement {
                       <span className="mt-1 block text-[11px] leading-4 text-[#7f8a70]">
                         {t('home.generateImagesWithAiHint')}
                       </span>
+                    </span>
+                  </label>
+                </section>
+
+                <section>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[#d8ccb5]/70 bg-white/55 p-3">
+                    <Checkbox
+                      checked={generateDeckBackgrounds}
+                      onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
+                      aria-label={t('home.generateDeckBackgrounds')}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-medium text-[#3e4a32]">
+                        {t('home.generateDeckBackgrounds')}
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-4 text-[#7f8a70]">
+                        {t('home.generateDeckBackgroundsHint')}
+                      </span>
+                      {generateDeckBackgrounds ? (
+                        <span className="mt-3 flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+                          <span className="text-[11px] text-[#626d55]">
+                            {t('home.contentBackgroundCount')}
+                          </span>
+                          <Select
+                            value={contentBackgroundCount}
+                            onValueChange={(value) =>
+                              setContentBackgroundCount(value as '1' | '2' | '3')
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-24 bg-white/70">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                              <SelectItem value="3">3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </span>
+                      ) : null}
                     </span>
                   </label>
                 </section>

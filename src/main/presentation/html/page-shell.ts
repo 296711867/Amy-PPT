@@ -63,14 +63,18 @@ export const buildBasePageStyleTag = (input: SlideSizePreset): string => {
     font-size: 18px;
   }
   .ppt-page-content h1,
+  .ppt-page-content [data-role="title"],
+  .ppt-page-content [data-block-id="title"] {
+    font-family: var(--ppt-master-title-font, var(--ppt-title-font, var(--ppt-body-font, var(--ppt-system-sans))));
+  }
   .ppt-page-content h2,
   .ppt-page-content h3,
   .ppt-page-content h4,
   .ppt-page-content h5,
   .ppt-page-content h6,
-  .ppt-page-content [data-role="title"],
-  .ppt-page-content [data-block-id="title"] {
-    font-family: var(--ppt-master-title-font, var(--ppt-title-font, var(--ppt-body-font, var(--ppt-system-sans))));
+  .ppt-page-content [data-role="subtitle"],
+  .ppt-page-content [data-ppt-text-role="subtitle"] {
+    font-family: var(--ppt-subtitle-font, var(--ppt-body-font, var(--ppt-system-sans)));
   }
   .ppt-page-content > [data-page-scaffold="1"] {
     width: 100%;

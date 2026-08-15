@@ -26,12 +26,58 @@ export interface OutlineItem {
   imagePolicy?: ImagePolicy
   imageAssetPath?: string
   imageAssetPaths?: string[]
+  /** Reusable full-canvas background assigned from the deck background package. */
+  backgroundAsset?: DeckBackgroundAsset
 }
 
 export type ImagePolicy = 'placeholder' | 'ai'
 
 export const normalizeImagePolicy = (value: unknown): ImagePolicy =>
   value === 'ai' ? 'ai' : 'placeholder'
+
+export type DeckBackgroundWhitespace =
+  | 'cover-safe'
+  | 'blank-left'
+  | 'blank-right'
+  | 'blank-top-center'
+  | 'ending-safe'
+
+export interface DeckBackgroundPolicy {
+  enabled: boolean
+  contentBackgroundCount: 1 | 2 | 3
+}
+
+export interface DeckBackgroundAsset {
+  role: 'cover' | 'content' | 'ending'
+  whitespace: DeckBackgroundWhitespace
+  path: string
+  prompt: string
+}
+
+export interface DeckBackgroundManifest {
+  version: 1
+  slideSizeId: string
+  assets: DeckBackgroundAsset[]
+}
+
+export const DEFAULT_DECK_BACKGROUND_POLICY: DeckBackgroundPolicy = {
+  enabled: false,
+  contentBackgroundCount: 1
+}
+
+export const normalizeDeckBackgroundPolicy = (value: unknown): DeckBackgroundPolicy => {
+  const record =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
+  const rawCount = Number(record.contentBackgroundCount)
+  const contentBackgroundCount: 1 | 2 | 3 =
+    rawCount === 2 || rawCount === 3 ? rawCount : 1
+  return {
+    enabled: record.enabled === true,
+    contentBackgroundCount
+  }
+}
 
 /** Deck-level visual rules persisted with a session and applied to every generated page. */
 export interface DesignContract {
@@ -43,6 +89,7 @@ export interface DesignContract {
   chartStyle: string
   shapeLanguage: string
   titleFont: string
+  subtitleFont: string
   bodyFont: string
 }
 
@@ -175,7 +222,7 @@ export interface PptxImportResult {
 }
 
 export interface FontRef {
-  source: 'google' | 'uploaded'
+  source: 'google' | 'uploaded' | 'system'
   family: string
   id?: string
 }
@@ -184,7 +231,10 @@ export type FontSelection =
   | { mode: 'auto' }
   | {
       mode: 'pair'
+      presetId?: string
       title: FontRef
+      /** Old sessions omit this field; normalizeFontSelection then inherits body. */
+      subtitle?: FontRef
       body: FontRef
     }
 
@@ -200,20 +250,24 @@ export const normalizeFontSelection = (value: unknown): FontSelection => {
   const titleFamily = typeof title.family === 'string' ? title.family.trim() : ''
   const bodyFamily = typeof body.family === 'string' ? body.family.trim() : ''
   if (!titleFamily || !bodyFamily) return { mode: 'auto' }
-  const titleSource = title.source === 'uploaded' ? 'uploaded' : 'google'
-  const bodySource = body.source === 'uploaded' ? 'uploaded' : 'google'
+  const normalizeSource = (source: unknown): FontRef['source'] =>
+    source === 'uploaded' || source === 'system' ? source : 'google'
+  const normalizeRef = (font: Record<string, unknown>, family: string): FontRef => ({
+    source: normalizeSource(font.source),
+    family,
+    id: typeof font.id === 'string' ? font.id : undefined
+  })
+  const subtitle =
+    record.subtitle && typeof record.subtitle === 'object'
+      ? (record.subtitle as Record<string, unknown>)
+      : body
+  const subtitleFamily = typeof subtitle.family === 'string' ? subtitle.family.trim() : bodyFamily
   return {
     mode: 'pair',
-    title: {
-      source: titleSource,
-      family: titleFamily,
-      id: typeof title.id === 'string' ? title.id : undefined
-    },
-    body: {
-      source: bodySource,
-      family: bodyFamily,
-      id: typeof body.id === 'string' ? body.id : undefined
-    }
+    presetId: typeof record.presetId === 'string' ? record.presetId.trim() || undefined : undefined,
+    title: normalizeRef(title, titleFamily),
+    subtitle: normalizeRef(subtitle, subtitleFamily || bodyFamily),
+    body: normalizeRef(body, bodyFamily)
   }
 }
 

@@ -42,8 +42,8 @@ availableFonts:
 {{availableFonts}}
 
 Return only a JSON object. Do not add explanations, Markdown, or extra text.
-Use exactly these fields: theme, background, palette, titleStyle, layoutMotif, chartStyle, shapeLanguage, titleFont, bodyFont.
+Use exactly these fields: theme, background, palette, titleStyle, layoutMotif, chartStyle, shapeLanguage, titleFont, subtitleFont, bodyFont.
 palette must contain 3-6 color strings.
-titleFont and bodyFont must be exact family values from availableFonts.
+titleFont, subtitleFont, and bodyFont must be exact family values from availableFonts.
 titleStyle must follow explicit typography targets in the style specification when supplied. Prefer explicit pixel sizes for targets outside Tailwind's standard scale. Without an explicit target, use text-4xl or text-5xl depending on content density. Do not use display sizes above 88px unless the user explicitly requests an oversized typographic composition.
-Format example: {"theme":"calm editorial analytics","background":"root uses warm white with subtle green wash","palette":["#f7f3e8","#5f7550","#d39d5c"],"titleStyle":"text-5xl font-semibold text-[#2f3a2a]","layoutMotif":"spacious editorial grids with organic dividers","chartStyle":"muted lines, no neon, readable labels","shapeLanguage":"8px radius, light borders, subtle shadows; clean restraint — no icon backings or decorative filler, order comes from alignment and whitespace; peer cards share identical treatment","titleFont":"Montserrat","bodyFont":"Inter"}
+Format example: {"theme":"calm editorial analytics","background":"root uses warm white with subtle green wash","palette":["#f7f3e8","#5f7550","#d39d5c"],"titleStyle":"text-5xl font-semibold text-[#2f3a2a]","layoutMotif":"spacious editorial grids with organic dividers","chartStyle":"muted lines, no neon, readable labels","shapeLanguage":"8px radius, light borders, subtle shadows; clean restraint — no icon backings or decorative filler, order comes from alignment and whitespace; peer cards share identical treatment","titleFont":"Montserrat","subtitleFont":"Inter","bodyFont":"Noto Sans SC"}

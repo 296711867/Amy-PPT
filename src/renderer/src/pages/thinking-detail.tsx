@@ -294,6 +294,7 @@ export function ThinkingDetailPage(): ReactElement {
     referenceDocumentPath: string
     sourcePlan?: SourceDocumentPlan
     imagePolicy: import('@shared/generation').ImagePolicy
+    deckBackgroundPolicy: import('@shared/generation').DeckBackgroundPolicy
     modelConfigId?: string
   }): Promise<void> => {
     if (generating || !prepared) return
@@ -308,6 +309,7 @@ export function ThinkingDetailPage(): ReactElement {
         referenceDocumentPath: params.referenceDocumentPath,
         fontSelection: params.fontSelection,
         imagePolicy: params.imagePolicy,
+        deckBackgroundPolicy: params.deckBackgroundPolicy,
         sourcePlan: params.sourcePlan
       })
       success(t('home.sessionCreated'), {

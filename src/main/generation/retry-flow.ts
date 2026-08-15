@@ -26,6 +26,10 @@ import {
   resolveSourceDocuments
 } from './context'
 import { selectRetrySessionPages } from './retry-page-selection'
+import {
+  readDeckBackgroundManifest,
+  resolveDeckBackgroundAsset
+} from './deck-backgrounds'
 
 export async function resolveRetryContext(
   ctx: GenerationContext,
@@ -100,6 +104,7 @@ export async function resolveRetryContext(
     appLocale: common.appLocale,
     fontSelection: common.fontSelection,
     imagePolicy: common.imagePolicy,
+    deckBackgroundPolicy: common.deckBackgroundPolicy,
     animationPreferences
   }
 }
@@ -216,6 +221,8 @@ export async function executeRetryFailedPages(
       signal: context.abortSignal
     }))
 
+  const backgroundManifest = await readDeckBackgroundManifest(context.projectDir)
+
   const retryPages = retryRecords.map((page) => ({
     pageNumber: page.page_number,
     pageId: page.page_id,
@@ -225,6 +232,11 @@ export async function executeRetryFailedPages(
     layoutId: normalizeUniversalLayoutId(page.layout_id),
     imageAssetPath: page.image_asset_path || undefined,
     imageAssetPaths: page.image_asset_paths.length ? page.image_asset_paths : undefined,
+    backgroundAsset: resolveDeckBackgroundAsset(
+      backgroundManifest,
+      page.page_number,
+      sessionPages.length
+    ),
     htmlPath: resolvePageHtmlPath({
       projectDir: context.projectDir,
       fileSlug: page.page_id,
@@ -475,7 +487,8 @@ export async function executeRetryFailedPages(
       layoutIntent: page.layoutIntent,
       layoutId: page.layoutId,
       imageAssetPath: page.imageAssetPath,
-      imageAssetPaths: page.imageAssetPaths
+      imageAssetPaths: page.imageAssetPaths,
+      backgroundAsset: page.backgroundAsset
     })),
     sourceDocumentPaths: context.sourceDocumentPaths,
     generationMode: 'retry',
@@ -487,7 +500,8 @@ export async function executeRetryFailedPages(
       layoutIntent: page.layoutIntent,
       layoutId: page.layoutId,
       imageAssetPath: page.imageAssetPath,
-      imageAssetPaths: page.imageAssetPaths
+      imageAssetPaths: page.imageAssetPaths,
+      backgroundAsset: page.backgroundAsset
     })),
     designContract,
     projectDir: context.projectDir,

@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../src/main/html-editor/html-editor-thumbnail', () => ({
@@ -228,13 +229,14 @@ describe('applyEditsToHtml', () => {
 
 describe('resolveHtmlEditorDocumentPath', () => {
   it('accepts only the registered current.html path for a document', () => {
+    const storedHtmlPath = '/tmp/storage/html-editor/hedit-1/current.html'
     expect(
       resolveHtmlEditorDocumentPath({
         storagePath: '/tmp/storage',
         docId: 'hedit-1',
-        storedHtmlPath: '/tmp/storage/html-editor/hedit-1/current.html'
+        storedHtmlPath
       })
-    ).toBe('/tmp/storage/html-editor/hedit-1/current.html')
+    ).toBe(path.resolve(storedHtmlPath))
   })
 
   it('rejects a path outside the document directory', () => {

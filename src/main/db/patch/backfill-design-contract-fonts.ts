@@ -30,8 +30,14 @@ const normalizeFont = (value: unknown): string => String(value ?? '').replace(/\
 const withFontFallback = (contract: DesignContract): DesignContract => {
   const titleFont = normalizeFont(contract.titleFont) || FALLBACK_TITLE_FONT
   const bodyFont = normalizeFont(contract.bodyFont) || FALLBACK_BODY_FONT
-  if (titleFont === contract.titleFont && bodyFont === contract.bodyFont) return contract
-  return { ...contract, titleFont, bodyFont }
+  const subtitleFont = normalizeFont(contract.subtitleFont) || bodyFont
+  if (
+    titleFont === contract.titleFont &&
+    subtitleFont === contract.subtitleFont &&
+    bodyFont === contract.bodyFont
+  )
+    return contract
+  return { ...contract, titleFont, subtitleFont, bodyFont }
 }
 
 export const patchDesignContractFonts = async (client: LibSqlClient): Promise<void> => {
@@ -62,7 +68,11 @@ export const patchDesignContractFonts = async (client: LibSqlClient): Promise<vo
     if (!contract) continue
 
     const patched = withFontFallback(contract)
-    if (patched.titleFont === contract.titleFont && patched.bodyFont === contract.bodyFont) {
+    if (
+      patched.titleFont === contract.titleFont &&
+      patched.subtitleFont === contract.subtitleFont &&
+      patched.bodyFont === contract.bodyFont
+    ) {
       continue
     }
 

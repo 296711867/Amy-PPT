@@ -7,6 +7,14 @@ import {
   normalizeExtractedHtmlToPptxSlide
 } from '@arcsin1/html2pptx'
 
+// 断言"生成脚本源码字符串"的用例只能在 html2pptx 未压缩源码上通过；
+// npm 发布的 dist 是压缩产物。与 vitest.config.ts 一致：仅在仓库旁边存在
+// ../html2pptx 源码检出时运行这些用例，否则跳过。
+const againstHtml2pptxSource = fs.existsSync(
+  path.join(process.cwd(), '..', 'html2pptx', 'src', 'index.ts')
+)
+const sourceOnly = it.skipIf(!againstHtml2pptxSource)
+
 describe('buildHtmlToPptxExtractScript', () => {
   const buildScript = () =>
     buildHtmlToPptxExtractScript({
@@ -52,7 +60,7 @@ describe('buildHtmlToPptxExtractScript', () => {
       }`
     )() as Promise<Record<string, unknown>>
 
-  it('exports Tailwind rings with a visual hint map and computed spread fallback', () => {
+  sourceOnly('exports Tailwind rings with a visual hint map and computed spread fallback', () => {
     const script = buildScript()
 
     expect(script).toContain("['ring-1', 1]")
@@ -65,7 +73,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).toContain('best = { w: spread, c: color, colorSource };')
   })
 
-  it('supports common Tailwind color scales for visual hints', () => {
+  sourceOnly('supports common Tailwind color scales for visual hints', () => {
     const script = buildScript()
 
     expect(script).toContain('const resolveTailwindColorToken = (name) => {')
@@ -184,7 +192,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(extracted.extractionReport).toMatchObject({ unsupportedTransformCount: 0 })
   })
 
-  it('uses Tailwind font weight hints when no inline font weight overrides them', () => {
+  sourceOnly('uses Tailwind font weight hints when no inline font weight overrides them', () => {
     const script = buildHtmlToPptxExtractScript({
       pageWidthPx: 1600,
       pageHeightPx: 900
@@ -200,7 +208,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).not.toContain('tailwindTextHints.fontWeight || computedFontWeight')
   })
 
-  it('extracts inline text runs for styled spans inside block text', () => {
+  sourceOnly('extracts inline text runs for styled spans inside block text', () => {
     const script = buildScript()
 
     expect(script).toContain('const collectInlineTextRuns = (element, baseStyle) => {')
@@ -262,7 +270,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     })
   })
 
-  it('uses CSS stacking order as paint-order fallback for z-indexed edits', () => {
+  sourceOnly('uses CSS stacking order as paint-order fallback for z-indexed edits', () => {
     const script = buildScript()
 
     expect(script).toContain('const parseCssZIndex = (style) => {')
@@ -276,7 +284,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).not.toContain('if (entries.length === 0 || !document.elementsFromPoint) return new Map();')
   })
 
-  it('exports a single visible border side as a line instead of a full rectangle border', () => {
+  sourceOnly('exports a single visible border side as a line instead of a full rectangle border', () => {
     const script = buildScript()
 
     expect(script).toContain('const collectBorderSides = () => {')
@@ -299,7 +307,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).toContain("dash: borderSide.dash || 'solid'")
   })
 
-  it('keeps small grid color cells as shapes for Tailwind visual panels', () => {
+  sourceOnly('keeps small grid color cells as shapes for Tailwind visual panels', () => {
     const script = buildScript()
 
     expect(script).toContain('const isGridPaintCell =')
@@ -311,7 +319,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).not.toContain('if (shapes.length >= maxShapes) break;')
   })
 
-  it('keeps thin filled strips such as Tailwind header bars', () => {
+  sourceOnly('keeps thin filled strips such as Tailwind header bars', () => {
     const script = buildScript()
 
     expect(script).toContain('const isThinPaintStrip =')
@@ -320,7 +328,7 @@ describe('buildHtmlToPptxExtractScript', () => {
     expect(script).toContain("if ((rect.width < 12 || rect.height < 12) && !isThinPaintStrip) continue;")
   })
 
-  it('exports thin border connectors and CSS chevron arrows as PPT lines', () => {
+  sourceOnly('exports thin border connectors and CSS chevron arrows as PPT lines', () => {
     const script = buildScript()
 
     expect(script).toContain('const hasVisibleBorder =')

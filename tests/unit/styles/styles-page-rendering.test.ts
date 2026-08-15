@@ -165,7 +165,7 @@ describe('StylesPage rendering', () => {
       }
       await openMenu()
       const officialSkillLink = document.body.querySelector(
-        'a[href="https://github.com/arcsin1/style-generate-skill"]'
+        'a[href="https://github.com/296711867/Amy-PPT/tree/main/resources/skills/amy-ppt-layout"]'
       )
       expect(officialSkillLink?.getAttribute('target')).toBe('_blank')
       expect(officialSkillLink?.getAttribute('rel')).toBe('noopener noreferrer')

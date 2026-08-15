@@ -12,6 +12,9 @@ const hasSourceMaterialCue = (value: string): boolean =>
     value
   );
 
+const DECK_BACKGROUND_EDIT_RULE =
+  'If a target page contains <img data-role="deck-background">, preserve that element, its src path, and its full-canvas bottom-layer positioning unless the user explicitly asks to replace or remove the PPT background.';
+
 export function buildPlanningUserPrompt(args: {
   topic: string;
   totalPages: number;
@@ -90,6 +93,7 @@ export function buildEditUserPrompt(args: {
     args.userMessage,
     "",
     CONTENT_LANGUAGE_RULES,
+    DECK_BACKGROUND_EDIT_RULE,
     "",
     args.selectedPageId
       ? `Target page: ${args.selectedPageId} (slide ${args.selectedPageNumber ?? "?"})`

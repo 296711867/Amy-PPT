@@ -1,7 +1,10 @@
 import fs from 'fs'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
-import { buildEditAgentSystemPrompt } from '../../../src/main/agent-runtime/prompt'
+import {
+  buildEditAgentSystemPrompt,
+  buildEditUserPrompt
+} from '../../../src/main/agent-runtime/prompt'
 import type { SessionDeckGenerationContext } from '../../../src/main/agent-runtime/agent'
 import { resolveSlideSize } from '../../../src/shared/slide-size'
 
@@ -101,5 +104,20 @@ describe('edit system prompt templates', () => {
     expect(prompt).toContain('"border-radius": "16px"')
     expect(prompt).toContain('"width": 460')
     expect(prompt).toContain('Verify these values against the target HTML source')
+  })
+
+  it('preserves assigned deck backgrounds across page, selector, and deck edits', () => {
+    for (const editScope of ['page', 'deck'] as const) {
+      const prompt = buildEditUserPrompt({
+        userMessage: 'Update the wording and spacing.',
+        editScope,
+        selectedPageId: editScope === 'page' ? 'page-1' : undefined,
+        selectedSelector: editScope === 'page' ? '.metric' : undefined
+      })
+
+      expect(prompt).toContain('<img data-role="deck-background">')
+      expect(prompt).toContain('preserve that element, its src path')
+      expect(prompt).toContain('unless the user explicitly asks to replace or remove')
+    }
   })
 })

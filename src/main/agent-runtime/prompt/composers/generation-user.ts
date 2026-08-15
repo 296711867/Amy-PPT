@@ -38,6 +38,7 @@ export function buildSinglePageGenerationPrompt(args: {
   layoutPrompt?: SessionDeckGenerationContext['outlineItems'][number]['layoutPrompt']
   imageAssetPath?: string
   imageAssetPaths?: string[]
+  backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
   sourceDocumentPaths?: string[]
   referenceDocumentSnippets?: string
   isRetryMode?: boolean
@@ -187,6 +188,24 @@ export function buildSinglePageGenerationPrompt(args: {
             '- Preserve object-fit and a replaceable image container. Do not draw a CSS-only fake image and do not invent another image path.'
           ].join('\n')
         : '',
+    args.backgroundAsset
+      ? [
+          'Assigned full-canvas PPT background (hard requirement):',
+          `- Use <img src="${args.backgroundAsset.path}" data-role="deck-background"> as the first child of the creative root.`,
+          '- Position it absolute inset-0 w-full h-full object-cover, behind every other element. The creative root must be position:relative and overflow:hidden.',
+          `- Background role: ${args.backgroundAsset.role}. Required text-safe composition: ${args.backgroundAsset.whitespace}.`,
+          args.backgroundAsset.whitespace === 'blank-left'
+            ? '- Put the primary title and content in the left 55% only. Do not place cards or text over the thematic artwork on the right.'
+            : args.backgroundAsset.whitespace === 'blank-right'
+              ? '- Put the primary title and content in the right 55% only. Do not place cards or text over the thematic artwork on the left.'
+              : args.backgroundAsset.whitespace === 'blank-top-center'
+                ? '- Put the title and main content inside the quiet upper-central region. Keep the lower and side artwork visible.'
+                : '- Place text only in the visibly calm, low-detail safe area of this assigned background.',
+          '- Do not add another full-page gradient, color wash, decorative pattern, or competing background over this asset.',
+          '- Light translucent content surfaces are allowed only when needed for readability; do not hide the thematic image.',
+          '- This background is not a replaceable content image and must never be placed inside a card, figure, or image slot.'
+        ].join('\n')
+      : '',
     ...sectionAgendaInstructions,
     ...sourceDocumentInstructions,
     ...sourceRangeInstructions,

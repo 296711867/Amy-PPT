@@ -12,7 +12,8 @@ import { StyleSelect } from '../style/StyleSelect'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { useT, type I18nKey } from '@renderer/i18n'
-import { ipc, type FontListItem } from '@renderer/lib/ipc'
+import { ipc } from '@renderer/lib/ipc'
+import { FontSchemeSelector } from '../font/FontSchemeSelector'
 import type { FontSelection, SourceDocumentPlan } from '@shared/generation'
 import {
   DEFAULT_SLIDE_SIZE_ID,
@@ -24,8 +25,6 @@ import { Sparkles } from 'lucide-react'
 import { ModelSplitButton } from '../model/ModelActionButton'
 import { useModelAction } from '@renderer/hooks/useModelAction'
 import { Checkbox } from '../ui/Checkbox'
-
-type FontPairRef = Extract<FontSelection, { mode: 'pair' }>['title']
 
 const MIN_PAGE_COUNT = 1
 const MAX_PAGE_COUNT = 500
@@ -150,6 +149,7 @@ interface GenerationConfirmDialogProps {
     referenceDocumentPath: string
     sourcePlan?: SourceDocumentPlan
     imagePolicy: import('@shared/generation').ImagePolicy
+    deckBackgroundPolicy: import('@shared/generation').DeckBackgroundPolicy
     modelConfigId?: string
   }) => void
 }
@@ -168,11 +168,11 @@ export function GenerationConfirmDialog({
   const [pageCount, setPageCount] = useState('5')
   const [styleId, setStyleId] = useState('')
   const [styleOptions, setStyleOptions] = useState<StyleOption[]>([])
-  const [fontOptions, setFontOptions] = useState<FontListItem[]>([])
-  const [titleFontId, setTitleFontId] = useState('auto')
-  const [bodyFontId, setBodyFontId] = useState('auto')
+  const [fontSelection, setFontSelection] = useState<FontSelection>({ mode: 'auto' })
   const [slideSizeId, setSlideSizeId] = useState<SlideSizePresetId>(DEFAULT_SLIDE_SIZE_ID)
   const [generateImagesWithAi, setGenerateImagesWithAi] = useState(false)
+  const [generateDeckBackgrounds, setGenerateDeckBackgrounds] = useState(false)
+  const [contentBackgroundCount, setContentBackgroundCount] = useState<'1' | '2' | '3'>('1')
 
   useEffect(() => {
     if (prepared) {
@@ -185,26 +185,11 @@ export function GenerationConfirmDialog({
   }, [prepared, styleOptions])
 
   useEffect(() => {
-    if (!prepared || prepared.fontSelection.mode !== 'pair') {
-      setTitleFontId('auto')
-      setBodyFontId('auto')
-      return
-    }
-
-    const resolveSelectId = (font: FontPairRef): string => {
-      if (font.id) return `${font.source}:${font.id}`
-      const match = fontOptions.find(
-        (option) => option.source === font.source && option.family === font.family
-      )
-      return match ? `${match.source}:${match.id}` : 'auto'
-    }
-
-    setTitleFontId(resolveSelectId(prepared.fontSelection.title))
-    setBodyFontId(resolveSelectId(prepared.fontSelection.body))
-  }, [prepared, fontOptions])
+    setFontSelection(prepared?.fontSelection || { mode: 'auto' })
+  }, [prepared])
 
   const loadOptions = useCallback(async (): Promise<void> => {
-    const [styleRes, fontRes] = await Promise.all([ipc.listStyles(), ipc.listFonts()])
+    const styleRes = await ipc.listStyles()
     const sorted = [...styleRes.items].sort(
       (a, b) =>
         (b.favoriteAt || 0) - (a.favoriteAt || 0) ||
@@ -225,8 +210,6 @@ export function GenerationConfirmDialog({
         favoriteAt: item.favoriteAt
       }))
     )
-    const fonts = [...fontRes.userFonts, ...fontRes.googleFonts]
-    setFontOptions(fonts)
   }, [])
 
   useEffect(() => {
@@ -234,32 +217,6 @@ export function GenerationConfirmDialog({
   }, [open, loadOptions])
 
   if (!prepared) return <></>
-
-  const titleFonts = fontOptions.filter((f) => f.role.includes('title'))
-  const bodyFonts = fontOptions.filter((f) => f.role.includes('body'))
-  const availableTitle = titleFonts.length > 0 ? titleFonts : fontOptions
-  const availableBody = bodyFonts.length > 0 ? bodyFonts : fontOptions
-
-  const resolveFontSelection = (): FontSelection => {
-    const find = (id: string): FontListItem | undefined =>
-      fontOptions.find((f) => `${f.source}:${f.id}` === id)
-    const tf = find(titleFontId)
-    const bf = find(bodyFontId)
-    if (tf && bf) {
-      return {
-        mode: 'pair',
-        title: { source: tf.source, family: tf.family, id: tf.id },
-        body: { source: bf.source, family: bf.family, id: bf.id }
-      }
-    }
-    if (
-      prepared?.fontSelection.mode === 'pair' &&
-      (fontOptions.length === 0 || (titleFontId !== 'auto' && bodyFontId !== 'auto'))
-    ) {
-      return prepared.fontSelection
-    }
-    return { mode: 'auto' }
-  }
 
   const resolvedConfirmStyleId = styleId || resolveFallbackStyleId(prepared.styleId, styleOptions)
 
@@ -274,7 +231,7 @@ export function GenerationConfirmDialog({
         topic: topic.trim() || prepared.topic,
         pageCount: resolvedPageCount,
         styleId: resolvedConfirmStyleId,
-        fontSelection: resolveFontSelection(),
+        fontSelection,
         slideSizeId,
         referenceDocumentPath: prepared.thinkingDocumentPath,
         sourcePlan:
@@ -282,6 +239,10 @@ export function GenerationConfirmDialog({
             ? prepared.sourcePlan
             : undefined,
         imagePolicy: generateImagesWithAi ? 'ai' : 'placeholder',
+        deckBackgroundPolicy: {
+          enabled: generateDeckBackgrounds,
+          contentBackgroundCount: Number(contentBackgroundCount) as 1 | 2 | 3
+        },
         modelConfigId: resolvedModelConfigId
       })
       onOpenChange(false)
@@ -358,75 +319,8 @@ export function GenerationConfirmDialog({
 
           <div className="min-w-0">
             <label className="block font-medium">{t('home.fontScheme')}</label>
-            <div className="mt-1 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <Select value={titleFontId} onValueChange={setTitleFontId}>
-                <SelectTrigger className="min-w-0">
-                  <SelectValue placeholder={t('home.fontSchemeAuto')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">{t('home.fontSchemeAuto')}</SelectItem>
-                  {availableTitle.map((font) => {
-                    const isUploaded = font.source === 'uploaded'
-                    return (
-                      <SelectItem
-                        key={`${font.source}:${font.id}`}
-                        value={`${font.source}:${font.id}`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${
-                              isUploaded
-                                ? 'bg-[#eef9ec] text-[#4a7a46]'
-                                : 'bg-[#eef6ff] text-[#3e6685]'
-                            }`}
-                          >
-                            {isUploaded
-                              ? t('home.fontSourceUploaded')
-                              : t('home.fontSourceBuiltIn')}
-                          </span>
-                          <span className="truncate">
-                            {t('home.fontPairTitle')} · {font.family}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-              <Select value={bodyFontId} onValueChange={setBodyFontId}>
-                <SelectTrigger className="min-w-0">
-                  <SelectValue placeholder={t('home.fontSchemeAuto')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">{t('home.fontSchemeAuto')}</SelectItem>
-                  {availableBody.map((font) => {
-                    const isUploaded = font.source === 'uploaded'
-                    return (
-                      <SelectItem
-                        key={`${font.source}:${font.id}`}
-                        value={`${font.source}:${font.id}`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${
-                              isUploaded
-                                ? 'bg-[#eef9ec] text-[#4a7a46]'
-                                : 'bg-[#eef6ff] text-[#3e6685]'
-                            }`}
-                          >
-                            {isUploaded
-                              ? t('home.fontSourceUploaded')
-                              : t('home.fontSourceBuiltIn')}
-                          </span>
-                          <span className="truncate">
-                            {t('home.fontPairBody')} · {font.family}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
+            <div className="mt-1">
+              <FontSchemeSelector value={fontSelection} onChange={setFontSelection} compact />
             </div>
           </div>
 
@@ -441,6 +335,42 @@ export function GenerationConfirmDialog({
               <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                 {t('home.generateImagesWithAiHint')}
               </span>
+            </span>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
+            <Checkbox
+              checked={generateDeckBackgrounds}
+              onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
+              aria-label={t('home.generateDeckBackgrounds')}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-medium">{t('home.generateDeckBackgrounds')}</span>
+              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                {t('home.generateDeckBackgroundsHint')}
+              </span>
+              {generateDeckBackgrounds ? (
+                <span className="mt-3 flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+                  <span className="text-[11px] text-muted-foreground">
+                    {t('home.contentBackgroundCount')}
+                  </span>
+                  <Select
+                    value={contentBackgroundCount}
+                    onValueChange={(value) =>
+                      setContentBackgroundCount(value as '1' | '2' | '3')
+                    }
+                  >
+                    <SelectTrigger className="h-8 w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
+              ) : null}
             </span>
           </label>
         </div>

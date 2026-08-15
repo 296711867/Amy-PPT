@@ -80,6 +80,7 @@ export type GenerationRunContext = {
   appLocale: 'zh' | 'en'
   fontSelection: FontSelection
   imagePolicy: import('@shared/generation').ImagePolicy
+  deckBackgroundPolicy: import('@shared/generation').DeckBackgroundPolicy
   animationPreferences: AnimationPreferencesPayload | null
 }
 

@@ -1,8 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { createClient } from '@libsql/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { rmWithRetry } from '../../helpers/rm-retry'
 
 vi.mock('electron', () => ({
   app: {
@@ -21,7 +22,7 @@ describe('session jobs', () => {
 
   afterEach(async () => {
     for (const root of roots.splice(0)) {
-      await rm(root, { recursive: true, force: true })
+      await rmWithRetry(root)
     }
   })
 

@@ -7,24 +7,27 @@ export function selectRetrySessionPages(args: {
   const sourcePageIds = new Set(
     (args.sourceRunPages || []).map((page) => page.page_id).filter(Boolean)
   )
-  let selected: SessionPageRecord[]
-
-  if (sourcePageIds.size > 0) {
-    selected = args.sessionPages.filter((page) => sourcePageIds.has(page.file_slug))
-  } else {
-    const latestByPageNumber = new Map<number, SessionPageRecord>()
-    for (const page of args.sessionPages) {
-      const previous = latestByPageNumber.get(page.page_number)
-      if (
-        !previous ||
-        page.updated_at > previous.updated_at ||
-        (page.updated_at === previous.updated_at && page.created_at >= previous.created_at)
-      ) {
-        latestByPageNumber.set(page.page_number, page)
-      }
+  const latestByPageNumber = new Map<number, SessionPageRecord>()
+  for (const page of args.sessionPages) {
+    const previous = latestByPageNumber.get(page.page_number)
+    if (!previous) {
+      latestByPageNumber.set(page.page_number, page)
+      continue
     }
-    selected = Array.from(latestByPageNumber.values())
+
+    const pageBelongsToSourceRun = sourcePageIds.has(page.file_slug)
+    const previousBelongsToSourceRun = sourcePageIds.has(previous.file_slug)
+    const shouldReplace =
+      (pageBelongsToSourceRun && !previousBelongsToSourceRun) ||
+      (pageBelongsToSourceRun === previousBelongsToSourceRun &&
+        (page.updated_at > previous.updated_at ||
+          (page.updated_at === previous.updated_at && page.created_at >= previous.created_at)))
+    if (shouldReplace) latestByPageNumber.set(page.page_number, page)
   }
+
+  // A retry run contains only failed pages. It must never redefine the deck as
+  // that subset; keep one canonical record for every page number in the session.
+  const selected = Array.from(latestByPageNumber.values())
 
   const selectedIds = new Set(selected.map((page) => page.id))
   return {

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { rmWithRetry } from '../../helpers/rm-retry'
 
 vi.mock('electron', () => ({ app: { getPath: vi.fn(() => os.tmpdir()) } }))
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: true } }))
@@ -9,8 +10,8 @@ vi.mock('@electron-toolkit/utils', () => ({ is: { dev: true } }))
 describe('thumbnail database recovery', () => {
   const roots: string[] = []
 
-  afterEach(() => {
-    for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
+  afterEach(async () => {
+    for (const root of roots.splice(0)) await rmWithRetry(root)
   })
 
   it('marks interrupted queued and running tasks as failed', async () => {

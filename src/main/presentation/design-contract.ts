@@ -2,6 +2,7 @@ import type { DesignContract } from '@shared/generation'
 
 export const DEFAULT_TITLE_FONT = 'Inter'
 export const DEFAULT_BODY_FONT = 'Noto Sans SC'
+export const DEFAULT_SUBTITLE_FONT = 'Noto Sans SC'
 
 const DEFAULT_PALETTE = ['#ffffff', '#111827', '#2563eb', '#64748b']
 
@@ -14,6 +15,7 @@ export const createDefaultDesignContract = (): DesignContract => ({
   chartStyle: 'simple readable charts with restrained color',
   shapeLanguage: '8px radius, light borders, subtle shadows',
   titleFont: DEFAULT_TITLE_FONT,
+  subtitleFont: DEFAULT_SUBTITLE_FONT,
   bodyFont: DEFAULT_BODY_FONT
 })
 
@@ -53,6 +55,8 @@ export const normalizeDesignContract = (value: unknown): DesignContract => {
     chartStyle: normalizeText(record.chartStyle) || fallback.chartStyle,
     shapeLanguage: normalizeText(record.shapeLanguage) || fallback.shapeLanguage,
     titleFont: normalizeText(record.titleFont) || fallback.titleFont,
+    subtitleFont:
+      normalizeText(record.subtitleFont) || normalizeText(record.bodyFont) || fallback.subtitleFont,
     bodyFont: normalizeText(record.bodyFont) || fallback.bodyFont
   }
 }

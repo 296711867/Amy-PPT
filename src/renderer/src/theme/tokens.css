@@ -27,6 +27,9 @@
  *   the Usage "模型调用 / Model calls" card.
  * - --ui-font-tag-{primary,secondary,tertiary}{,-soft,-border} style the role and
  *   script labels on the Fonts page. Do not reuse fixed success/green colors there.
+ * - --ui-workspace-* owns the session editor chrome: ribbon tabs, page rail,
+ *   thumbnail selection, current-page badges, and sidebar controls. Never put a
+ *   fixed theme color in those components.
  * Every new theme must define all of these tokens in its own theme block.
  */
 
@@ -67,6 +70,17 @@
   --ui-scrollbar-thumb-hover: rgb(99 120 73 / 86%);
   --ui-scrollbar-track: rgb(232 223 205 / 62%);
   --ui-scrollbar-border: rgb(242 233 217 / 78%);
+  --ui-workspace-rail: #f5f1e8;
+  --ui-workspace-surface: #fffaf0;
+  --ui-workspace-surface-muted: #e8e0d0;
+  --ui-workspace-selected: #5d6b4d;
+  --ui-workspace-selected-soft: #d4e4c1;
+  --ui-workspace-decoration: #8fbc8f;
+  --ui-workspace-on-selected: #ffffff;
+  --ui-workspace-text: #3e4a32;
+  --ui-workspace-text-muted: #6f765f;
+  --ui-workspace-border: #b7c6a4;
+  --ui-workspace-shadow-color: 62 74 50;
   --ui-feature-surface-1: #d4e4c1;
   --ui-feature-surface-2: #e8e0d0;
   --ui-feature-surface-3: #f5f1e8;
@@ -134,6 +148,17 @@
   --ui-scrollbar-thumb-hover: rgb(40 91 98 / 84%);
   --ui-scrollbar-track: rgb(216 231 232 / 72%);
   --ui-scrollbar-border: rgb(241 247 247 / 82%);
+  --ui-workspace-rail: #f3f6f6;
+  --ui-workspace-surface: #f9fcfc;
+  --ui-workspace-surface-muted: #dce7e8;
+  --ui-workspace-selected: #27636b;
+  --ui-workspace-selected-soft: #cae6e4;
+  --ui-workspace-decoration: #59a5a7;
+  --ui-workspace-on-selected: #ffffff;
+  --ui-workspace-text: #20383c;
+  --ui-workspace-text-muted: #5b7175;
+  --ui-workspace-border: #abc3c5;
+  --ui-workspace-shadow-color: 34 65 69;
   --ui-feature-surface-1: #d8ecea;
   --ui-feature-surface-2: #e4ebec;
   --ui-feature-surface-3: #f6eee8;
@@ -202,6 +227,17 @@
   --ui-scrollbar-thumb-hover: rgb(173 83 68 / 78%);
   --ui-scrollbar-track: rgb(248 229 217 / 72%);
   --ui-scrollbar-border: rgb(255 247 241 / 84%);
+  --ui-workspace-rail: #fff5ee;
+  --ui-workspace-surface: #fffaf5;
+  --ui-workspace-surface-muted: #f6e4d8;
+  --ui-workspace-selected: #d9685a;
+  --ui-workspace-selected-soft: #f8d7ca;
+  --ui-workspace-decoration: #f2a38e;
+  --ui-workspace-on-selected: #fffaf7;
+  --ui-workspace-text: #4b3027;
+  --ui-workspace-text-muted: #7a5d52;
+  --ui-workspace-border: #e3b7a4;
+  --ui-workspace-shadow-color: 108 60 43;
   --ui-feature-surface-1: #f7d9d2;
   --ui-feature-surface-2: #f2e1d2;
   --ui-feature-surface-3: #fae4d9;
@@ -271,6 +307,17 @@
   --ui-scrollbar-thumb-hover: rgb(190 78 110 / 76%);
   --ui-scrollbar-track: rgb(249 226 233 / 72%);
   --ui-scrollbar-border: rgb(255 248 250 / 86%);
+  --ui-workspace-rail: #fff5f8;
+  --ui-workspace-surface: #fffafb;
+  --ui-workspace-surface-muted: #f8e3e9;
+  --ui-workspace-selected: #df617d;
+  --ui-workspace-selected-soft: #f9d7e0;
+  --ui-workspace-decoration: #eda7b7;
+  --ui-workspace-on-selected: #ffffff;
+  --ui-workspace-text: #49343b;
+  --ui-workspace-text-muted: #7b6068;
+  --ui-workspace-border: #e8b9c5;
+  --ui-workspace-shadow-color: 112 64 80;
   --ui-feature-surface-1: #f9dce3;
   --ui-feature-surface-2: #faefd9;
   --ui-feature-surface-3: #f2e2ee;
@@ -340,6 +387,17 @@
   --ui-scrollbar-thumb-hover: rgb(139 201 193 / 74%);
   --ui-scrollbar-track: rgb(42 48 49 / 80%);
   --ui-scrollbar-border: rgb(23 26 27 / 82%);
+  --ui-workspace-rail: #1c2021;
+  --ui-workspace-surface: #292f30;
+  --ui-workspace-surface-muted: #303738;
+  --ui-workspace-selected: #75b9b0;
+  --ui-workspace-selected-soft: #31534f;
+  --ui-workspace-decoration: #46736e;
+  --ui-workspace-on-selected: #10201e;
+  --ui-workspace-text: #e7ecea;
+  --ui-workspace-text-muted: #aebbb7;
+  --ui-workspace-border: #52615e;
+  --ui-workspace-shadow-color: 0 0 0;
   --ui-feature-surface-1: #233433;
   --ui-feature-surface-2: #2b3132;
   --ui-feature-surface-3: #342c29;

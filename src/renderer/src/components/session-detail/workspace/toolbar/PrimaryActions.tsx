@@ -21,7 +21,7 @@ export function PrimaryActions({
   const actions = useSessionDetailRuntimeStore((state) => state.workspaceRibbonActions)
 
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-[0.95rem] bg-[#e8e0d0]/54 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.42)]">
+    <div className="flex shrink-0 items-center gap-1 rounded-[0.95rem] bg-[var(--ui-workspace-surface-muted)]/60 px-1 py-0.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.32)]">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -29,8 +29,8 @@ export function PrimaryActions({
             className={cn(
               'inline-flex h-6 shrink-0 items-center justify-center rounded-full px-2.5 text-[10px] font-bold leading-none transition-colors disabled:pointer-events-none disabled:opacity-45',
               hasPendingEdits
-                ? 'bg-[#5d6b4d] text-white shadow-[0_4px_10px_rgba(62,74,50,0.15)] hover:bg-[#3e4a32]'
-                : 'bg-[#fffaf1]/72 text-[#8a9a7b] shadow-[inset_0_1px_0_rgba(255,255,255,0.54)]'
+                ? 'bg-[var(--ui-workspace-selected)] text-[var(--ui-workspace-on-selected)] shadow-[0_4px_10px_rgb(var(--ui-workspace-shadow-color)/0.15)] hover:bg-[var(--ui-action-hover)]'
+                : 'bg-[var(--ui-workspace-surface)]/75 text-[var(--ui-workspace-text-muted)] shadow-[inset_0_1px_0_rgb(255_255_255/0.42)]'
             )}
             onClick={() => actions?.onSaveCurrentPage()}
             disabled={disabled || !hasPendingEdits}
@@ -53,8 +53,8 @@ export function PrimaryActions({
             className={cn(
               'inline-flex h-[22px] w-[22px] items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-45',
               hasPendingEdits
-                ? 'text-[#b8860b] hover:bg-[#f5deb3]/54 hover:text-[#8b6914]'
-                : 'text-[#a4aa9a]'
+                ? 'text-[var(--ui-warning)] hover:bg-[var(--ui-workspace-surface)]/70'
+                : 'text-[var(--ui-workspace-text-muted)]'
             )}
             onClick={() => actions?.onDiscardAllEdits()}
             disabled={disabled || !hasPendingEdits}
@@ -65,12 +65,12 @@ export function PrimaryActions({
         </TooltipTrigger>
         <TooltipContent side="bottom">{t('sessionDetail.discardAllEditsTooltip')}</TooltipContent>
       </Tooltip>
-      <div className="ml-0.5 flex items-center gap-0.5 rounded-full bg-[#f5f1e8]/48 p-0.5 shadow-[inset_0_1px_3px_rgba(74,59,42,0.045)]">
+      <div className="ml-0.5 flex items-center gap-0.5 rounded-full bg-[var(--ui-workspace-rail)]/55 p-0.5 shadow-[inset_0_1px_3px_rgb(var(--ui-workspace-shadow-color)/0.045)]">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[#5d6b4d] transition-colors hover:bg-[#d4e4c1]/64 hover:text-[#3e4a32] disabled:pointer-events-none disabled:text-[#a4aa9a] disabled:opacity-45"
+              className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[var(--ui-workspace-selected)] transition-colors hover:bg-[var(--ui-workspace-selected-soft)]/70 hover:text-[var(--ui-workspace-text)] disabled:pointer-events-none disabled:text-[var(--ui-workspace-text-muted)] disabled:opacity-45"
               onClick={() => actions?.onUndo()}
               disabled={disabled || !canUndo}
               aria-label={t('sessionDetail.undoCurrentPageTooltip')}
@@ -84,7 +84,7 @@ export function PrimaryActions({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[#5d6b4d] transition-colors hover:bg-[#d4e4c1]/64 hover:text-[#3e4a32] disabled:pointer-events-none disabled:text-[#a4aa9a] disabled:opacity-45"
+              className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[var(--ui-workspace-selected)] transition-colors hover:bg-[var(--ui-workspace-selected-soft)]/70 hover:text-[var(--ui-workspace-text)] disabled:pointer-events-none disabled:text-[var(--ui-workspace-text-muted)] disabled:opacity-45"
               onClick={() => actions?.onRedo()}
               disabled={disabled || !canRedo}
               aria-label={t('sessionDetail.redoCurrentPageTooltip')}

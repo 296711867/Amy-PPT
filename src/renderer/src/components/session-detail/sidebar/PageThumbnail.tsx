@@ -30,7 +30,7 @@ export const PageThumbnail = memo(function PageThumbnail({
   const slideSize = trySessionSlideSize(currentSession)
   const isGeneratingPlaceholder = page.status === 'generating' || page.status === 'pending'
   if (!slideSize) {
-    return <div className="h-[154px] w-full rounded-[1.25rem] bg-[#e8e0d0]/34" />
+    return <div className="h-[154px] w-full rounded-[1.25rem] bg-[var(--ui-workspace-surface-muted)]/50" />
   }
   const thumbnailFitStyle =
     slideSize.width >= slideSize.height
@@ -40,10 +40,10 @@ export const PageThumbnail = memo(function PageThumbnail({
   const pageInfoTooltip = (
     <TooltipContent side="right" align="start">
       <div className="max-w-[240px]">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7a875f]">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-workspace-text-muted)]">
           {t('sessionDetail.pageNumber', { pageNumber: page.pageNumber })}
         </div>
-        <div className="mt-0.5 text-sm font-medium text-[#3e4a32]">{page.title}</div>
+        <div className="mt-0.5 text-sm font-medium text-[var(--ui-workspace-text)]">{page.title}</div>
       </div>
     </TooltipContent>
   )
@@ -58,24 +58,24 @@ export const PageThumbnail = memo(function PageThumbnail({
         'group relative block w-full min-w-0 overflow-hidden rounded-[1.25rem] p-1.5 text-left transition-all duration-200',
         onSelect ? 'cursor-pointer' : 'cursor-default opacity-60',
         isSelected
-          ? 'bg-[#d4e4c1]/86 shadow-[0_14px_26px_rgba(93,107,77,0.18)]'
-          : 'bg-[#e8e0d0]/34 hover:bg-[#e8e0d0]/68 hover:shadow-[0_8px_18px_rgba(93,107,77,0.09)]'
+          ? 'bg-[var(--ui-workspace-selected-soft)]/86 shadow-[0_14px_26px_rgb(var(--ui-workspace-shadow-color)/0.18)]'
+          : 'bg-[var(--ui-workspace-surface-muted)]/40 hover:bg-[var(--ui-workspace-surface-muted)]/72 hover:shadow-[0_8px_18px_rgb(var(--ui-workspace-shadow-color)/0.09)]'
       )}
     >
       <div
         className={cn(
           'pointer-events-none absolute -right-7 -top-8 h-20 w-20 rounded-[30%_70%_70%_30%/30%_30%_70%_70%] transition-opacity',
           isSelected
-            ? 'bg-[#8fbc8f]/24 opacity-100'
-            : 'bg-[#d4e4c1]/28 opacity-0 group-hover:opacity-100'
+            ? 'bg-[var(--ui-workspace-decoration)]/24 opacity-100'
+            : 'bg-[var(--ui-workspace-selected-soft)]/32 opacity-0 group-hover:opacity-100'
         )}
       />
       <div
         className={cn(
-          'relative flex h-[138px] w-full items-center justify-center overflow-hidden rounded-[1rem] bg-[#f5f1e8]/88 shadow-[0_5px_14px_rgba(93,107,77,0.08)]',
+          'relative flex h-[138px] w-full items-center justify-center overflow-hidden rounded-[1rem] bg-[var(--ui-workspace-surface)]/88 shadow-[0_5px_14px_rgb(var(--ui-workspace-shadow-color)/0.08)]',
           isSelected
-            ? 'shadow-[0_6px_16px_rgba(93,107,77,0.13)]'
-            : 'group-hover:shadow-[0_6px_15px_rgba(93,107,77,0.1)]'
+            ? 'shadow-[0_6px_16px_rgb(var(--ui-workspace-shadow-color)/0.13)]'
+            : 'group-hover:shadow-[0_6px_15px_rgb(var(--ui-workspace-shadow-color)/0.1)]'
         )}
         style={{
           contain: 'paint'
@@ -84,7 +84,7 @@ export const PageThumbnail = memo(function PageThumbnail({
         <div className="relative max-h-full max-w-full overflow-hidden" style={thumbnailFitStyle}>
           {isGeneratingPlaceholder ? (
             <div
-              className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#f8f4eb] text-[#5d6b4d]"
+              className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--ui-workspace-surface)] text-[var(--ui-workspace-selected)]"
               aria-live="polite"
             >
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -104,7 +104,7 @@ export const PageThumbnail = memo(function PageThumbnail({
               thumbnail
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#eee7d9]/78 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a9a7b]">
+            <div className="flex h-full w-full items-center justify-center bg-[var(--ui-workspace-surface-muted)]/78 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-workspace-text-muted)]">
               P{page.pageNumber}
             </div>
           )}
@@ -115,17 +115,17 @@ export const PageThumbnail = memo(function PageThumbnail({
         <TooltipTrigger asChild>
           <div className="relative min-w-0">
             <div className="relative mt-1.5 flex items-center justify-between gap-1 px-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5c6c47]">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ui-workspace-text-muted)]">
                 P{page.pageNumber}
               </span>
               {isSelected ? (
-                <span className="rounded-full bg-[#5d6b4d] px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-[0_3px_8px_rgba(62,74,50,0.18)]">
+                <span className="rounded-full bg-[var(--ui-workspace-selected)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--ui-workspace-on-selected)] shadow-[0_3px_8px_rgb(var(--ui-workspace-shadow-color)/0.18)]">
                   {t('sessionDetail.current')}
                 </span>
               ) : null}
             </div>
             <div
-              className="relative mt-0.5 block w-full min-w-0 max-w-full overflow-hidden whitespace-normal break-words px-0.5 text-[11px] font-medium leading-4 text-[#4c5d3d]"
+              className="relative mt-0.5 block w-full min-w-0 max-w-full overflow-hidden whitespace-normal break-words px-0.5 text-[11px] font-medium leading-4 text-[var(--ui-workspace-text)]"
               style={{
                 display: '-webkit-box',
                 WebkitLineClamp: 2,

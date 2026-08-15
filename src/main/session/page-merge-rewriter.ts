@@ -97,6 +97,7 @@ const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\
 
 export interface MergePageFontProfile {
   titleFont: string
+  subtitleFont: string
   bodyFont: string
   declaredFamilies: string[]
   headTags: string[]
@@ -127,9 +128,11 @@ export function extractMergePageFontProfile(html: string): MergePageFontProfile 
   })
   const titleFont = readCssVariable(variableCss, '--ppt-title-font')
   const bodyFont = readCssVariable(variableCss, '--ppt-body-font')
+  const subtitleFont = readCssVariable(variableCss, '--ppt-subtitle-font') || bodyFont
   if (!titleFont || !bodyFont || headTags.length === 0) return null
   return {
     titleFont,
+    subtitleFont,
     bodyFont,
     declaredFamilies: Array.from(families),
     headTags
@@ -144,6 +147,9 @@ const buildFontFamilyMap = (
   const replacements = new Map<string, string>()
   if (sourceProfile) {
     if (sourceProfile.titleFont) replacements.set(sourceProfile.titleFont, targetProfile.titleFont)
+    if (sourceProfile.subtitleFont && !replacements.has(sourceProfile.subtitleFont)) {
+      replacements.set(sourceProfile.subtitleFont, targetProfile.subtitleFont)
+    }
     if (sourceProfile.bodyFont && !replacements.has(sourceProfile.bodyFont)) {
       replacements.set(sourceProfile.bodyFont, targetProfile.bodyFont)
     }

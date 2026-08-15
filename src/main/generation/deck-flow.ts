@@ -28,6 +28,7 @@ import {
 import { canUseSourcePlanDirectly, mapSourcePlanToOutlineItems } from './source-plan'
 import { retireActiveSessionPagesForReplacement } from './session-page-replacement'
 import { prepareDeckImageAssets } from './deck-images'
+import { assignDeckBackgroundAssets, prepareDeckBackgroundAssets } from './deck-backgrounds'
 import { diversifyUniversalLayoutSequence } from '@shared/universal-layouts'
 
 const pageSlugId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)
@@ -112,6 +113,7 @@ export async function resolveDeckContext(
     appLocale: common.appLocale,
     fontSelection: common.fontSelection,
     imagePolicy: common.imagePolicy,
+    deckBackgroundPolicy: common.deckBackgroundPolicy,
     animationPreferences: input.animationPreferences
   }
 }
@@ -324,12 +326,58 @@ export async function executeDeckGeneration(
       }
     })
   )
+  const backgroundManifest = await prepareDeckBackgroundAssets({
+    db,
+    decryptApiKey: ctx.credentials.decryptApiKey,
+    projectDir: context.projectDir,
+    policy: context.deckBackgroundPolicy,
+    pageCount: plannedOutline.length,
+    slideSize: context.slideSize,
+    topic: context.topic,
+    stylePrompt: context.styleSkill.prompt,
+    provider: context.provider,
+    apiKey: context.apiKey,
+    model: context.model,
+    baseUrl: context.providerBaseUrl,
+    maxTokens: context.maxTokens,
+    signal: context.abortSignal,
+    onStatus: ({ state, current, total, role, whitespace }) =>
+      emitDeckChunk({
+        type: 'llm_status',
+        payload: {
+          runId: context.runId,
+          stage: 'preflight',
+          label: uiText(context.appLocale, '生成 PPT 背景图', 'Generating PPT backgrounds'),
+          progress: 9,
+          totalPages: pageRefs.length,
+          detail:
+            state === 'planning'
+              ? uiText(
+                  context.appLocale,
+                  `正在根据主题和风格规划 ${total} 张背景图提示词`,
+                  `Planning prompts for ${total} theme-aware backgrounds`
+                )
+              : state === 'generating'
+                ? uiText(
+                    context.appLocale,
+                    `正在生成第 ${current}/${total} 张背景图（${role || ''} · ${whitespace || ''}）`,
+                    `Generating background ${current}/${total} (${role || ''} · ${whitespace || ''})`
+                  )
+                : uiText(
+                    context.appLocale,
+                    `第 ${current}/${total} 张背景图已完成`,
+                    `Background ${current}/${total} completed`
+                  )
+        }
+      })
+  })
+  const outlineWithBackgrounds = assignDeckBackgroundAssets(plannedOutline, backgroundManifest)
   const outlineItems = await prepareDeckImageAssets({
     db,
     decryptApiKey: ctx.credentials.decryptApiKey,
     projectDir: context.projectDir,
     imagePolicy: context.imagePolicy,
-    outlineItems: plannedOutline,
+    outlineItems: outlineWithBackgrounds,
     signal: context.abortSignal,
     onStatus: ({ pageNumber, state, detail }) =>
       emitDeckChunk({
@@ -608,7 +656,8 @@ export async function executeDeckGeneration(
       contentDensity: outlineItems[index]?.contentDensity,
       layoutId: outlineItems[index]?.layoutId,
       imageAssetPath: outlineItems[index]?.imageAssetPath,
-      imageAssetPaths: outlineItems[index]?.imageAssetPaths
+      imageAssetPaths: outlineItems[index]?.imageAssetPaths,
+      backgroundAsset: outlineItems[index]?.backgroundAsset
     })),
     sourceDocumentPaths: context.sourceDocumentPaths,
     generationMode: 'generate',

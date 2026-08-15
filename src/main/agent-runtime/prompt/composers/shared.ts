@@ -170,7 +170,7 @@ export const FRONTEND_CAPABILITIES = [
   '- Do not add CDN links, remote scripts, duplicate runtime tags, or iframe content.',
   '',
   'Fonts:',
-  '- Use var(--ppt-title-font) for titles and var(--ppt-body-font) for body text.',
+  '- Use var(--ppt-title-font) for the page/section title, var(--ppt-subtitle-font) for h2/h3/card headings, and var(--ppt-body-font) for body text.',
   '- Do not declare @font-face or import external font/icon libraries.',
   '',
   'Charts:',
@@ -260,6 +260,7 @@ export function formatDesignContract(contract?: DesignContract): string {
   ]
   lines.push(
     `- Title font: ${contract.titleFont} (use var(--ppt-title-font) for titles)`,
+    `- Subtitle font: ${contract.subtitleFont} (use var(--ppt-subtitle-font) for h2/h3, card headings, and secondary labels)`,
     `- Body font: ${contract.bodyFont} (use var(--ppt-body-font) for body)`
   )
   return lines.join('\n')

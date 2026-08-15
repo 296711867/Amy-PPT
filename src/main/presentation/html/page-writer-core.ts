@@ -486,7 +486,7 @@ async function buildScaffoldDocument(args: {
   innerContent: string
   includeDefaultMotion: boolean
   projectDir: string
-  designFonts?: { titleFont: string; bodyFont: string }
+  designFonts?: { titleFont: string; subtitleFont?: string; bodyFont: string }
   slideSize: SlideSizePreset
 }): Promise<string> {
   const {
@@ -535,7 +535,7 @@ export async function normalizeAndInjectPageRuntime(
   pageId: string,
   projectDir: string,
   slideSize: SlideSizePreset,
-  designFonts?: { titleFont: string; bodyFont: string },
+  designFonts?: { titleFont: string; subtitleFont?: string; bodyFont: string },
   pageNumber?: number
 ): Promise<string> {
   const fragment = normalizeCreativePageFragment(preprocessPageHtml(content))
@@ -562,7 +562,7 @@ export async function buildPersistedPageHtmlFromFragment(args: {
   pageNumber?: number
   projectDir: string
   slideSize: SlideSizePreset
-  designFonts?: { titleFont: string; bodyFont: string }
+  designFonts?: { titleFont: string; subtitleFont?: string; bodyFont: string }
 }): Promise<{ html: string; content: string; repaired: boolean; originalErrors?: string[] }> {
   const remoteResources = extractRemoteRuntimeResources(args.content)
   if (remoteResources.length > 0) {
@@ -626,7 +626,7 @@ export async function persistPageHtmlFromFragment(args: {
   projectDir: string
   targetPath: string
   slideSize: SlideSizePreset
-  designFonts?: { titleFont: string; bodyFont: string }
+  designFonts?: { titleFont: string; subtitleFont?: string; bodyFont: string }
   preserveTemplateSkeleton?: boolean
   validateRenderedPage?: (args: {
     pageId: string

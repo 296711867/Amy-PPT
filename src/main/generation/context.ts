@@ -12,6 +12,7 @@ import {
   MAX_STYLE_SWITCH_PAGES,
   SELECTED_ELEMENT_CONTEXT_COMPUTED_STYLE_PROPERTIES,
   normalizeAnimationPreferences,
+  normalizeDeckBackgroundPolicy,
   normalizeFontSelection,
   normalizeImagePolicy,
   normalizeSessionPageEditPlan,
@@ -209,6 +210,7 @@ export type CommonGenerationContext = {
   appLocale: 'zh' | 'en'
   fontSelection: FontSelection
   imagePolicy: import('@shared/generation').ImagePolicy
+  deckBackgroundPolicy: import('@shared/generation').DeckBackgroundPolicy
   sourcePlan: SourceDocumentPlan | null
   projectId: string
 }
@@ -637,6 +639,7 @@ export async function resolveCommonContext(
     appLocale,
     fontSelection: normalizeFontSelection(sessionMetadata.fontSelection),
     imagePolicy: normalizeImagePolicy(sessionMetadata.imagePolicy),
+    deckBackgroundPolicy: normalizeDeckBackgroundPolicy(sessionMetadata.deckBackgroundPolicy),
     sourcePlan,
     projectId
   }

@@ -26,6 +26,10 @@ export function resolveTemplateDesignContract(
     fontSelection.mode === 'pair' ? String(fontSelection.title.family || '').trim() : ''
   const selectedBodyFont =
     fontSelection.mode === 'pair' ? String(fontSelection.body.family || '').trim() : ''
+  const selectedSubtitleFont =
+    fontSelection.mode === 'pair'
+      ? String(fontSelection.subtitle?.family || fontSelection.body.family || '').trim()
+      : ''
 
   return {
     theme: readText(record, 'theme'),
@@ -36,6 +40,11 @@ export function resolveTemplateDesignContract(
     chartStyle: readText(record, 'chartStyle'),
     shapeLanguage: readText(record, 'shapeLanguage'),
     titleFont: readText(record, 'titleFont') || selectedTitleFont || DEFAULT_TITLE_FONT,
+    subtitleFont:
+      readText(record, 'subtitleFont') ||
+      selectedSubtitleFont ||
+      selectedBodyFont ||
+      DEFAULT_BODY_FONT,
     bodyFont: readText(record, 'bodyFont') || selectedBodyFont || DEFAULT_BODY_FONT
   }
 }

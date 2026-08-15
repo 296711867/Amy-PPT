@@ -6,32 +6,39 @@ import { nanoid } from 'nanoid'
 import { localAssetUrl } from '@shared/local-asset'
 import {
   AVAILABLE_GOOGLE_FONTS,
+  getAvailableSystemFonts,
   assertFontFamilyNameAvailableForUpload,
   cssEscapeString,
   getBundledFontsRoot,
   getUserFontFilesRoot,
   getUserFontsRoot,
   readUserFontRegistry,
+  normalizeFontFileFormat,
   writeUserFontRegistry,
   type FontRole,
   type FontScript,
   type FontRegistryEntry
 } from './font-registry'
+import { deleteFontScheme, listFontSchemes, saveFontScheme } from './font-scheme-store'
 
 const MAX_FONT_FILE_SIZE_BYTES = 20 * 1024 * 1024
-const SUPPORTED_FONT_EXTENSIONS = new Set(['.woff2'])
+const SUPPORTED_FONT_EXTENSIONS = new Set(['.woff2', '.ttf', '.otf'])
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000)
 
 const sanitizeFileName = (value: string): string => {
   const base = path.basename(value).trim() || 'font.woff2'
-  return base.replace(/[^\w.-]+/g, '-').replace(/-+/g, '-')
+  const extension = path.extname(base).toLowerCase()
+  const stem = path.basename(base, extension).replace(/[^\p{L}\p{N}_.-]+/gu, '-').replace(/-+/g, '-')
+  return `${stem || 'font'}${extension}`
 }
 
 const normalizeRoles = (value: unknown): FontRole[] => {
   const items = Array.isArray(value) ? value : []
-  const roles = items.filter((item): item is FontRole => item === 'title' || item === 'body')
-  return roles.length > 0 ? Array.from(new Set(roles)) : ['title', 'body']
+  const roles = items.filter(
+    (item): item is FontRole => item === 'title' || item === 'subtitle' || item === 'body'
+  )
+  return roles.length > 0 ? Array.from(new Set(roles)) : ['title', 'subtitle', 'body']
 }
 
 const normalizeScripts = (value: unknown): FontScript[] => {
@@ -101,6 +108,14 @@ export function registerFontHandlers(): void {
         role: font.role,
         scripts: font.scripts
       })),
+      systemFonts: getAvailableSystemFonts().map((font) => ({
+        id: font.id,
+        family: font.family,
+        source: 'system',
+        category: font.category,
+        role: font.role,
+        scripts: font.scripts
+      })),
       userFonts: registry.fonts
     }
   })
@@ -123,7 +138,10 @@ export function registerFontHandlers(): void {
       }
       const ext = path.extname(sourcePath).toLowerCase()
       if (!SUPPORTED_FONT_EXTENSIONS.has(ext)) {
-        throw new Error(`暂不支持的字体格式：${ext || 'unknown'}，第一版仅支持 .woff2`)
+        if (ext === '.ttc') {
+          throw new Error('暂不支持直接上传 TTC 字体集合；可使用已安装的系统字体，或拆分为 TTF/OTF 后上传')
+        }
+        throw new Error(`暂不支持的字体格式：${ext || 'unknown'}，支持 .woff2、.ttf、.otf`)
       }
       const safeName = sanitizeFileName(sourcePath)
       const targetPath = path.join(targetDir, safeName)
@@ -132,6 +150,7 @@ export function registerFontHandlers(): void {
         file: safeName,
         weight: file.weight,
         style: file.style,
+        format: normalizeFontFileFormat(undefined, safeName),
         size: stat.size,
         sha256: await sha256File(targetPath)
       })
@@ -206,7 +225,7 @@ export function registerFontHandlers(): void {
     const options: OpenDialogOptions = {
       title: '选择字体文件',
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Fonts', extensions: ['woff2'] }]
+      filters: [{ name: 'Fonts', extensions: ['woff2', 'ttf', 'otf'] }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     return { canceled: result.canceled, filePaths: result.filePaths }
@@ -241,11 +260,25 @@ export function registerFontHandlers(): void {
       for (const file of entry.files) {
         const fileUrl = localAssetUrl(path.join(fontDir, file.file))
         cssBlocks.push(
-          `@font-face{font-family:"${cssEscapeString(entry.family)}";src:url("${cssEscapeString(fileUrl)}") format("woff2");font-weight:${file.weight};font-style:${file.style};font-display:swap}`
+          `@font-face{font-family:"${cssEscapeString(entry.family)}";src:url("${cssEscapeString(fileUrl)}") format("${normalizeFontFileFormat(file.format, file.file)}");font-weight:${file.weight};font-style:${file.style};font-display:swap}`
         )
       }
     }
 
     return cssBlocks.join('\n')
+  })
+
+  ipcMain.handle('fonts:listSchemes', async () => ({ items: await listFontSchemes() }))
+
+  ipcMain.handle('fonts:saveScheme', async (_event, payload: unknown) => ({
+    success: true,
+    scheme: await saveFontScheme(payload)
+  }))
+
+  ipcMain.handle('fonts:deleteScheme', async (_event, schemeId: unknown) => {
+    const id = typeof schemeId === 'string' ? schemeId.trim() : ''
+    if (!id) throw new Error('字体组合 ID 不能为空')
+    await deleteFontScheme(id)
+    return { success: true }
   })
 }

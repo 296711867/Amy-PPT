@@ -320,6 +320,7 @@ const resolveTargetFontProfile = async (args: {
   const designContract = normalizeDesignContract(args.designContract)
   const headTags = await buildFontHeadTags({
     titleFont: designContract.titleFont,
+    subtitleFont: designContract.subtitleFont,
     bodyFont: designContract.bodyFont,
     projectDir: args.fontProjectDir
   })
