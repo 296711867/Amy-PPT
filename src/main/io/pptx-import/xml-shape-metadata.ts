@@ -30,6 +30,10 @@ export type PptxXmlShapeMetadata = {
     left?: number
   }
   textAnchor?: string
+  /** OOXML 占位符类型（<p:ph type="title|body|pic|...">），非占位符形状为空 */
+  placeholderType?: string
+  /** OOXML 占位符序号（<p:ph idx="...">），用于区分同类型多个 body 占位符 */
+  placeholderIdx?: string
 }
 
 export type PptxXmlSlideMetadata = {
@@ -237,12 +241,13 @@ export const parsePptxXmlDeckMetadata = (buffer: Buffer): PptxXmlDeckMetadata =>
     const slideThemePath = findThemeForSlide(files, name, fallbackThemePath)
     const slideThemeColors = themes.get(slideThemePath) || themeColors
     const byName = new Map<string, PptxXmlShapeMetadata>()
-    const shapeRe = /<p:(sp|cxnSp)\b[\s\S]*?<\/p:\1>/g
+    const shapeRe = /<p:(sp|cxnSp|pic)\b[\s\S]*?<\/p:\1>/g
     let shapeMatch: RegExpExecArray | null
     while ((shapeMatch = shapeRe.exec(xml)) !== null) {
       const shapeXml = shapeMatch[0]
       const cNvPr = shapeXml.match(/<p:cNvPr\b[^>]*>/)?.[0] || ''
       const attrs = parseXmlAttributes(cNvPr)
+      const phAttrs = parseXmlAttributes(shapeXml.match(/<p:ph\b[^>]*>/)?.[0] || '')
       const preset = shapeXml.match(/<a:prstGeom\b[^>]*\bprst=["']([^"']+)["']/)?.[1] || ''
       const customGeometryXml = shapeXml.match(/<a:custGeom\b[\s\S]*?<\/a:custGeom>/)?.[0] || ''
       const customGeometry = customGeometryXml
@@ -290,7 +295,9 @@ export const parsePptxXmlDeckMetadata = (buffer: Buffer): PptxXmlDeckMetadata =>
           bottom: parseTextInset(bodyPrAttrs.bIns),
           left: parseTextInset(bodyPrAttrs.lIns)
         },
-        textAnchor: bodyPrAttrs.anchor
+        textAnchor: bodyPrAttrs.anchor,
+        placeholderType: phAttrs.type,
+        placeholderIdx: phAttrs.idx
       }
       if (metadata.name) byName.set(metadata.name, metadata)
     }

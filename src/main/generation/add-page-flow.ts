@@ -31,7 +31,11 @@ import type { ImagePolicy } from '@shared/generation'
 import { prepareDeckImageAssets } from './deck-images'
 import { readDeckBackgroundManifest, resolveDeckBackgroundAsset } from './deck-backgrounds'
 import { parseJsonObject } from '../ipc/utils'
-import { isValidTemplatePageRole, replaceTemplatePageId } from '../templates/template-page-roles'
+import {
+  classifyTemplatePageRole,
+  isValidTemplatePageRole,
+  replaceTemplatePageId
+} from '../templates/template-page-roles'
 import {
   TEMPLATE_SINGLE_PAGE_PROMPT_ADDENDUM,
   TEMPLATE_SYSTEM_PROMPT_ADDENDUM
@@ -318,7 +322,29 @@ export async function executeAddPageGeneration(
       (_, index) => index > 0 && index < candidates.length - 1
     )
     const pool = middle.length > 0 ? middle : candidates
-    return pool[Math.floor((pool.length - 1) / 2)]
+    // 语义匹配：按新页规划出的角色优先选同角色的基底页（如数据页配数据基底），
+    // 无匹配时退回内容页，再退回最中间页。
+    const desiredRole = classifyTemplatePageRole(
+      {
+        pageNumber: newPageNumber,
+        title: planResult.title,
+        contentOutline: planResult.contentOutline
+      },
+      existingPages.length + 1
+    )
+    const roleOf = (page: (typeof candidates)[number]): string | undefined => {
+      const raw = templateBaseRoles?.[page.file_slug!]
+      return isValidTemplatePageRole(raw) ? raw : undefined
+    }
+    const byRole = pool.filter((page) => roleOf(page) === desiredRole)
+    if (byRole.length > 0) {
+      return byRole[Math.floor((byRole.length - 1) / 2)]
+    }
+    const contentPages = pool.filter(
+      (page) => !roleOf(page) || roleOf(page) === 'content' || roleOf(page) === 'data'
+    )
+    const fallbackPool = contentPages.length > 0 ? contentPages : pool
+    return fallbackPool[Math.floor((fallbackPool.length - 1) / 2)]
   }
 
   const templateBasePage = isTemplateSession && !targetPage ? pickTemplateBasePage() : null
@@ -495,7 +521,18 @@ export async function executeAddPageGeneration(
                     ? (templateBaseRoles![templateBasePage.file_slug!] as string)
                     : 'content'
                 }
-              : {})
+              : isTemplateSession
+                ? {
+                    templatePageRole: classifyTemplatePageRole(
+                      {
+                        pageNumber: newPageNumber,
+                        title: planResult.title,
+                        contentOutline: planResult.contentOutline
+                      },
+                      existingPages.length + 1
+                    )
+                  }
+                : {})
           }
         ],
         designContract,

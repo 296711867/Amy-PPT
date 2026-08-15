@@ -107,6 +107,27 @@ const countSkeletonHintElements = (html: string): number => {
   }
 }
 
+const countFontSizeScale = (html: string): number => {
+  const sizes = new Set<string>()
+  const sizeRe = /font-size:\s*(\d+(?:\.\d+)?)px/gi
+  let match: RegExpExecArray | null
+  while ((match = sizeRe.exec(html)) !== null) {
+    const size = Math.round(Number(match[1]))
+    if (size >= 10) sizes.add(String(size))
+  }
+  return sizes.size
+}
+
+const countDistinctColors = (html: string): number => {
+  const colors = new Set<string>()
+  const colorRe = /#([0-9a-f]{6})\b/gi
+  let match: RegExpExecArray | null
+  while ((match = colorRe.exec(html)) !== null) {
+    colors.add(match[1].toUpperCase())
+  }
+  return colors.size
+}
+
 export const validateTemplateStructurePreserved = (
   beforeHtml: string,
   afterHtml: string
@@ -126,6 +147,24 @@ export const validateTemplateStructurePreserved = (
   if (beforeHints >= 3 && afterHints < Math.ceil(beforeHints / 2)) {
     violations.push(
       `背景/装饰类元素从 ${beforeHints} 个骤降到 ${afterHints} 个（模板装饰层疑似被删除）`
+    )
+  }
+
+  // 字号阶梯与配色盘：模板的排版尺度与色彩系统被整体抛弃时打回。
+  // 基数阈值（≥4 档字号 / ≥5 色）保证内容重排不会误伤。
+  const beforeSizes = countFontSizeScale(beforeHtml)
+  const afterSizes = countFontSizeScale(afterHtml)
+  if (beforeSizes >= 4 && afterSizes < Math.ceil(beforeSizes / 2)) {
+    violations.push(
+      `字号层级从 ${beforeSizes} 档降到 ${afterSizes} 档（模板排版尺度疑似被重设）`
+    )
+  }
+
+  const beforeColors = countDistinctColors(beforeHtml)
+  const afterColors = countDistinctColors(afterHtml)
+  if (beforeColors >= 5 && afterColors < Math.ceil(beforeColors / 2)) {
+    violations.push(
+      `配色从 ${beforeColors} 种降到 ${afterColors} 种（模板色彩系统疑似被替换）`
     )
   }
 

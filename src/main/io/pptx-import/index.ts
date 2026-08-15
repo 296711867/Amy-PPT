@@ -26,7 +26,10 @@ import {
   type ImportedElementAnimation,
   type SlideAnimationPlan
 } from './animation-import'
-import { type PptxXmlShapeMetadata } from './xml-shape-metadata'
+import {
+  parsePptxXmlDeckMetadata,
+  type PptxXmlShapeMetadata
+} from './xml-shape-metadata'
 import {
   getSvgPathBounds,
   renderOoxmlCustomGeometryPath,
@@ -232,6 +235,33 @@ const xmlShapeFromParserOoxml = (
     metadata.tailEnd
     ? metadata
     : undefined
+}
+
+/**
+ * OOXML 占位符类型 → 语义角色。导入时输出 data-ph-role，让模板页的结构
+ * （标题区/正文区/图片区）对后续 Agent 可见，而不只是绝对定位块。
+ */
+const PH_TYPE_TO_ROLE: Record<string, string> = {
+  title: 'title',
+  ctrTitle: 'title',
+  subTitle: 'subtitle',
+  body: 'body',
+  pic: 'picture',
+  chart: 'chart',
+  tbl: 'table',
+  dt: 'date',
+  ftr: 'footer',
+  sldNum: 'slide-number'
+}
+
+const resolvePlaceholderRole = (
+  elementName: unknown,
+  placeholdersByName: Map<string, PptxXmlShapeMetadata> | undefined
+): string | undefined => {
+  if (!placeholdersByName || typeof elementName !== 'string') return undefined
+  const phType = placeholdersByName.get(elementName)?.placeholderType
+  if (!phType) return undefined
+  return PH_TYPE_TO_ROLE[phType] || 'body'
 }
 
 const ALLOWED_TEXT_TAGS = new Set([
@@ -1062,6 +1092,7 @@ const buildTextBlock = async (args: {
   element: Record<string, unknown>
   blockId: string
   role?: string
+  placeholderRole?: string
   animation?: ImportedElementAnimation
   imagesDir: string
   registry: ImageRegistry
@@ -1113,14 +1144,18 @@ const buildTextBlock = async (args: {
     ]
   })
   const roleAttr = args.role ? ` data-role="${escapeHtml(args.role)}"` : ''
+  const phRoleAttr = args.placeholderRole
+    ? ` data-ph-role="${escapeHtml(args.placeholderRole)}"`
+    : ''
   const animationAttrs = buildAnimationAttrs(args.animation)
   const animationAttrText = animationAttrs ? ` ${animationAttrs}` : ''
-  return `<section data-block-id="${escapeHtml(args.blockId)}"${roleAttr}${animationAttrText} style="${css}">${adjustment.content || '&nbsp;'}</section>`
+  return `<section data-block-id="${escapeHtml(args.blockId)}"${roleAttr}${phRoleAttr}${animationAttrText} style="${css}">${adjustment.content || '&nbsp;'}</section>`
 }
 
 const buildImageBlock = async (args: {
   element: Record<string, unknown>
   blockId: string
+  placeholderRole?: string
   animation?: ImportedElementAnimation
   imagesDir: string
   registry: ImageRegistry
@@ -1148,10 +1183,13 @@ const buildImageBlock = async (args: {
   })
   const animationAttrs = buildAnimationAttrs(args.animation)
   const animationAttrText = animationAttrs ? ` ${animationAttrs}` : ''
+  const phRoleAttr = args.placeholderRole
+    ? ` data-ph-role="${escapeHtml(args.placeholderRole)}"`
+    : ''
   if (!source) {
-    return `<section data-block-id="${escapeHtml(args.blockId)}"${animationAttrText} style="${css};align-items:center;justify-content:center;background:#f3f4f6;color:#6b7280;font-size:18px;">图片未能导入</section>`
+    return `<section data-block-id="${escapeHtml(args.blockId)}"${phRoleAttr}${animationAttrText} style="${css};align-items:center;justify-content:center;background:#f3f4f6;color:#6b7280;font-size:18px;">图片未能导入</section>`
   }
-  return `<figure data-block-id="${escapeHtml(args.blockId)}"${animationAttrText} style="${css}"><img src="${source}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;" /></figure>`
+  return `<figure data-block-id="${escapeHtml(args.blockId)}"${phRoleAttr}${animationAttrText} style="${css}"><img src="${source}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;" /></figure>`
 }
 
 const svgResourceId = (blockId: string, suffix: string): string =>
@@ -1248,6 +1286,7 @@ const buildShapeBlock = async (args: {
   element: Record<string, unknown>
   blockId: string
   role?: string
+  placeholderRole?: string
   animation?: ImportedElementAnimation
   imagesDir: string
   registry: ImageRegistry
@@ -1399,7 +1438,10 @@ const buildShapeBlock = async (args: {
     const textOverlay = hasTextContent
       ? `<div style="${overlayCss}">${sanitizedOverlayContent}</div>`
       : ''
-    return `<figure data-block-id="${escapeHtml(args.blockId)}" data-pptx-kind="vector-shape"${animationAttrText} style="${css};margin:0"><svg viewBox="${viewBox.minX.toFixed(4)} ${viewBox.minY.toFixed(4)} ${viewBox.width.toFixed(4)} ${viewBox.height.toFixed(4)}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible;${svgTransform}" aria-hidden="true">${defsMarkup}<g${filterAttribute}>${shapeMarkup}</g></svg>${textOverlay}</figure>`
+    const shapePhRoleAttr = args.placeholderRole
+      ? ` data-ph-role="${escapeHtml(args.placeholderRole)}"`
+      : ''
+    return `<figure data-block-id="${escapeHtml(args.blockId)}" data-pptx-kind="vector-shape"${shapePhRoleAttr}${animationAttrText} style="${css};margin:0"><svg viewBox="${viewBox.minX.toFixed(4)} ${viewBox.minY.toFixed(4)} ${viewBox.width.toFixed(4)} ${viewBox.height.toFixed(4)}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible;${svgTransform}" aria-hidden="true">${defsMarkup}<g${filterAttribute}>${shapeMarkup}</g></svg>${textOverlay}</figure>`
   }
   const fillCss = await fillToCss(element.fill as Fill | undefined, args.imagesDir, args.registry)
   const shadowCss = boxShadowCss(element, args.scaleX, args.scaleY)
@@ -1415,7 +1457,10 @@ const buildShapeBlock = async (args: {
   })
   const animationAttrs = buildAnimationAttrs(args.animation)
   const animationAttrText = animationAttrs ? ` ${animationAttrs}` : ''
-  return `<div data-block-id="${escapeHtml(args.blockId)}"${animationAttrText} style="${css}"></div>`
+  const phRoleAttr = args.placeholderRole
+    ? ` data-ph-role="${escapeHtml(args.placeholderRole)}"`
+    : ''
+  return `<div data-block-id="${escapeHtml(args.blockId)}"${phRoleAttr}${animationAttrText} style="${css}"></div>`
 }
 
 const scaleImportedUnitPath = (path: string, width: number, height: number): string => {
@@ -1571,6 +1616,7 @@ const renderElement = async (args: {
   warnings?: ImportWarning[]
   textValidator?: PptxTextValidator
   chartRewrite?: PptxChartRewriteHandler
+  placeholdersByName?: Map<string, PptxXmlShapeMetadata>
 }): Promise<{ html: string; titleAssigned: boolean }> => {
   const nextBlockId = (prefix: string): string => {
     args.blockCounters[prefix] = (args.blockCounters[prefix] || 0) + 1
@@ -1578,6 +1624,7 @@ const renderElement = async (args: {
   }
   const record = args.element as unknown as Record<string, unknown>
   const xmlShape = xmlShapeFromParserOoxml(record)
+  const placeholderRole = resolvePlaceholderRole(record.name, args.placeholdersByName)
   const elementAnimation =
     resolveElementAnimation(args.animationContext, record, args.offsetX, args.offsetY) ||
     args.inheritedAnimation
@@ -1608,6 +1655,7 @@ const renderElement = async (args: {
       html: await buildImageBlock({
         element: record,
         blockId: nextBlockId('image'),
+        placeholderRole,
         animation: elementAnimation,
         imagesDir: args.imagesDir,
         registry: args.registry,
@@ -1713,6 +1761,7 @@ const renderElement = async (args: {
         element: record,
         blockId: shouldBeTitle ? 'title' : nextBlockId('text'),
         role: shouldBeTitle ? 'title' : undefined,
+        placeholderRole,
         animation: elementAnimation,
         imagesDir: args.imagesDir,
         registry: args.registry,
@@ -1739,6 +1788,7 @@ const renderElement = async (args: {
         element: record,
         blockId: shouldBeTitle ? 'title' : nextBlockId(text ? 'text' : 'shape'),
         role: shouldBeTitle ? 'title' : undefined,
+        placeholderRole,
         animation: elementAnimation,
         imagesDir: args.imagesDir,
         registry: args.registry,
@@ -1852,6 +1902,7 @@ const buildSlideHtml = async (args: {
   size: { width: number; height: number }
   slideSize?: SlideSizePreset
   animationPlan?: SlideAnimationPlan
+  placeholdersByName?: Map<string, PptxXmlShapeMetadata>
   projectDir: string
   registry: ImageRegistry
   textValidator?: PptxTextValidator
@@ -1899,7 +1950,8 @@ const buildSlideHtml = async (args: {
         pageNumber: args.pageNumber,
         warnings,
         textValidator: args.textValidator,
-        chartRewrite: args.chartRewrite
+        chartRewrite: args.chartRewrite,
+        placeholdersByName: args.placeholdersByName
       })
       if (result.html) rendered.push(result.html)
       titleAssigned = result.titleAssigned
@@ -2030,6 +2082,9 @@ export async function importPptxToEditableHtml(args: {
     effectiveSlides.map(({ originalIndex }) => originalIndex),
     parsed.size
   )
+  // 占位符语义标注：读取每页 OOXML 的 <p:ph type>（按形状名匹配），
+  // 让导入块携带 data-ph-role（title/subtitle/body/picture/...）。
+  const placeholderMetadata = parsePptxXmlDeckMetadata(buffer)
   args.onProgress?.({
     stage: 'media',
     progress: 24,
@@ -2062,6 +2117,8 @@ export async function importPptxToEditableHtml(args: {
         size: parsed.size,
         slideSize,
         animationPlan: animationPlans[i],
+        placeholdersByName: placeholderMetadata.slides.get(selectedSlide.originalIndex + 1)
+          ?.byName,
         projectDir: args.projectDir,
         registry,
         textValidator,
