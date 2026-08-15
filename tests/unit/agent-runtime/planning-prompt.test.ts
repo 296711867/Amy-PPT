@@ -10,7 +10,7 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('if the material does not naturally fill 7 slides')
     expect(prompt).toContain('## Content language')
     expect(prompt).toContain(
-      'title, keyPoints, layoutIntent, visualFormat, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId'
+      'title, keyPoints, layoutIntent, visualFormat, audienceMove, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId'
     )
     expect(prompt).toContain(
       'content structure -> module/image geometry -> candidate pool -> rotated final layout'
@@ -34,5 +34,22 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('never plan a diagram page for pure metric trends')
     expect(prompt).toContain('over-diagrammed')
     expect(prompt).toContain('"visualFormat":"diagram-cycle"')
+  })
+
+  it('imposes a communication contract with intent obligations and audience moves', () => {
+    const prompt = buildPlanningSystemPrompt(7)
+
+    expect(prompt).toContain('## Communication contract')
+    // 意图 → 大纲义务映射
+    expect(prompt).toContain('persuade → claim first, then evidence, then anticipated objections')
+    expect(prompt).toContain('decide → the decision request, the options, the criteria')
+    // 断言式标题：弱/强对照
+    expect(prompt).toContain('Domestic market grows 23% YoY')
+    expect(prompt).toContain('A title the audience could disagree with is doing its job')
+    // 每页 audience move 必填
+    expect(prompt).toContain('audienceMove is required on every item')
+    expect(prompt).toContain('before → after')
+    expect(prompt).toContain('If you cannot state the move, the slide has no narrative purpose')
+    expect(prompt).toContain('"audienceMove":"thinks growth is random')
   })
 })

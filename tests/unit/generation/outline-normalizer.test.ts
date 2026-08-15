@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_KEY_POINTS_PER_SLIDE,
+  normalizeAudienceMove,
   normalizeKeyPoints,
   normalizeOutlineText
 } from '../../../src/main/generation/outline-normalizer'
@@ -32,5 +33,14 @@ describe('outline normalizer', () => {
     ]
 
     expect(normalizeKeyPoints(points)).toEqual(points.slice(0, MAX_KEY_POINTS_PER_SLIDE))
+  })
+
+  it('normalizes audience moves by collapsing whitespace and capping length', () => {
+    expect(normalizeAudienceMove('  thinks growth is   random → sees the levers ')).toBe(
+      'thinks growth is random → sees the levers'
+    )
+    expect(normalizeAudienceMove('a'.repeat(300))).toHaveLength(160)
+    expect(normalizeAudienceMove('')).toBeUndefined()
+    expect(normalizeAudienceMove(42)).toBeUndefined()
   })
 })

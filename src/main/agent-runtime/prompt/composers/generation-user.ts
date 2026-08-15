@@ -78,6 +78,7 @@ export function buildSinglePageGenerationPrompt(args: {
   visualAspect?: SessionDeckGenerationContext['outlineItems'][number]['visualAspect']
   contentDensity?: SessionDeckGenerationContext['outlineItems'][number]['contentDensity']
   visualFormat?: VisualFormat
+  audienceMove?: string
   layoutId?: SessionDeckGenerationContext['outlineItems'][number]['layoutId']
   layoutPrompt?: SessionDeckGenerationContext['outlineItems'][number]['layoutPrompt']
   imageAssetPath?: string
@@ -203,6 +204,12 @@ export function buildSinglePageGenerationPrompt(args: {
     `Content points: ${args.pageOutline || 'Expand from the topic with moderate information density.'}`,
     args.layoutIntent ? formatLayoutIntentPrompt(args.layoutIntent) : '',
     formatVisualFormatPrompt(args.visualFormat),
+    args.audienceMove
+      ? [
+          `Planned audience move: ${args.audienceMove}`,
+          '- Every visible module on this slide must serve this before → after transition; cut or demote anything that does not move the audience toward the after-state.'
+        ].join('\n')
+      : '',
     args.contentStructure
       ? `Planned content structure: ${args.contentStructure}. Planned visible modules: ${args.moduleCount || 'use the selected layout count'}. Content density: ${args.contentDensity || 'standard'}. Visual aspect: ${args.visualAspect || 'auto'}.`
       : '',

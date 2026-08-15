@@ -97,7 +97,8 @@ export const SOURCE_DOCUMENT_READ_STRATEGY = [
 ].join('\n')
 
 export const SOURCE_DOCUMENT_FACT_RULE = [
-  `- Do not invent ${SOURCE_UNSUPPORTED_CLAIMS} not present in the source document.`
+  `- Do not invent ${SOURCE_UNSUPPORTED_CLAIMS} not present in the source document.`,
+  '- Never present an invented number as a fact. When an illustrative scenario figure is unavoidable, make its status visible on the slide (标记为「情景数据」/「示例」/"illustrative") so demo numbers can never read as real KPIs.'
 ].join('\n')
 
 export const SOURCE_GROUNDED_EXPANSION_RULES = [
@@ -200,6 +201,7 @@ export const CONTENT_WRITING_RULES = [
   '## 内容与视觉',
   '- 用真实文案与数据填模块；图标、装饰锚点、序号底托、分类标记**优先用 <svg data-icon="id" class="..."/> 引用图标库**（系统自动注入 lucide SVG，全集 1683 个，不确定 id 时调 search_icons 工具查），不要凭记忆手写 path；禁止用 emoji、贴纸、字符符号（如 ★→✓）充当图标；emoji 只允许出现在用户原文引用、品牌名或必要的人物/产品名称里，绝不作为页面的视觉图标元素。',
   '- 内容天然是流程、结构或关系时（步骤、阶段、系统组成、循环、分层、对比矩阵、时间线），优先画一张内联 SVG 图示而不是罗列卡片/项目符号——图示规范见技能 amy-ppt-diagram（肘形连线、节点预算、标注遮罩）。',
+  '- 精确数字必须有出处（用户输入或源文档）；示例性、假设性的演示数字必须可见标注（如「示例数据」「情景数据」），绝不冒充真实指标。',
   '- 布局靠 grid/flex 文档流：items-center/justify-* 的父节点配 flex 或 grid，正文卡片留在文档流里，absolute/fixed 只给背景装饰与连接线。',
   '- 装饰块保持扁平（单层绝对定位 div / 几个并列 div / 一个 SVG）。',
   '- 模块占稳各自位置、彼此对齐，形成均衡版面与干净间距——不堆在顶部，也不塞到溢出。',
@@ -242,11 +244,12 @@ export function buildOutlinePageList(context: SessionDeckGenerationContext): str
         ? `\n   ${formatLayoutIntentPrompt(item.layoutIntent).replace(/\n/g, '\n   ')}`
         : ''
       const visualFormat = item.visualFormat ? `\n   Planned visual format: ${item.visualFormat}` : ''
+      const audienceMove = item.audienceMove ? `\n   Audience move: ${item.audienceMove}` : ''
       const layoutMaster =
         item.layoutId && item.layoutPrompt
           ? `\n   ${item.layoutPrompt.replace(/\n/g, '\n   ')}`
           : ''
-      return `${i + 1}. ${item.title}\n   Content points: ${item.contentOutline}${layoutIntent}${visualFormat}${layoutMaster}`
+      return `${i + 1}. ${item.title}\n   Content points: ${item.contentOutline}${layoutIntent}${visualFormat}${audienceMove}${layoutMaster}`
     })
     .join('\n')
 }

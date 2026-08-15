@@ -22,6 +22,8 @@ export interface OutlineItem {
   contentDensity?: ContentDensity
   /** Planned visual expression (diagram/chart/table/quote/...) decided together with the outline. */
   visualFormat?: VisualFormat
+  /** One-line audience state transition ("before → after") this slide must achieve. */
+  audienceMove?: string
   /** M3a resolves a session layout master into a flexible generation constraint. */
   layoutId?: UniversalLayoutId | string
   layoutPrompt?: string

@@ -19,6 +19,14 @@ export const normalizeOutlineText = (raw: string): string => {
   return `${compact.slice(0, MAX_OUTLINE_TEXT_LENGTH).trimEnd()}…`
 }
 
+/** Normalize the planned "before → after" audience transition for one slide. */
+export const normalizeAudienceMove = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length < 3) return undefined
+  return normalized.slice(0, 160)
+}
+
 export const normalizeKeyPoints = (value: unknown): string[] => {
   if (!Array.isArray(value)) return []
   return value

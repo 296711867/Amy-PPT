@@ -53,7 +53,7 @@ import {
   formatReferenceDocumentSnippets
 } from './reference-document-retrieval'
 import { logAgentToolEvents } from '../utils/agent-tool-logger'
-import { normalizeKeyPoints, normalizeOutlineText } from './outline-normalizer'
+import { normalizeAudienceMove, normalizeKeyPoints, normalizeOutlineText } from './outline-normalizer'
 import { buildLocalCompletedGenerationPageSummary } from './generation-summary'
 import { readSessionLayoutLibrary } from '../session/master-service'
 import { classifyGenerationError, type GenerationFailureInfo } from '@shared/generation-error'
@@ -408,6 +408,7 @@ export const planDeckWithLLM = async (args: {
       const contentDensity = normalizeContentDensity(item.contentDensity)
       const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
       const visualFormat = resolvePlannedVisualFormat(item.visualFormat, layoutIntent)
+      const audienceMove = normalizeAudienceMove(item.audienceMove)
       if (!title) {
         throw new Error(
           uiText(
@@ -435,6 +436,7 @@ export const planDeckWithLLM = async (args: {
         visualAspect,
         contentDensity,
         visualFormat,
+        audienceMove,
         layoutId: resolveUniversalLayoutId({
           value: item.layoutId,
           moduleCount,
@@ -984,6 +986,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
     visualFormat?: OutlineItem['visualFormat']
+    audienceMove?: OutlineItem['audienceMove']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -1044,6 +1047,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
     visualFormat?: VisualFormat
+    audienceMove?: string
     layoutId: string
     layoutPrompt: string
     imageAssetPath?: string
@@ -1062,6 +1066,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
     visualFormat?: OutlineItem['visualFormat']
+    audienceMove?: OutlineItem['audienceMove']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -1081,6 +1086,7 @@ export const runDeepAgentDeckGeneration = async (args: {
       visualAspect: page.visualAspect,
       contentDensity: page.contentDensity,
       visualFormat: page.visualFormat,
+      audienceMove: page.audienceMove,
       layoutId: universalLayoutId || layoutTemplate.id,
       layoutPrompt: universalLayoutId
         ? formatUniversalLayoutPrompt(universalLayoutId)
@@ -1111,6 +1117,7 @@ export const runDeepAgentDeckGeneration = async (args: {
               visualAspect: args.outlineItems[index]?.visualAspect,
               contentDensity: args.outlineItems[index]?.contentDensity,
               visualFormat: args.outlineItems[index]?.visualFormat,
+              audienceMove: args.outlineItems[index]?.audienceMove,
               layoutId: args.outlineItems[index]?.layoutId,
               imageAssetPath: args.outlineItems[index]?.imageAssetPath,
               imageAssetPaths: args.outlineItems[index]?.imageAssetPaths,
@@ -1353,6 +1360,7 @@ export const runDeepAgentDeckGeneration = async (args: {
             visualAspect: page.visualAspect,
             contentDensity: page.contentDensity,
             visualFormat: page.visualFormat,
+            audienceMove: page.audienceMove,
             layoutId: page.layoutId,
             layoutPrompt: page.layoutPrompt,
             imageAssetPath: page.imageAssetPath,
@@ -1409,6 +1417,7 @@ export const runDeepAgentDeckGeneration = async (args: {
                   visualAspect: page.visualAspect,
                   contentDensity: page.contentDensity,
                   visualFormat: page.visualFormat,
+                  audienceMove: page.audienceMove,
                   layoutId: page.layoutId,
                   layoutPrompt: page.layoutPrompt,
                   imageAssetPath: page.imageAssetPath,

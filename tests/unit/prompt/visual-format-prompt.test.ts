@@ -56,4 +56,19 @@ describe('planned visual format in the single-page prompt', () => {
     const prompt = buildSinglePageGenerationPrompt(baseArgs)
     expect(prompt).not.toContain('Planned visual format')
   })
+
+  it('surfaces the planned audience move as a module-level filter', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      audienceMove: 'thinks growth is random → sees the three levers'
+    })
+
+    expect(prompt).toContain('Planned audience move: thinks growth is random → sees the three levers')
+    expect(prompt).toContain('must serve this before → after transition')
+  })
+
+  it('omits the audience move section when not planned', () => {
+    const prompt = buildSinglePageGenerationPrompt(baseArgs)
+    expect(prompt).not.toContain('Planned audience move')
+  })
 })
