@@ -19,6 +19,7 @@ import { resolveSlideSize } from '../../../src/shared/slide-size'
 import {
   CHART_SKILL_NAME,
   DATA_ANIM_SKILL_NAME,
+  DIAGRAM_SKILL_NAME,
   LAYOUT_SKILL_NAME,
   RED_LAYOUT_SKILL_NAME,
   SOURCE_READING_SKILL_NAME,
@@ -80,6 +81,7 @@ describe('slide size prompt', () => {
       LAYOUT_SKILL_NAME,
       DATA_ANIM_SKILL_NAME,
       CHART_SKILL_NAME,
+      DIAGRAM_SKILL_NAME,
       SOURCE_READING_SKILL_NAME
     ])
   })
@@ -94,6 +96,7 @@ describe('slide size prompt', () => {
       RED_LAYOUT_SKILL_NAME,
       DATA_ANIM_SKILL_NAME,
       CHART_SKILL_NAME,
+      DIAGRAM_SKILL_NAME,
       SOURCE_READING_SKILL_NAME
     ])
   })

@@ -11,6 +11,7 @@ export const VERTICAL_3_4_LAYOUT_SKILL_NAME = 'vertical-3-4-layout-skill'
 export const RED_LAYOUT_SKILL_NAME = 'red-layout-skill'
 export const DATA_ANIM_SKILL_NAME = 'amy-ppt-data-anim'
 export const CHART_SKILL_NAME = 'amy-ppt-chart'
+export const DIAGRAM_SKILL_NAME = 'amy-ppt-diagram'
 export const SOURCE_READING_SKILL_NAME = 'amy-ppt-source-reading'
 
 export const REQUIRED_PRODUCT_SKILL_NAMES = [
@@ -22,6 +23,7 @@ export const REQUIRED_PRODUCT_SKILL_NAMES = [
   RED_LAYOUT_SKILL_NAME,
   DATA_ANIM_SKILL_NAME,
   CHART_SKILL_NAME,
+  DIAGRAM_SKILL_NAME,
   SOURCE_READING_SKILL_NAME
 ] as const
 
@@ -54,5 +56,6 @@ export const getRequiredProductSkillNamesForSlideSize = (
   resolveLayoutSkillName(input),
   DATA_ANIM_SKILL_NAME,
   CHART_SKILL_NAME,
+  DIAGRAM_SKILL_NAME,
   SOURCE_READING_SKILL_NAME
 ]

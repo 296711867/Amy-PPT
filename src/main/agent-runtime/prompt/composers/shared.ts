@@ -10,6 +10,7 @@ import {
 import {
   CHART_SKILL_NAME,
   DATA_ANIM_SKILL_NAME,
+  DIAGRAM_SKILL_NAME,
   LAYOUT_SKILL_NAME,
   RED_LAYOUT_SKILL_NAME,
   SOURCE_READING_SKILL_NAME,
@@ -177,6 +178,9 @@ export const FRONTEND_CAPABILITIES = [
   `- Chart details are in the skill ${CHART_SKILL_NAME}. ${formatSkillUsageRequirement(CHART_SKILL_NAME)}`,
   '- Wrap in document.addEventListener("DOMContentLoaded", function() { PPT.createChart(...) }). Do not use ppt-ready/ppt-rendered or other custom events.',
   '',
+  'Diagrams:',
+  `- When the content is a process, structure, or relationship (flow, architecture, timeline, cycle, pyramid, quadrant, comparison) instead of a numeric series, draw an inline SVG diagram rather than stacking bullet lists or generic cards. Diagram rules are in the skill ${DIAGRAM_SKILL_NAME}. ${formatSkillUsageRequirement(DIAGRAM_SKILL_NAME)}`,
+  '',
   'Animations:',
   `- Animation rules are in the skill ${DATA_ANIM_SKILL_NAME}. ${formatSkillUsageRequirement(DATA_ANIM_SKILL_NAME)}`,
   '- Prefer `data-anim-stagger="N"` over embedding `stagger(N)` in delay strings for new content.',
@@ -195,6 +199,7 @@ export const FRONTEND_CAPABILITIES = [
 export const CONTENT_WRITING_RULES = [
   '## 内容与视觉',
   '- 用真实文案与数据填模块；图标、装饰锚点、序号底托、分类标记**优先用 <svg data-icon="id" class="..."/> 引用图标库**（系统自动注入 lucide SVG，全集 1683 个，不确定 id 时调 search_icons 工具查），不要凭记忆手写 path；禁止用 emoji、贴纸、字符符号（如 ★→✓）充当图标；emoji 只允许出现在用户原文引用、品牌名或必要的人物/产品名称里，绝不作为页面的视觉图标元素。',
+  '- 内容天然是流程、结构或关系时（步骤、阶段、系统组成、循环、分层、对比矩阵、时间线），优先画一张内联 SVG 图示而不是罗列卡片/项目符号——图示规范见技能 amy-ppt-diagram（肘形连线、节点预算、标注遮罩）。',
   '- 布局靠 grid/flex 文档流：items-center/justify-* 的父节点配 flex 或 grid，正文卡片留在文档流里，absolute/fixed 只给背景装饰与连接线。',
   '- 装饰块保持扁平（单层绝对定位 div / 几个并列 div / 一个 SVG）。',
   '- 模块占稳各自位置、彼此对齐，形成均衡版面与干净间距——不堆在顶部，也不塞到溢出。',
