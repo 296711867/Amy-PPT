@@ -62,11 +62,10 @@ describe('builtin style density guidance', () => {
     }
   })
 
-  it('keeps dreamy-romance sparse for data-heavy report pages', () => {
-    const dreamy = readFileSync(path.join(stylesRoot, 'dreamy-romance/SKILL.md'), 'utf8')
+  it('keeps corporate-clean sparse for data-heavy report pages', () => {
+    const corporate = readFileSync(path.join(stylesRoot, 'corporate-clean/SKILL.md'), 'utf8')
 
-    expect(dreamy).toContain('数据、报告或表格型内容也要保持柔和低到中密度')
-    expect(dreamy).toContain('不要把每个指标都扩成同等大小的大卡片')
-    expect(dreamy).toContain('避免同一事实同时出现在摘要卡、时间轴和说明卡里')
+    expect(corporate).toContain('不要把每个要点都拆成卡片，默认低到中密度')
+    expect(corporate).toContain('不要用圆角过大或阴影过重的卡片')
   })
 })

@@ -23,7 +23,7 @@ describe('Amy-PPT brand contract', () => {
     expect(APP_NAME).toBe('Amy-PPT')
     expect(APP_PACKAGE_NAME).toBe('amy-ppt')
     expect(APP_ID).toBe('com.amyppt.app')
-    expect(APP_VERSION).toBe('1.0.0')
+    expect(APP_VERSION).toBe('1.0.1')
     expect(DEFAULT_UPDATE_MANIFEST_URL).toContain('/296711867/Amy-PPT/')
     expect(DEFAULT_UPDATE_MANIFEST_URL).not.toContain('oh-my-ppt')
   })

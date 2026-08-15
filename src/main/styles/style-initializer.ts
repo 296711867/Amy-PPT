@@ -77,6 +77,12 @@ export async function initializeStyles(options: {
     }
   }
 
+  await pruneRemovedSystemStyles({
+    systemPath,
+    bundledStyleNames: new Set(bundledStyles.map((style) => style.json.style)),
+    logger
+  })
+
   if (bundledManifest && failedCount === 0) {
     await writeSystemReleaseManifest(systemPath, bundledManifest)
   }
@@ -86,6 +92,33 @@ export async function initializeStyles(options: {
     copiedCount,
     skippedCount: 0,
     failedCount
+  }
+}
+
+async function pruneRemovedSystemStyles(args: {
+  systemPath: string
+  bundledStyleNames: Set<string>
+  logger?: StyleInitializerLogger
+}): Promise<void> {
+  if (!fs.existsSync(args.systemPath)) return
+  const entries = await fs.promises.readdir(args.systemPath, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    if (args.bundledStyleNames.has(entry.name)) continue
+    try {
+      await fs.promises.rm(path.join(args.systemPath, entry.name), {
+        recursive: true,
+        force: true
+      })
+      args.logger?.info?.('[styles] pruned system style no longer bundled', {
+        style: entry.name
+      })
+    } catch (error) {
+      args.logger?.warn?.('[styles] failed to prune removed system style', {
+        style: entry.name,
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
   }
 }
 

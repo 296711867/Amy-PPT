@@ -3063,7 +3063,36 @@ export class PPTDatabase {
 
     await syncDirectory(systemPath, 'system')
     await syncDirectory(userPath, 'user')
+    await this.deactivateOrphanedBuiltinStyles(systemPath)
     await this._refreshStylesCache()
+  }
+
+  /**
+   * 内置风格包随版本下线后，同步停用仍指向 system 目录的 DB 行，
+   * 避免已删除的风格继续出现在风格列表里。用户 override（packageDir
+   * 指向 user 目录）不受影响。
+   */
+  private async deactivateOrphanedBuiltinStyles(systemPath: string): Promise<void> {
+    const existingSystemDirs = new Set(
+      fs.existsSync(systemPath)
+        ? await fs.promises.readdir(systemPath, { withFileTypes: true }).then((entries) =>
+            entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+          )
+        : []
+    )
+    const orphans = this._stylesCache.filter(
+      (row) =>
+        row.active !== false &&
+        row.source === 'builtin' &&
+        (row.packageDir || `system/${row.style}`).startsWith('system/') &&
+        !existingSystemDirs.has((row.packageDir || `system/${row.style}`).slice('system/'.length))
+    )
+    for (const row of orphans) {
+      await this.updateStyleRow(row.id, { active: false })
+      console.warn('[db] deactivated builtin style without installed package', {
+        style: row.style
+      })
+    }
   }
 
   private async _refreshStylesCache(): Promise<void> {
