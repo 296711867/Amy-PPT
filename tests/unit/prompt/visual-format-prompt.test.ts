@@ -71,4 +71,22 @@ describe('planned visual format in the single-page prompt', () => {
     const prompt = buildSinglePageGenerationPrompt(baseArgs)
     expect(prompt).not.toContain('Planned audience move')
   })
+
+  it('injects escalated method-level corrections as proactive guidance', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      methodLevelFixes: [
+        'Icons must be referenced as <svg data-icon="id"> (never emoji).'
+      ]
+    })
+
+    expect(prompt).toContain('Method-level corrections from earlier slides')
+    expect(prompt).toContain('apply proactively, do not wait to fail the same way')
+    expect(prompt).toContain('never emoji')
+  })
+
+  it('omits the method-level section when no signal escalated', () => {
+    const prompt = buildSinglePageGenerationPrompt(baseArgs)
+    expect(prompt).not.toContain('Method-level corrections')
+  })
 })

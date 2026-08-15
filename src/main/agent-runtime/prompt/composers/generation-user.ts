@@ -79,6 +79,8 @@ export function buildSinglePageGenerationPrompt(args: {
   contentDensity?: SessionDeckGenerationContext['outlineItems'][number]['contentDensity']
   visualFormat?: VisualFormat
   audienceMove?: string
+  /** 跨页同类错误升级出的方法级修正，注入后续页主动避开。 */
+  methodLevelFixes?: string[]
   layoutId?: SessionDeckGenerationContext['outlineItems'][number]['layoutId']
   layoutPrompt?: SessionDeckGenerationContext['outlineItems'][number]['layoutPrompt']
   imageAssetPath?: string
@@ -208,6 +210,12 @@ export function buildSinglePageGenerationPrompt(args: {
       ? [
           `Planned audience move: ${args.audienceMove}`,
           '- Every visible module on this slide must serve this before → after transition; cut or demote anything that does not move the audience toward the after-state.'
+        ].join('\n')
+      : '',
+    args.methodLevelFixes && args.methodLevelFixes.length > 0
+      ? [
+          'Method-level corrections from earlier slides (apply proactively, do not wait to fail the same way):',
+          ...args.methodLevelFixes.map((fix) => `- ${fix}`)
         ].join('\n')
       : '',
     args.contentStructure

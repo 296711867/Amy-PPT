@@ -54,6 +54,7 @@ import {
 } from './reference-document-retrieval'
 import { logAgentToolEvents } from '../utils/agent-tool-logger'
 import { normalizeAudienceMove, normalizeKeyPoints, normalizeOutlineText } from './outline-normalizer'
+import { classifyPageMethodSignal } from './method-signals'
 import { buildLocalCompletedGenerationPageSummary } from './generation-summary'
 import { readSessionLayoutLibrary } from '../session/master-service'
 import { classifyGenerationError, type GenerationFailureInfo } from '@shared/generation-error'
@@ -1418,6 +1419,7 @@ export const runDeepAgentDeckGeneration = async (args: {
                   contentDensity: page.contentDensity,
                   visualFormat: page.visualFormat,
                   audienceMove: page.audienceMove,
+                  methodLevelFixes: methodLevelFixes.slice(),
                   layoutId: page.layoutId,
                   layoutPrompt: page.layoutPrompt,
                   imageAssetPath: page.imageAssetPath,
@@ -1593,12 +1595,36 @@ export const runDeepAgentDeckGeneration = async (args: {
   // Tool validation already self-repairs inside ReAct. Keep outer reruns bounded.
   const MAX_PAGE_RETRIES = 2
   const RETRY_DELAY_BASE_MS = 1_000
+  // 方法信号门禁：同类错误在 2 次（跨页或跨尝试）后升级为方法级修正，
+  // 注入后续所有页面的提示词，避免整套 deck 反复栽进同一个坑。
+  const METHOD_SIGNAL_ESCALATE_THRESHOLD = 2
+  const methodSignalCounts = new Map<string, number>()
+  const methodLevelFixes: string[] = []
+  const registerMethodSignal = (errorMessage: string, pageId: string): void => {
+    const signal = classifyPageMethodSignal(errorMessage)
+    if (!signal) return
+    const count = (methodSignalCounts.get(signal.signalClass) || 0) + 1
+    methodSignalCounts.set(signal.signalClass, count)
+    if (
+      count >= METHOD_SIGNAL_ESCALATE_THRESHOLD &&
+      !methodLevelFixes.includes(signal.fix)
+    ) {
+      methodLevelFixes.push(signal.fix)
+      log.warn('[deepagent] method-level signal escalated for later slides', {
+        sessionId: args.sessionId,
+        styleId: args.styleId || '',
+        signalClass: signal.signalClass,
+        occurrences: count,
+        triggeredByPage: pageId
+      })
+    }
+  }
   const generateSinglePageWithRetry = async (
     page: PageRef,
     workerLabel: string
   ): Promise<string> => {
     let lastError: unknown = null
-    for (let attempt = 0; attempt <= MAX_PAGE_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= MAX_PAGE_RETRIES; attempt += 1) {
       try {
         const retryContext =
           attempt > 0 && lastError
@@ -1612,6 +1638,7 @@ export const runDeepAgentDeckGeneration = async (args: {
       } catch (error) {
         lastError = error
         const reason = error instanceof Error ? error.message : String(error)
+        registerMethodSignal(reason, page.pageId)
         const failure = classifyGenerationError(error)
         if (failure.scope === 'system') break
         if (!failure.retryable || attempt >= MAX_PAGE_RETRIES) break
