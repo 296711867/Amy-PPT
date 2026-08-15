@@ -34,6 +34,12 @@ import {
   resolveTemplateRelativePath
 } from './template-paths'
 import {
+  assignTemplateBasePages,
+  classifyTemplatePageRole,
+  replaceTemplatePageId,
+  type TemplatePageRole
+} from './template-page-roles'
+import {
   requireSessionSlideSize,
   requireSlideSize,
   requireSlideSizePreset
@@ -47,6 +53,7 @@ type PreparedTemplatePage = {
   title: string
   htmlPath: string
   sourceTemplatePageNumber: number
+  sourceTemplatePageRole: TemplatePageRole
 }
 
 const templateManifestCache = new LRUCache<string, CacheValue>({
@@ -210,34 +217,6 @@ async function copyReferenceDocumentToSession(args: {
   return `/docs/${fileName}`
 }
 
-function pickTemplateSourcePage(
-  pages: TemplateManifest['pages'],
-  outputIndex: number,
-  totalPages: number
-): TemplateManifest['pages'][number] {
-  if (pages.length === 1 || totalPages === 1) return pages[0]
-  if (outputIndex === 0) return pages[0]
-  if (outputIndex === totalPages - 1) return pages[pages.length - 1]
-
-  const middlePages = pages.slice(1, -1)
-  if (middlePages.length === 0) return pages[0]
-  const middleOutputCount = Math.max(1, totalPages - 2)
-  const middleOutputIndex = outputIndex - 1
-  const sourceIndex =
-    middleOutputCount === 1
-      ? 0
-      : Math.round((middleOutputIndex * (middlePages.length - 1)) / (middleOutputCount - 1))
-  return middlePages[Math.max(0, Math.min(middlePages.length - 1, sourceIndex))]
-}
-
-function replacePageIdentity(html: string, oldPageId: string, nextPageId: string): string {
-  const oldId = oldPageId.trim()
-  if (!oldId || oldId === nextPageId) return html
-  const escapedOldId = oldId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const boundaryPattern = new RegExp(`(^|[^A-Za-z0-9_-])${escapedOldId}(?=$|[^A-Za-z0-9_-])`, 'g')
-  return html.replace(boundaryPattern, `$1${nextPageId}`)
-}
-
 function rewriteTemplatePageIdentities(
   html: string,
   idMap: Map<string, string>,
@@ -246,9 +225,9 @@ function rewriteTemplatePageIdentities(
 ): string {
   let rewritten = html
   for (const [oldPageId, newPageId] of idMap) {
-    rewritten = replacePageIdentity(rewritten, oldPageId, newPageId)
+    rewritten = replaceTemplatePageId(rewritten, oldPageId, newPageId)
   }
-  return replacePageIdentity(rewritten, sourcePageId, targetPageId)
+  return replaceTemplatePageId(rewritten, sourcePageId, targetPageId)
 }
 
 async function prepareTemplatePagesForSession(args: {
@@ -261,9 +240,11 @@ async function prepareTemplatePagesForSession(args: {
 
   const usedTargetPaths = new Set<string>()
   const sourceHtmlPaths = new Set(templatePages.map((page) => page.htmlPath.replace(/\\/g, '/')))
-  const pagePlan = Array.from({ length: args.totalPages }, (_unused, outputIndex) => {
+  // 按语义角色（封面/目录/章节/内容/数据/结尾）为每个输出页分配基底，
+  // 替代旧的纯位置线性插值；manifest 缺少 role 时由启发式分类兜底。
+  const baseAssignments = assignTemplateBasePages(templatePages, args.totalPages)
+  const pagePlan = baseAssignments.map((sourcePage, outputIndex) => {
     const pageNumber = outputIndex + 1
-    const sourcePage = pickTemplateSourcePage(templatePages, outputIndex, args.totalPages)
     return {
       pageNumber,
       sourcePage,
@@ -307,7 +288,8 @@ async function prepareTemplatePagesForSession(args: {
       pageId,
       title: `第 ${pageNumber} 页`,
       htmlPath: targetPath,
-      sourceTemplatePageNumber: sourcePage.pageNumber
+      sourceTemplatePageNumber: sourcePage.pageNumber,
+      sourceTemplatePageRole: sourcePage.role
     })
   }
 
@@ -452,11 +434,15 @@ export async function createTemplateFromSession(
     slideHeight: slideSize.height,
     designContract,
     pages: templatePages.map(({ page, htmlPath }, index) => {
-      return {
+      const manifestPage = {
         pageNumber: page.page_number || index + 1,
         pageId: page.file_slug,
         title: page.title || `第 ${index + 1} 页`,
         htmlPath
+      }
+      return {
+        ...manifestPage,
+        role: classifyTemplatePageRole(manifestPage, templatePages.length)
       }
     })
   }
@@ -530,27 +516,39 @@ export async function importPptxAsTemplate(
       label: '正在抽取模板风格',
       totalPages: imported.pageCount
     })
-    const styleResult = await extractStyleFromExistingHtml({
-      projectDir: tempDir,
-      pageHtmlPaths: imported.pages.map((page) => path.basename(page.htmlPath)),
-      sourceFilePath: sourcePath,
-      provider: activeModel.provider,
-      apiKey: activeModel.apiKey,
-      model: activeModel.model,
-      baseUrl: activeModel.baseUrl,
-      maxTokens: activeModel.maxTokens,
-      modelTimeoutMs: modelTimeouts.document
-    })
-    const styleId = `style-${createLowercaseId()}`
-    await createStyleSkill({
-      id: styleId,
-      label: styleResult.label,
-      description: styleResult.description,
-      category: styleResult.category,
-      aliases: styleResult.aliases,
-      prompt: styleResult.styleSkill,
-      styleCase: styleResult.styleCase
-    })
+    // 风格提取失败时降级为"无关联风格"继续导入（与"导入为会话"链路行为一致），
+    // 不再让单次 LLM 波动中断整个模板导入。
+    let styleId: string | null = null
+    let styleSkillPrompt = ''
+    try {
+      const styleResult = await extractStyleFromExistingHtml({
+        projectDir: tempDir,
+        pageHtmlPaths: imported.pages.map((page) => path.basename(page.htmlPath)),
+        sourceFilePath: sourcePath,
+        provider: activeModel.provider,
+        apiKey: activeModel.apiKey,
+        model: activeModel.model,
+        baseUrl: activeModel.baseUrl,
+        maxTokens: activeModel.maxTokens,
+        modelTimeoutMs: modelTimeouts.document
+      })
+      styleId = `style-${createLowercaseId()}`
+      await createStyleSkill({
+        id: styleId,
+        label: styleResult.label,
+        description: styleResult.description,
+        category: styleResult.category,
+        aliases: styleResult.aliases,
+        prompt: styleResult.styleSkill,
+        styleCase: styleResult.styleCase
+      })
+      styleSkillPrompt = styleResult.styleSkill
+    } catch (error) {
+      console.warn('[templates] style extraction failed; continuing without a linked style', {
+        templateId,
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
 
     onProgress?.({
       stage: 'database',
@@ -558,7 +556,8 @@ export async function importPptxAsTemplate(
       label: '正在生成模板设计契约',
       totalPages: imported.pageCount
     })
-    const slideSize = requireSlideSizePreset('wide-16-9')
+    // 画幅来自 PPTX 实际尺寸（就近映射 16:9 / 4:3），不再强制宽屏。
+    const slideSize = imported.slideSize ?? requireSlideSizePreset('wide-16-9')
     const designContract = await buildDesignContractWithLLM({
       provider: activeModel.provider,
       apiKey: activeModel.apiKey,
@@ -567,7 +566,9 @@ export async function importPptxAsTemplate(
       maxTokens: activeModel.maxTokens,
       modelRuntime: ctx.modelRuntime,
       styleId,
-      styleSkillPrompt: styleResult.styleSkill,
+      styleSkillPrompt:
+        styleSkillPrompt ||
+        `Visual language inherited from the imported PPTX template "${title}"; extract the design system from the sample pages.`,
       modelTimeoutMs: modelTimeouts.document,
       totalPages: imported.pageCount,
       slideSize,
@@ -601,8 +602,9 @@ export async function importPptxAsTemplate(
       designContract,
       pages: imported.pages.map((page, index) => {
         const relativeHtmlPath = path.relative(tempDir, page.htmlPath).split(path.sep).join('/')
-        return {
-          pageNumber: page.pageNumber || index + 1,
+        const pageNumber = page.pageNumber || index + 1
+        const manifestPage = {
+          pageNumber,
           pageId: page.pageId,
           title: page.title || `第 ${index + 1} 页`,
           htmlPath:
@@ -610,7 +612,12 @@ export async function importPptxAsTemplate(
             !relativeHtmlPath.startsWith('..') &&
             !path.isAbsolute(relativeHtmlPath)
               ? relativeHtmlPath
-              : `${page.pageId}.html`
+              : `${page.pageId}.html`,
+          ...(page.contentOutline ? { contentOutline: page.contentOutline } : {})
+        }
+        return {
+          ...manifestPage,
+          role: classifyTemplatePageRole(manifestPage, imported.pageCount)
         }
       })
     }
@@ -788,7 +795,11 @@ export async function createSessionFromTemplate(
     templateId,
     createdFromTemplateAt: Date.now(),
     indexPath,
-    projectId
+    projectId,
+    // 每个输出页的模板基底语义角色，供模板生成链路注入页面级提示词。
+    templateBaseRoles: Object.fromEntries(
+      preparedPages.map((page) => [page.pageId, page.sourceTemplatePageRole])
+    )
   }
   await ctx.db.updateSessionMetadata(sessionId, metadata)
   await ctx.db.updateProjectStatus(projectId, 'draft')

@@ -11,7 +11,10 @@ import type { RenderedPageValidationResult } from './rendered-page-validator'
 import { extractRemoteRuntimeResources } from './resource-policy'
 import { buildFontHeadTags } from '../fonts/font-registry'
 import { buildSessionAssetHeadTags } from '../assets/page-assets'
-import { validateTemplateSkeletonPreserved } from '../templates/template-skeleton-validator'
+import {
+  validateTemplateSkeletonPreserved,
+  validateTemplateStructurePreserved
+} from '../templates/template-skeleton-validator'
 import { serializedWrite } from './write-serialization'
 import {
   buildBasePageStyleTag,
@@ -664,15 +667,23 @@ export async function persistPageHtmlFromFragment(args: {
   if (args.preserveTemplateSkeleton) {
     const beforeHtml = await fs.promises.readFile(args.targetPath, 'utf-8').catch(() => '')
     const missingTemplateRefs = validateTemplateSkeletonPreserved(beforeHtml, persisted.html)
-    if (missingTemplateRefs.length > 0) {
+    const structureViolations = validateTemplateStructurePreserved(beforeHtml, persisted.html)
+    if (missingTemplateRefs.length > 0 || structureViolations.length > 0) {
       throw new PageWriteValidationError(
         'template-skeleton',
         args.pageId,
-        missingTemplateRefs,
+        [...missingTemplateRefs, ...structureViolations],
         [
-          `模板骨架资源丢失 (${args.pageId})：${missingTemplateRefs.slice(0, 8).join(', ')}`,
-          '请重新读取目标模板页，把背景图、纹理、装饰图、mask/overlay 或 CSS url(...) 对应结构保留在 update_template_page_file 的 content 中。'
-        ].join(' ')
+          missingTemplateRefs.length > 0
+            ? `模板骨架资源丢失 (${args.pageId})：${missingTemplateRefs.slice(0, 8).join(', ')}`
+            : '',
+          structureViolations.length > 0
+            ? `模板结构被破坏 (${args.pageId})：${structureViolations.join('；')}`
+            : '',
+          '请重新读取目标模板页，把背景图、纹理、装饰图、mask/overlay、CSS url(...) 对应结构与主要分区容器保留在 update_template_page_file 的 content 中。'
+        ]
+          .filter(Boolean)
+          .join(' ')
       )
     }
   }

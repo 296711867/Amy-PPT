@@ -60,6 +60,10 @@ import { createGenerationCircuitBreaker } from '@shared/generation-circuit-break
 import { hasCommittedGeneratedPage } from './page-commit'
 import { validateAssignedDeckBackground } from './deck-backgrounds'
 import {
+  describeTemplatePageRole,
+  isValidTemplatePageRole
+} from '../templates/template-page-roles'
+import {
   formatDeckQualityFeedback,
   inspectPresentationDeckQuality,
   type DeckQualityViolation
@@ -980,6 +984,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     imageAssetPath?: string
     imageAssetPaths?: string[]
     backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
+    templatePageRole?: string
   }>
   designContract?: DesignContract
   projectDir: string
@@ -1039,6 +1044,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     imageAssetPath?: string
     imageAssetPaths?: string[]
     backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
+    templatePageRole?: string
   }
   const resolvePageRef = (page: {
     pageNumber: number
@@ -1054,6 +1060,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     imageAssetPath?: string
     imageAssetPaths?: string[]
     backgroundAsset?: import('@shared/generation').DeckBackgroundAsset
+    templatePageRole?: string
   }): PageRef => {
     const universalLayoutId = normalizeUniversalLayoutId(page.layoutId)
     const layoutTemplate = resolveLayoutMasterTemplate(layoutLibrary, page.layoutIntent)
@@ -1073,7 +1080,8 @@ export const runDeepAgentDeckGeneration = async (args: {
         : formatLayoutMasterPrompt(layoutTemplate),
       imageAssetPath: page.imageAssetPath,
       imageAssetPaths: page.imageAssetPaths,
-      backgroundAsset: page.backgroundAsset
+      backgroundAsset: page.backgroundAsset,
+      templatePageRole: page.templatePageRole
     }
   }
   const pageRefs: PageRef[] =
@@ -1374,6 +1382,9 @@ export const runDeepAgentDeckGeneration = async (args: {
                       '5. Only after reading the file, call update_template_page_file with the new content while preserving the template visual system unless the user explicitly asks for a redesign.',
                       '6. Do not call update_single_page_file in this template run.'
                     ].join('\n')
+                  : '',
+                isValidTemplatePageRole(page.templatePageRole)
+                  ? `The template base for this slide was classified as a ${describeTemplatePageRole(page.templatePageRole).en} (${describeTemplatePageRole(page.templatePageRole).zh}). Keep that structural role: preserve the composition and hierarchy of the base (e.g. a cover base stays a cover, a data base keeps chart/table prominence) while replacing the old content.`
                   : '',
                 buildSinglePageGenerationPrompt({
                   topic: args.topic,

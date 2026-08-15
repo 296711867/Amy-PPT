@@ -2,6 +2,7 @@ import {
   requirePersistedSlideSize,
   type SlideSizePresetId
 } from '@shared/slide-size'
+import { isValidTemplatePageRole, type TemplatePageRole } from './template-page-roles'
 
 export type TemplateSource = 'user'
 
@@ -10,6 +11,8 @@ export interface TemplateManifestPage {
   pageId: string
   title: string
   htmlPath: string
+  contentOutline?: string
+  role?: TemplatePageRole
 }
 
 export interface TemplateManifest {
@@ -75,11 +78,15 @@ export function parseTemplateManifest(raw: unknown): TemplateManifest {
       const page = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
       const pageNumber = Math.max(1, Math.floor(asNumber(page.pageNumber) || index + 1))
       const pageId = asString(page.pageId) || `page-${pageNumber}`
+      const contentOutline = asString(page.contentOutline) || undefined
+      const role = isValidTemplatePageRole(page.role) ? page.role : undefined
       return {
         pageNumber,
         pageId,
         title: asString(page.title) || `第 ${pageNumber} 页`,
-        htmlPath: asString(page.htmlPath) || `pages/${pageId}.html`
+        htmlPath: asString(page.htmlPath) || `pages/${pageId}.html`,
+        ...(contentOutline ? { contentOutline } : {}),
+        ...(role ? { role } : {})
       }
     })
     .sort((a, b) => a.pageNumber - b.pageNumber)

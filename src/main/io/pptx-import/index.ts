@@ -35,6 +35,8 @@ import {
 } from '@arcsin1/pptx-ooxml-geometry'
 import { getSvgShapeViewBox } from './shape-view-box'
 import { DEFAULT_IMPORTED_TEXT_FONT, PAGE_HEIGHT, PAGE_WIDTH, PPTX_IMPORT_SLIDE_SIZE } from './constants'
+import type { SlideSizePreset } from '@shared/slide-size'
+import { requireSlideSizePreset } from '@shared/slide-size'
 import {
   buildChartBlock,
   buildChartFrameStyle,
@@ -744,18 +746,21 @@ const tableVerticalAlign = (value: unknown): string => {
   return 'top'
 }
 
-const resolveSlideFit = (size: { width: number; height: number }): {
+const resolveSlideFit = (
+  size: { width: number; height: number },
+  canvas: { width: number; height: number } = { width: PAGE_WIDTH, height: PAGE_HEIGHT }
+): {
   scale: number
   offsetX: number
   offsetY: number
 } => {
   const sourceWidth = Math.max(1, size.width)
   const sourceHeight = Math.max(1, size.height)
-  const scale = Math.min(PAGE_WIDTH / sourceWidth, PAGE_HEIGHT / sourceHeight)
+  const scale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight)
   return {
     scale,
-    offsetX: Math.max(0, (PAGE_WIDTH - sourceWidth * scale) / 2),
-    offsetY: Math.max(0, (PAGE_HEIGHT - sourceHeight * scale) / 2)
+    offsetX: Math.max(0, (canvas.width - sourceWidth * scale) / 2),
+    offsetY: Math.max(0, (canvas.height - sourceHeight * scale) / 2)
   }
 }
 
@@ -843,6 +848,7 @@ const adjustTextBlockWithPretext = async (args: {
   textScale: number
   offsetX: number
   offsetY: number
+  canvasHeight?: number
   pageNumber?: number
   warnings?: ImportWarning[]
 }): Promise<TextImportAdjustment> => {
@@ -873,7 +879,7 @@ const adjustTextBlockWithPretext = async (args: {
   }
 
   const fontRatio = Math.min(1, result.suggestedFontSize / typography.fontSize)
-  const maxHeight = Math.max(1, PAGE_HEIGHT - y - 2)
+  const maxHeight = Math.max(1, (args.canvasHeight ?? PAGE_HEIGHT) - y - 2)
   const nextHeight = Math.min(maxHeight, Math.max(height, result.suggestedHeight))
   const extraCss = [
     `font-size:${result.suggestedFontSize.toFixed(1)}px`,
@@ -1065,6 +1071,7 @@ const buildTextBlock = async (args: {
   zIndex: number
   offsetX: number
   offsetY: number
+  canvasHeight?: number
   pageNumber?: number
   warnings?: ImportWarning[]
   textValidator?: PptxTextValidator
@@ -1085,6 +1092,7 @@ const buildTextBlock = async (args: {
     textScale: args.textScale,
     offsetX: args.offsetX,
     offsetY: args.offsetY,
+    canvasHeight: args.canvasHeight,
     pageNumber: args.pageNumber,
     warnings: args.warnings
   })
@@ -1249,6 +1257,7 @@ const buildShapeBlock = async (args: {
   zIndex: number
   offsetX: number
   offsetY: number
+  canvasHeight?: number
   pageNumber?: number
   warnings?: ImportWarning[]
   textValidator?: PptxTextValidator
@@ -1556,6 +1565,7 @@ const renderElement = async (args: {
   zIndexCounter: ZIndexCounter
   offsetX: number
   offsetY: number
+  canvasHeight?: number
   titleAssigned: boolean
   pageNumber?: number
   warnings?: ImportWarning[]
@@ -1711,6 +1721,7 @@ const renderElement = async (args: {
         textScale: args.textScale,
         offsetX: args.offsetX,
         offsetY: args.offsetY,
+        canvasHeight: args.canvasHeight,
         zIndex: args.zIndexCounter.value++,
         pageNumber: args.pageNumber,
         warnings: args.warnings,
@@ -1736,6 +1747,7 @@ const renderElement = async (args: {
         textScale: args.textScale,
         offsetX: args.offsetX,
         offsetY: args.offsetY,
+        canvasHeight: args.canvasHeight,
         zIndex: args.zIndexCounter.value++,
         xmlShape,
         pageNumber: args.pageNumber,
@@ -1838,6 +1850,7 @@ const buildSlideHtml = async (args: {
   pageId: string
   title: string
   size: { width: number; height: number }
+  slideSize?: SlideSizePreset
   animationPlan?: SlideAnimationPlan
   projectDir: string
   registry: ImageRegistry
@@ -1845,7 +1858,11 @@ const buildSlideHtml = async (args: {
   chartRewrite?: PptxChartRewriteHandler
 }): Promise<{ html: string; contentOutline: string; warnings: ImportWarning[] }> => {
   const imagesDir = path.join(args.projectDir, 'images')
-  const slideFit = resolveSlideFit(args.size)
+  const slideSize = args.slideSize ?? PPTX_IMPORT_SLIDE_SIZE
+  const slideFit = resolveSlideFit(args.size, {
+    width: slideSize.width,
+    height: slideSize.height
+  })
   const scaleX = slideFit.scale
   const scaleY = slideFit.scale
   const textScale = slideFit.scale
@@ -1877,6 +1894,7 @@ const buildSlideHtml = async (args: {
         zIndexCounter,
         offsetX: slideFit.offsetX,
         offsetY: slideFit.offsetY,
+        canvasHeight: slideSize.height,
         titleAssigned,
         pageNumber: args.pageNumber,
         warnings,
@@ -1918,7 +1936,7 @@ ${hasImportedAnimations ? buildImportedPptxMotionScript() : ''}`
     pageNumber: args.pageNumber,
     pageId: args.pageId,
     title: args.title
-  }, PPTX_IMPORT_SLIDE_SIZE)
+  }, slideSize)
   const $ = cheerio.load(scaffold, { scriptingEnabled: false })
   $('.ppt-page-root').first().removeClass('p-2 p-8').attr('style', 'padding:0;')
   $('.ppt-page-content').first().html(body)
@@ -1959,6 +1977,23 @@ function selectSlidesEvenly<T>(slides: T[], count: number): SelectedSlide<T>[] {
   return result
 }
 
+/**
+ * 从 PPTX 演示文稿的实际画幅推断导入画布。当前导入渲染与 PPTX 导出仅支持
+ * 16:9 与 4:3 两种比例，因此按宽高比就近映射；异常尺寸回退 16:9。
+ */
+const resolveImportSlideSize = (size: unknown): SlideSizePreset => {
+  const record = size && typeof size === 'object' ? (size as Record<string, unknown>) : {}
+  const width = Number(record.width)
+  const height = Number(record.height)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return requireSlideSizePreset('wide-16-9')
+  }
+  const ratio = width / height
+  return requireSlideSizePreset(
+    Math.abs(ratio - 4 / 3) < Math.abs(ratio - 16 / 9) ? 'standard-4-3' : 'wide-16-9'
+  )
+}
+
 export async function importPptxToEditableHtml(args: {
   filePath: string
   projectDir: string
@@ -1984,6 +2019,7 @@ export async function importPptxToEditableHtml(args: {
   if (slides.length === 0) {
     throw new Error('PPTX 中没有可导入的幻灯片')
   }
+  const slideSize = resolveImportSlideSize(parsed.size)
   const rawMaxPages = typeof args.maxPages === 'number' ? Math.floor(args.maxPages) : null
   const maxPages = rawMaxPages && rawMaxPages > 0 ? rawMaxPages : null
   const effectiveSlides = maxPages && maxPages < slides.length
@@ -2024,6 +2060,7 @@ export async function importPptxToEditableHtml(args: {
         pageId,
         title: pageTitle,
         size: parsed.size,
+        slideSize,
         animationPlan: animationPlans[i],
         projectDir: args.projectDir,
         registry,
@@ -2057,7 +2094,7 @@ export async function importPptxToEditableHtml(args: {
           htmlPath: path.basename(page.htmlPath)
         })
       ),
-      PPTX_IMPORT_SLIDE_SIZE
+      slideSize
     ),
     'utf-8'
   )
@@ -2066,6 +2103,7 @@ export async function importPptxToEditableHtml(args: {
     pageCount: pages.length,
     indexPath,
     pages,
+    slideSize,
     warnings: allWarnings.map((warning) =>
       warning.pageNumber ? `第 ${warning.pageNumber} 页：${warning.message}` : warning.message
     )

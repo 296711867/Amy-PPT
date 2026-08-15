@@ -30,6 +30,12 @@ import type { ModelRuntimeConfig } from '../agent-runtime/model'
 import type { ImagePolicy } from '@shared/generation'
 import { prepareDeckImageAssets } from './deck-images'
 import { readDeckBackgroundManifest, resolveDeckBackgroundAsset } from './deck-backgrounds'
+import { parseJsonObject } from '../ipc/utils'
+import { isValidTemplatePageRole, replaceTemplatePageId } from '../templates/template-page-roles'
+import {
+  TEMPLATE_SINGLE_PAGE_PROMPT_ADDENDUM,
+  TEMPLATE_SYSTEM_PROMPT_ADDENDUM
+} from './template-prompt-addenda'
 
 const pageSlugId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)
 
@@ -294,20 +300,74 @@ export async function executeAddPageGeneration(
     }
   }
 
+  // 模板会话追加页不脱模：优先复制会话中"最中间的已完成内容页"作为新页基底，
+  // 并让生成走模板读改链路（read_file 先行 + update_template_page_file 骨架保护）。
+  const sessionMetadata = parseJsonObject(sessionRecord.metadata ?? sessionRecord.metadata_json)
+  const isTemplateSession =
+    sessionMetadata.source === 'template' && typeof sessionMetadata.templateId === 'string'
+  const templateBaseRoles = isTemplateSession
+    ? (sessionMetadata.templateBaseRoles as Record<string, unknown> | undefined)
+    : undefined
+
+  const pickTemplateBasePage = (): (typeof existingPages)[number] | null => {
+    const candidates = existingPages
+      .filter((page) => page.status === 'completed' && page.html_path && page.file_slug)
+      .sort((a, b) => a.page_number - b.page_number)
+    if (candidates.length === 0) return null
+    const middle = candidates.filter(
+      (_, index) => index > 0 && index < candidates.length - 1
+    )
+    const pool = middle.length > 0 ? middle : candidates
+    return pool[Math.floor((pool.length - 1) / 2)]
+  }
+
+  const templateBasePage = isTemplateSession && !targetPage ? pickTemplateBasePage() : null
+
   // ── Step 4: Create scaffold ──
   if (!targetPage) {
-    await fs.promises.writeFile(
-      newHtmlPath,
-      buildPageScaffoldHtml(
-        {
-          pageNumber: newPageNumber,
-          pageId: newPageId,
-          title: planResult.title
-        },
-        context.slideSize
-      ),
-      'utf-8'
-    )
+    if (templateBasePage) {
+      const baseHtmlPath = resolvePageHtmlPath({
+        projectDir: context.projectDir,
+        fileSlug: templateBasePage.file_slug!,
+        candidates: [templateBasePage.html_path]
+      })
+      const baseHtml = fs.existsSync(baseHtmlPath)
+        ? await fs.promises.readFile(baseHtmlPath, 'utf-8')
+        : ''
+      if (baseHtml.trim().length > 0) {
+        await fs.promises.writeFile(
+          newHtmlPath,
+          replaceTemplatePageId(baseHtml, templateBasePage.file_slug!, newPageId),
+          'utf-8'
+        )
+      } else {
+        await fs.promises.writeFile(
+          newHtmlPath,
+          buildPageScaffoldHtml(
+            {
+              pageNumber: newPageNumber,
+              pageId: newPageId,
+              title: planResult.title
+            },
+            context.slideSize
+          ),
+          'utf-8'
+        )
+      }
+    } else {
+      await fs.promises.writeFile(
+        newHtmlPath,
+        buildPageScaffoldHtml(
+          {
+            pageNumber: newPageNumber,
+            pageId: newPageId,
+            title: planResult.title
+          },
+          context.slideSize
+        ),
+        'utf-8'
+      )
+    }
   }
 
   // ── Step 5: Generate with agent ──
@@ -405,6 +465,13 @@ export async function executeAddPageGeneration(
         sourceDocumentPaths: [],
         generationMode: 'generate',
         renderingLabel: uiText(context.appLocale, '正在生成新增页面', 'Generating the new page'),
+        ...(isTemplateSession
+          ? {
+              requireTemplatePageRead: true,
+              systemPromptAddendum: TEMPLATE_SYSTEM_PROMPT_ADDENDUM,
+              singlePagePromptAddendum: TEMPLATE_SINGLE_PAGE_PROMPT_ADDENDUM
+            }
+          : {}),
         pageTasks: [
           {
             pageNumber: newPageNumber,
@@ -419,7 +486,16 @@ export async function executeAddPageGeneration(
             layoutId: planResult.layoutId,
             imageAssetPath: planResult.imageAssetPath,
             imageAssetPaths: planResult.imageAssetPaths,
-            backgroundAsset: newPageBackground
+            backgroundAsset: newPageBackground,
+            ...(templateBasePage
+              ? {
+                  templatePageRole: isValidTemplatePageRole(
+                    templateBaseRoles?.[templateBasePage.file_slug!]
+                  )
+                    ? (templateBaseRoles![templateBasePage.file_slug!] as string)
+                    : 'content'
+                }
+              : {})
           }
         ],
         designContract,

@@ -1,4 +1,5 @@
 import type { Chart, Element } from '@arcsin1/pptx2json'
+import type { SlideSizePreset } from '@shared/slide-size'
 import type { SlideAnimationPlan } from './animation-import'
 
 export type ImportWarning = {
@@ -86,6 +87,7 @@ export type ImportedPptxDeck = {
   pageCount: number
   indexPath: string
   pages: ImportedPptxPage[]
+  slideSize?: SlideSizePreset
   warnings: string[]
 }
 

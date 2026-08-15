@@ -65,3 +65,69 @@ export const validateTemplateSkeletonPreserved = (beforeHtml: string, afterHtml:
   const afterRefs = new Set(collectTemplateSkeletonResourceRefs(afterHtml))
   return beforeRefs.filter((ref) => !afterRefs.has(ref))
 }
+
+/**
+ * 结构指纹：骨架资源引用之外的软结构校验。统计创意根节点下的直接分区数
+ * 与骨架提示元素（背景/装饰类 img、SVG 等）数量；写盘后骤降过半视为
+ * 模板结构被破坏。阈值刻意保守（基数 ≥ 3 才启用），避免内容重排误伤。
+ */
+const countStructuralZones = (html: string): number => {
+  try {
+    const $ = cheerio.load(html, { scriptingEnabled: false })
+    const contentRoot = $('main[data-role="content"]').first()
+    if (contentRoot.length === 0) return 0
+    return contentRoot
+      .children()
+      .filter((_, node) => {
+        const tagName = (node as { tagName?: string }).tagName || ''
+        return /^(section|div|article|figure|header|footer|ul|ol|table)$/i.test(tagName)
+      }).length
+  } catch {
+    return 0
+  }
+}
+
+const countSkeletonHintElements = (html: string): number => {
+  try {
+    const $ = cheerio.load(html, { scriptingEnabled: false })
+    let count = 0
+    $('img, video, source, svg').each((_, node) => {
+      const el = $(node)
+      const identity = [
+        el.attr('class') || '',
+        el.attr('style') || '',
+        el.parent().attr('class') || '',
+        el.parent().attr('style') || ''
+      ].join(' ')
+      if (SKELETON_HINT_RE.test(identity)) count += 1
+    })
+    return count
+  } catch {
+    return 0
+  }
+}
+
+export const validateTemplateStructurePreserved = (
+  beforeHtml: string,
+  afterHtml: string
+): string[] => {
+  const violations: string[] = []
+
+  const beforeZones = countStructuralZones(beforeHtml)
+  const afterZones = countStructuralZones(afterHtml)
+  if (beforeZones >= 3 && afterZones < Math.ceil(beforeZones / 2)) {
+    violations.push(
+      `结构分区从 ${beforeZones} 个骤降到 ${afterZones} 个（模板布局骨架疑似被删除）`
+    )
+  }
+
+  const beforeHints = countSkeletonHintElements(beforeHtml)
+  const afterHints = countSkeletonHintElements(afterHtml)
+  if (beforeHints >= 3 && afterHints < Math.ceil(beforeHints / 2)) {
+    violations.push(
+      `背景/装饰类元素从 ${beforeHints} 个骤降到 ${afterHints} 个（模板装饰层疑似被删除）`
+    )
+  }
+
+  return violations
+}
