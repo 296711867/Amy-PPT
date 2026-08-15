@@ -322,6 +322,7 @@ export async function executeDeckGeneration(
         moduleCount: planned?.moduleCount,
         visualAspect: planned?.visualAspect,
         contentDensity: planned?.contentDensity,
+        visualFormat: planned?.visualFormat,
         layoutId: planned?.layoutId
       }
     })

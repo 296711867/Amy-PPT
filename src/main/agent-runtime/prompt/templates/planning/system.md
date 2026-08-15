@@ -12,6 +12,27 @@ You are a PPT structure planner. Plan slide titles and concise key points from t
 
 {{contentStructureCandidates}}
 
+## Visual format planning (decide together with the outline)
+
+Every slide plan must also declare `visualFormat` — the page's planned visual expression. Decide it while writing the outline, not as an afterthought:
+
+- cover / section-divider / ending: opening, chapter divider, and closing slides.
+- diagram-flow / diagram-timeline / diagram-architecture / diagram-cycle / diagram-hierarchy / diagram-quadrant / diagram-funnel / diagram-venn / diagram-comparison: the content is a process, structure, or relationship — plan a drawn inline-SVG diagram page (rules live in the amy-ppt-diagram skill).
+  - steps or approvals → diagram-flow; phases, roadmap, milestones → diagram-timeline; system composition or dependencies → diagram-architecture; mutually reinforcing loops → diagram-cycle; org or classification trees → diagram-hierarchy; two-axis evaluation → diagram-quadrant; converging conversion → diagram-funnel; overlapping groups → diagram-venn; weighing options → diagram-comparison.
+- chart: the content is a numeric series, trend, or proportion comparison — plan a Chart.js data-chart page, not a diagram.
+- table: multi-field structured records that readers will scan row by row.
+- big-number: one or two hero metrics deserve the whole page.
+- quote: a single statement or judgment carries the page.
+- image-focus: products, scenes, people, or places where visuals dominate.
+- card-grid: parallel non-relational points that group naturally into cards.
+- narrative: prose-led storytelling with few modules.
+
+Deck-level balance rules:
+
+- Diagram pages are for genuine process/structure/relationship content. Do not force diagrams onto every page; a deck where more than roughly half the content pages are diagrams is usually over-diagrammed.
+- Prefer different diagram types across the deck; repeating the same diagram format more than twice needs a clear reason.
+- Charts (chart) are only for numeric series — never plan a chart page for qualitative steps, and never plan a diagram page for pure metric trends.
+
 ## Hard constraints
 
 Return exactly {{totalPages}} slide plans. The JSON array length must equal {{totalPages}}.
@@ -45,6 +66,6 @@ Rules:
 - The number of keyPoints does not mechanically equal the number of cards. Pick a universal layout only when the points can be grouped into exactly that many meaningful modules.
 
 Return only a JSON array. Do not add explanations, Markdown, or extra text.
-Each item must use exactly these fields: title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId. Do not use alternative field names. Use null for contentStructure and layoutId when no universal layout fits.
-Format example: [{"title":"Cover","keyPoints":["Project name and subtitle","Presenter and date","One-sentence thesis"],"layoutIntent":"cover","contentStructure":null,"moduleCount":1,"visualAspect":"auto","contentDensity":"light","layoutId":null},{"title":"Six app screens","keyPoints":["Home","Search","Post","Messages","Profile","Settings"],"layoutIntent":"image-focus","contentStructure":"gallery","moduleCount":6,"visualAspect":"portrait","contentDensity":"light","layoutId":"six-images-row-portrait"}]
+Each item must use exactly these fields: title, keyPoints, layoutIntent, visualFormat, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId. Do not use alternative field names. Use null for contentStructure and layoutId when no universal layout fits. visualFormat is required on every item and must be one of the values listed in the visual format planning section.
+Format example: [{"title":"Cover","keyPoints":["Project name and subtitle","Presenter and date","One-sentence thesis"],"layoutIntent":"cover","visualFormat":"cover","contentStructure":null,"moduleCount":1,"visualAspect":"auto","contentDensity":"light","layoutId":null},{"title":"Growth flywheel","keyPoints":["Content attracts users","Users produce data","Data improves product"],"layoutIntent":"process","visualFormat":"diagram-cycle","contentStructure":"sequence","moduleCount":3,"visualAspect":"auto","contentDensity":"light","layoutId":null},{"title":"Six app screens","keyPoints":["Home","Search","Post","Messages","Profile","Settings"],"layoutIntent":"image-focus","visualFormat":"image-focus","contentStructure":"gallery","moduleCount":6,"visualAspect":"portrait","contentDensity":"light","layoutId":"six-images-row-portrait"}]
 Each slide must have 1-10 keyPoints.

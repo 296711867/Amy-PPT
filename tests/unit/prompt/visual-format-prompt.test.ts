@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest'
+import { buildSinglePageGenerationPrompt } from '../../../src/main/agent-runtime/prompt/composers/generation-user'
+import { requireSlideSizePreset } from '../../../src/shared/slide-size'
+
+const slideSize = requireSlideSizePreset('wide-16-9')
+
+const baseArgs = {
+  topic: '增长策略',
+  deckTitle: '增长策略',
+  pageId: 'page-1',
+  pageNumber: 2,
+  pageTitle: '增长飞轮',
+  pageOutline: '内容吸引用户；用户产生数据；数据优化产品',
+  slideSize
+}
+
+describe('planned visual format in the single-page prompt', () => {
+  it('routes diagram formats to the diagram skill with type guidance', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      visualFormat: 'diagram-cycle'
+    })
+
+    expect(prompt).toContain('Planned visual format: diagram-cycle')
+    expect(prompt).toContain('inline SVG cycle diagram')
+    expect(prompt).toContain('amy-ppt-diagram')
+  })
+
+  it('routes chart pages to the chart skill instead of diagrams', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      visualFormat: 'chart'
+    })
+
+    expect(prompt).toContain('Planned visual format: chart')
+    expect(prompt).toContain('Build the page around one Chart.js chart')
+    expect(prompt).not.toContain('Planned visual format: diagram')
+  })
+
+  it('describes non-diagram formats without skill routing', () => {
+    const bigNumber = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      visualFormat: 'big-number'
+    })
+    expect(bigNumber).toContain('hero metrics dominate the page')
+    expect(bigNumber).not.toContain('Planned visual format: diagram')
+
+    const ending = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      visualFormat: 'ending'
+    })
+    expect(ending).toContain('closing page')
+  })
+
+  it('stays silent when no format was planned', () => {
+    const prompt = buildSinglePageGenerationPrompt(baseArgs)
+    expect(prompt).not.toContain('Planned visual format')
+  })
+})

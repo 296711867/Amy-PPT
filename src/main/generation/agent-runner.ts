@@ -22,9 +22,10 @@ import type {
   FontSelection,
   GenerateChunkEvent,
   OutlineItem,
+  VisualFormat,
   SelectedElementRuntimeContext
 } from '@shared/generation'
-import { isSectionAgendaOutline } from '@shared/generation'
+import { isSectionAgendaOutline, resolvePlannedVisualFormat } from '@shared/generation'
 import { normalizeLayoutIntent, type LayoutIntent } from '@shared/layout-intent'
 import { formatLayoutMasterPrompt, resolveLayoutMasterTemplate } from '@shared/layout-master'
 import {
@@ -406,6 +407,7 @@ export const planDeckWithLLM = async (args: {
       const visualAspect = normalizeVisualAspect(item.visualAspect)
       const contentDensity = normalizeContentDensity(item.contentDensity)
       const layoutIntent = normalizeLayoutIntent(item.layoutIntent)
+      const visualFormat = resolvePlannedVisualFormat(item.visualFormat, layoutIntent)
       if (!title) {
         throw new Error(
           uiText(
@@ -432,6 +434,7 @@ export const planDeckWithLLM = async (args: {
         moduleCount,
         visualAspect,
         contentDensity,
+        visualFormat,
         layoutId: resolveUniversalLayoutId({
           value: item.layoutId,
           moduleCount,
@@ -980,6 +983,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     moduleCount?: OutlineItem['moduleCount']
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
+    visualFormat?: OutlineItem['visualFormat']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -1039,6 +1043,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     moduleCount?: OutlineItem['moduleCount']
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
+    visualFormat?: VisualFormat
     layoutId: string
     layoutPrompt: string
     imageAssetPath?: string
@@ -1056,6 +1061,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     moduleCount?: OutlineItem['moduleCount']
     visualAspect?: OutlineItem['visualAspect']
     contentDensity?: OutlineItem['contentDensity']
+    visualFormat?: OutlineItem['visualFormat']
     layoutId?: OutlineItem['layoutId']
     imageAssetPath?: string
     imageAssetPaths?: string[]
@@ -1074,6 +1080,7 @@ export const runDeepAgentDeckGeneration = async (args: {
       moduleCount: page.moduleCount,
       visualAspect: page.visualAspect,
       contentDensity: page.contentDensity,
+      visualFormat: page.visualFormat,
       layoutId: universalLayoutId || layoutTemplate.id,
       layoutPrompt: universalLayoutId
         ? formatUniversalLayoutPrompt(universalLayoutId)
@@ -1103,6 +1110,7 @@ export const runDeepAgentDeckGeneration = async (args: {
               moduleCount: args.outlineItems[index]?.moduleCount,
               visualAspect: args.outlineItems[index]?.visualAspect,
               contentDensity: args.outlineItems[index]?.contentDensity,
+              visualFormat: args.outlineItems[index]?.visualFormat,
               layoutId: args.outlineItems[index]?.layoutId,
               imageAssetPath: args.outlineItems[index]?.imageAssetPath,
               imageAssetPaths: args.outlineItems[index]?.imageAssetPaths,
@@ -1344,6 +1352,7 @@ export const runDeepAgentDeckGeneration = async (args: {
             moduleCount: page.moduleCount,
             visualAspect: page.visualAspect,
             contentDensity: page.contentDensity,
+            visualFormat: page.visualFormat,
             layoutId: page.layoutId,
             layoutPrompt: page.layoutPrompt,
             imageAssetPath: page.imageAssetPath,
@@ -1399,6 +1408,7 @@ export const runDeepAgentDeckGeneration = async (args: {
                   moduleCount: page.moduleCount,
                   visualAspect: page.visualAspect,
                   contentDensity: page.contentDensity,
+                  visualFormat: page.visualFormat,
                   layoutId: page.layoutId,
                   layoutPrompt: page.layoutPrompt,
                   imageAssetPath: page.imageAssetPath,

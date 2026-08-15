@@ -241,11 +241,12 @@ export function buildOutlinePageList(context: SessionDeckGenerationContext): str
       const layoutIntent = item.layoutIntent
         ? `\n   ${formatLayoutIntentPrompt(item.layoutIntent).replace(/\n/g, '\n   ')}`
         : ''
+      const visualFormat = item.visualFormat ? `\n   Planned visual format: ${item.visualFormat}` : ''
       const layoutMaster =
         item.layoutId && item.layoutPrompt
           ? `\n   ${item.layoutPrompt.replace(/\n/g, '\n   ')}`
           : ''
-      return `${i + 1}. ${item.title}\n   Content points: ${item.contentOutline}${layoutIntent}${layoutMaster}`
+      return `${i + 1}. ${item.title}\n   Content points: ${item.contentOutline}${layoutIntent}${visualFormat}${layoutMaster}`
     })
     .join('\n')
 }

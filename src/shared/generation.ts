@@ -20,6 +20,8 @@ export interface OutlineItem {
   visualAspect?: VisualAspect
   /** Visible content load used to prefer rows, stacks, grids, or feature compositions. */
   contentDensity?: ContentDensity
+  /** Planned visual expression (diagram/chart/table/quote/...) decided together with the outline. */
+  visualFormat?: VisualFormat
   /** M3a resolves a session layout master into a flexible generation constraint. */
   layoutId?: UniversalLayoutId | string
   layoutPrompt?: string
@@ -29,6 +31,76 @@ export interface OutlineItem {
   /** Reusable full-canvas background assigned from the deck background package. */
   backgroundAsset?: DeckBackgroundAsset
 }
+
+/**
+ * 规划期为每页决定的视觉表达格式。diagram-* 前缀的格式由 amy-ppt-diagram
+ * 技能负责落地，chart 由 amy-ppt-chart 技能负责，其余为常规页面形态。
+ */
+export type VisualFormat =
+  | 'cover'
+  | 'section-divider'
+  | 'ending'
+  | 'diagram-flow'
+  | 'diagram-timeline'
+  | 'diagram-architecture'
+  | 'diagram-cycle'
+  | 'diagram-hierarchy'
+  | 'diagram-quadrant'
+  | 'diagram-funnel'
+  | 'diagram-venn'
+  | 'diagram-comparison'
+  | 'chart'
+  | 'table'
+  | 'big-number'
+  | 'quote'
+  | 'image-focus'
+  | 'card-grid'
+  | 'narrative'
+
+export const VISUAL_FORMATS: readonly VisualFormat[] = [
+  'cover',
+  'section-divider',
+  'ending',
+  'diagram-flow',
+  'diagram-timeline',
+  'diagram-architecture',
+  'diagram-cycle',
+  'diagram-hierarchy',
+  'diagram-quadrant',
+  'diagram-funnel',
+  'diagram-venn',
+  'diagram-comparison',
+  'chart',
+  'table',
+  'big-number',
+  'quote',
+  'image-focus',
+  'card-grid',
+  'narrative'
+]
+
+export const isVisualFormat = (value: unknown): value is VisualFormat =>
+  typeof value === 'string' && (VISUAL_FORMATS as readonly string[]).includes(value)
+
+export const normalizeVisualFormat = (value: unknown): VisualFormat | undefined =>
+  isVisualFormat(value) ? value : undefined
+
+/** 规划结果缺 visualFormat 时按 layoutIntent 兜底推导；无映射则交由页面 Agent 自行决定。 */
+const LAYOUT_INTENT_VISUAL_FORMAT_FALLBACK: Partial<Record<LayoutIntent, VisualFormat>> = {
+  cover: 'cover',
+  timeline: 'diagram-timeline',
+  process: 'diagram-flow',
+  comparison: 'diagram-comparison',
+  quote: 'quote',
+  'image-focus': 'image-focus'
+}
+
+export const resolvePlannedVisualFormat = (
+  value: unknown,
+  layoutIntent?: LayoutIntent
+): VisualFormat | undefined =>
+  normalizeVisualFormat(value) ||
+  (layoutIntent ? LAYOUT_INTENT_VISUAL_FORMAT_FALLBACK[layoutIntent] : undefined)
 
 export type ImagePolicy = 'placeholder' | 'ai'
 

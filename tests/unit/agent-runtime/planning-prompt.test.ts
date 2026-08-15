@@ -10,7 +10,7 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('if the material does not naturally fill 7 slides')
     expect(prompt).toContain('## Content language')
     expect(prompt).toContain(
-      'title, keyPoints, layoutIntent, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId'
+      'title, keyPoints, layoutIntent, visualFormat, contentStructure, moduleCount, visualAspect, contentDensity, and layoutId'
     )
     expect(prompt).toContain(
       'content structure -> module/image geometry -> candidate pool -> rotated final layout'
@@ -19,5 +19,20 @@ describe('planning prompt composer', () => {
     expect(prompt).toContain('six-images-row-portrait')
     expect(prompt).toContain('five-cards-2-3-image')
     expect(prompt).not.toMatch(/\{\{[^}]+\}\}/)
+  })
+
+  it('requires a planned visual format per slide with diagram/chart routing rules', () => {
+    const prompt = buildPlanningSystemPrompt(7)
+
+    expect(prompt).toContain('## Visual format planning')
+    expect(prompt).toContain('visualFormat is required on every item')
+    expect(prompt).toContain('diagram-flow')
+    expect(prompt).toContain('diagram-timeline')
+    expect(prompt).toContain('diagram-quadrant')
+    expect(prompt).toContain('diagram-cycle')
+    expect(prompt).toContain('never plan a chart page for qualitative steps')
+    expect(prompt).toContain('never plan a diagram page for pure metric trends')
+    expect(prompt).toContain('over-diagrammed')
+    expect(prompt).toContain('"visualFormat":"diagram-cycle"')
   })
 })

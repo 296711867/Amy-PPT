@@ -226,6 +226,7 @@ export async function executeTemplateDeckGeneration(
           moduleCount: undefined,
           visualAspect: undefined,
           contentDensity: undefined,
+          visualFormat: undefined,
           layoutId: normalizeUniversalLayoutId(snapshot?.layout_id),
           imageAssetPath: snapshot?.image_asset_path || undefined,
           imageAssetPaths: snapshot?.image_asset_paths || undefined
@@ -264,6 +265,7 @@ export async function executeTemplateDeckGeneration(
         moduleCount: planned?.moduleCount,
         visualAspect: planned?.visualAspect,
         contentDensity: planned?.contentDensity,
+        visualFormat: planned?.visualFormat,
         layoutId: planned?.layoutId,
         imageAssetPath: planned?.imageAssetPath,
         imageAssetPaths: planned?.imageAssetPaths

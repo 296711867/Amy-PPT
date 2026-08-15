@@ -1,7 +1,11 @@
 import type { SessionDeckGenerationContext } from '../../agent/types'
 import { formatLayoutIntentPrompt } from '@shared/layout-intent'
-import { isSectionAgendaOutline } from '@shared/generation'
-import { CHART_SKILL_NAME, formatSkillUsageRequirement } from '../../../product-skills/contract'
+import { isSectionAgendaOutline, type VisualFormat } from '@shared/generation'
+import {
+  CHART_SKILL_NAME,
+  DIAGRAM_SKILL_NAME,
+  formatSkillUsageRequirement
+} from '../../../product-skills/contract'
 import {
   buildCanvasScenarioContentRules,
   buildCanvasScenarioDeliveryGuard,
@@ -21,6 +25,45 @@ import {
 import { buildCanvasScenarioBrief, resolveCanvasScenario } from './canvas-scenario'
 import { getUniversalLayoutImageAspect } from '@shared/universal-layouts'
 
+/** 规划期决定的视觉表达格式 → 页面生成指令（含技能路由）。 */
+function formatVisualFormatPrompt(format: VisualFormat | undefined): string {
+  if (!format) return ''
+  if (format.startsWith('diagram-')) {
+    const kind = format.slice('diagram-'.length)
+    return [
+      `Planned visual format: ${format} — the deck planner decided this slide is a ${kind} diagram page.`,
+      `- Make one inline SVG ${kind} diagram the page's main visual instead of stacking text cards or generic modules; keep a one-line takeaway near the diagram.`,
+      `- Diagram geometry (elbow connectors, masked labels, node budgets, accent discipline) follows the ${DIAGRAM_SKILL_NAME} skill. Before drawing: ${formatSkillUsageRequirement(DIAGRAM_SKILL_NAME)}`
+    ].join('\n')
+  }
+  switch (format) {
+    case 'chart':
+      return [
+        'Planned visual format: chart — the deck planner decided this slide is a data-chart page.',
+        `- Build the page around one Chart.js chart of the right type (bar/line/pie/...) instead of a diagram or card list. Chart rules live in the ${CHART_SKILL_NAME} skill. Before writing chart code: ${formatSkillUsageRequirement(CHART_SKILL_NAME)}`
+      ].join('\n')
+    case 'table':
+      return 'Planned visual format: table — present the records as a clean scannable table (aligned columns, clear header) rather than splitting them into cards.'
+    case 'big-number':
+      return 'Planned visual format: big-number — let one or two hero metrics dominate the page with a short supporting line; do not dilute them with many equal-weight modules.'
+    case 'quote':
+      return 'Planned visual format: quote — build the page around a single statement or judgment in large type with generous whitespace; supporting detail stays minimal.'
+    case 'cover':
+      return 'Planned visual format: cover — compose a cover page: dominant title, optional subtitle/presenter/date, strong visual anchor, low content density.'
+    case 'section-divider':
+      return 'Planned visual format: section-divider — announce the chapter/section with a large number or title treatment and minimal supporting text.'
+    case 'ending':
+      return 'Planned visual format: ending — compose a closing page (thanks / key takeaway / next steps) with a calm, conclusive composition.'
+    case 'image-focus':
+      return 'Planned visual format: image-focus — let real visuals (image slots or assigned assets) dominate the page; text stays as captions and short labels.'
+    case 'card-grid':
+      return 'Planned visual format: card-grid — group the parallel points into visually consistent cards within the planned module count; no relational arrows needed.'
+    case 'narrative':
+      return 'Planned visual format: narrative — lead with prose-style storytelling in a clear reading path; avoid fragmenting the message into many small modules.'
+  }
+  return ''
+}
+
 export function buildSinglePageGenerationPrompt(args: {
   topic: string
   deckTitle: string
@@ -34,6 +77,7 @@ export function buildSinglePageGenerationPrompt(args: {
   moduleCount?: SessionDeckGenerationContext['outlineItems'][number]['moduleCount']
   visualAspect?: SessionDeckGenerationContext['outlineItems'][number]['visualAspect']
   contentDensity?: SessionDeckGenerationContext['outlineItems'][number]['contentDensity']
+  visualFormat?: VisualFormat
   layoutId?: SessionDeckGenerationContext['outlineItems'][number]['layoutId']
   layoutPrompt?: SessionDeckGenerationContext['outlineItems'][number]['layoutPrompt']
   imageAssetPath?: string
@@ -158,6 +202,7 @@ export function buildSinglePageGenerationPrompt(args: {
     `Slide title: ${args.pageTitle}`,
     `Content points: ${args.pageOutline || 'Expand from the topic with moderate information density.'}`,
     args.layoutIntent ? formatLayoutIntentPrompt(args.layoutIntent) : '',
+    formatVisualFormatPrompt(args.visualFormat),
     args.contentStructure
       ? `Planned content structure: ${args.contentStructure}. Planned visible modules: ${args.moduleCount || 'use the selected layout count'}. Content density: ${args.contentDensity || 'standard'}. Visual aspect: ${args.visualAspect || 'auto'}.`
       : '',
