@@ -654,7 +654,14 @@ export const en = {
     proxyPlaceholder: 'e.g. http://127.0.0.1:7890',
     proxyHint:
       'Supports HTTP and SOCKS5 proxies for accessing services like Gemini. Leave empty to disable.',
-    proxySavedDescription: 'Proxy settings saved. Takes effect immediately.'
+    proxySavedDescription: 'Proxy settings saved. Takes effect immediately.',
+    concurrencySection: 'Page Generation Concurrency',
+    concurrencyLabel: 'Generation mode',
+    concurrencyAuto: 'Auto (downgrade on rate limit)',
+    concurrencySerial: 'One page at a time (stable)',
+    concurrencyParallel: 'Two pages in parallel (fast)',
+    concurrencyHint:
+      'Choose one page at a time for strictly rate-limited models such as Zhipu GLM. Auto mode retries with backoff and falls back to serial when rate limited.'
   },
   styles: {
     eyebrow: 'Style Lab',

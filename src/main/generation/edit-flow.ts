@@ -383,6 +383,7 @@ export async function resolveEditContext(
     modelControl: common.modelControl,
     runModel: common.runModel,
     modelTimeouts: common.modelTimeouts,
+    pageConcurrency: common.pageConcurrency,
     providerBaseUrl: common.providerBaseUrl,
     maxTokens: common.maxTokens,
     modelRuntime: common.modelRuntime,

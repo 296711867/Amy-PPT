@@ -625,7 +625,14 @@ export const zh = {
     proxyLabel: '代理地址',
     proxyPlaceholder: '例如：http://127.0.0.1:7890',
     proxyHint: '支持 HTTP 和 SOCKS5 代理，用于访问 Gemini 等需要代理的服务。留空则不使用代理。',
-    proxySavedDescription: '代理设置已写入本地，立即生效。'
+    proxySavedDescription: '代理设置已写入本地，立即生效。',
+    concurrencySection: '页面生成并发',
+    concurrencyLabel: '生成方式',
+    concurrencyAuto: '自动（限流自动降级）',
+    concurrencySerial: '逐页生成（稳定）',
+    concurrencyParallel: '双页并行（快速）',
+    concurrencyHint:
+      '智谱 GLM 等限流严格的模型建议选择逐页生成；自动模式下遇到限流会先自动退避重试并降级为逐页。'
   },
   styles: {
     eyebrow: 'Style Lab',

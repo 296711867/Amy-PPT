@@ -527,6 +527,7 @@ export async function executeTemplateDeckGeneration(
     modelControl: context.modelControl,
     modelTimeoutMs: context.modelTimeouts.agent,
     temperature: PAGE_GENERATION_TEMPERATURE,
+    pageConcurrency: context.pageConcurrency,
     styleId: context.styleId,
     styleSkillPrompt: context.styleSkill.prompt,
     layoutRulesPrompt: context.layoutRulesPrompt,

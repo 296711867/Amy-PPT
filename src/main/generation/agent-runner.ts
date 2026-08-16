@@ -60,6 +60,12 @@ import {
   MAX_RATE_LIMIT_RETRIES,
   resolveRateLimitBackoff
 } from './rate-limit-backoff'
+import { createRuntimeConcurrencyGate } from './concurrency-gate'
+import {
+  normalizePageConcurrencyPreference,
+  resolvePageWorkerCount,
+  type PageConcurrencyPreference
+} from '@shared/page-concurrency'
 import { buildLocalCompletedGenerationPageSummary } from './generation-summary'
 import { readSessionLayoutLibrary } from '../session/master-service'
 import { classifyGenerationError, type GenerationFailureInfo } from '@shared/generation-error'
@@ -996,6 +1002,7 @@ export const runDeepAgentDeckGeneration = async (args: {
   singlePagePromptAddendum?: string
   requireTemplatePageRead?: boolean
   generationMode?: 'generate' | 'retry'
+  pageConcurrency?: PageConcurrencyPreference
   renderingLabel?: string
   pageTasks?: Array<{
     pageNumber: number
@@ -1150,7 +1157,13 @@ export const runDeepAgentDeckGeneration = async (args: {
   const totalPages = pageRefs.length
   const clampProgress = (value: number): number => Math.max(0, Math.min(100, Math.round(value)))
   const pageSummaryMap = new Map<number, string>()
-  const useDualWorkerQueue = totalPages >= 3
+  const pageConcurrencyPreference: PageConcurrencyPreference = normalizePageConcurrencyPreference(
+    args.pageConcurrency
+  )
+  const initialWorkerCount = resolvePageWorkerCount(pageConcurrencyPreference, totalPages)
+  // 限流时把闸门降到 1（只降不升），未开始的页面自动改为逐页生成。
+  const pageConcurrencyGate = createRuntimeConcurrencyGate(initialWorkerCount)
+  const useDualWorkerQueue = initialWorkerCount === 2
   const pageProgressMap = new Map<string, number>()
   let renderingProgress = 0
   const toRenderingProgress = (target: number): number => {
@@ -1244,6 +1257,7 @@ export const runDeepAgentDeckGeneration = async (args: {
     indexPath: args.indexPath,
     totalPages,
     fixedConcurrency: useDualWorkerQueue ? 2 : 1,
+    pageConcurrency: pageConcurrencyPreference,
     designContract: args.designContract
       ? {
           theme: args.designContract.theme,
@@ -1679,6 +1693,16 @@ export const runDeepAgentDeckGeneration = async (args: {
           if (backoff) {
             rateLimitAttempts = backoff.attempt
             rateLimitCooldownUntil = backoff.cooldownUntil
+            if (pageConcurrencyGate.capacity > 1) {
+              pageConcurrencyGate.downgradeCapacity(1)
+              log.warn('[deepagent] rate limit downgraded page concurrency to serial', {
+                sessionId: args.sessionId,
+                styleId: args.styleId || '',
+                pageId: page.pageId,
+                worker: workerLabel,
+                preference: pageConcurrencyPreference
+              })
+            }
             emitPageStatus({
               pageId: page.pageId,
               label: progressText(args.appLocale, 'retrying'),
@@ -1778,73 +1802,81 @@ export const runDeepAgentDeckGeneration = async (args: {
         if (circuitBreaker.getState().paused) return
         if (args.signal?.aborted)
           throw new Error(uiText(args.appLocale, '生成已取消', 'Generation canceled'))
-        log.info('[deepagent] queue dispatch', {
-          sessionId: args.sessionId,
-          worker: workerLabel,
-          styleId: args.styleId || '',
-          pageId: page.pageId,
-          pageNumber: page.pageNumber,
-          title: page.title
-        })
-        dispatchedPageIds.add(page.pageId)
+        // 闸门在 pLimit 之上再做一层并发控制：限流降级后，排队中的页面
+        // 会在这里等到前面的页面完全结束才启动。
+        await pageConcurrencyGate.acquire()
         try {
-          const summary = await withModelControl(args.modelControl, () =>
-            generateSinglePageWithRetry(page, workerLabel)
-          )
-          if (summary) {
-            pageSummaryMap.set(
-              page.pageNumber,
-              uiText(
-                args.appLocale,
-                `第 ${page.pageNumber} 页：${summary}`,
-                `Page ${page.pageNumber}: ${summary}`
-              )
+          if (circuitBreaker.getState().paused) return
+          log.info('[deepagent] queue dispatch', {
+            sessionId: args.sessionId,
+            worker: workerLabel,
+            styleId: args.styleId || '',
+            pageId: page.pageId,
+            pageNumber: page.pageNumber,
+            title: page.title
+          })
+          dispatchedPageIds.add(page.pageId)
+          try {
+            const summary = await withModelControl(args.modelControl, () =>
+              generateSinglePageWithRetry(page, workerLabel)
             )
-          }
-        } catch (error) {
-          const reason = error instanceof Error ? error.message : String(error)
-          const failure = classifyGenerationError(error)
-          if (failure.scope === 'system') {
-            const circuitState = circuitBreaker.registerFailure(failure)
-            log.error('[deepagent] system failure opened page generation circuit', {
-              sessionId: args.sessionId,
-              provider: args.provider,
-              model: args.model,
-              pageId: page.pageId,
-              code: failure.code,
-              fingerprint: failure.fingerprint,
-              occurrences: circuitState.occurrences
+            if (summary) {
+              pageSummaryMap.set(
+                page.pageNumber,
+                uiText(
+                  args.appLocale,
+                  `第 ${page.pageNumber} 页：${summary}`,
+                  `Page ${page.pageNumber}: ${summary}`
+                )
+              )
+            }
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error)
+            const failure = classifyGenerationError(error)
+            if (failure.scope === 'system') {
+              const circuitState = circuitBreaker.registerFailure(failure)
+              log.error('[deepagent] system failure opened page generation circuit', {
+                sessionId: args.sessionId,
+                provider: args.provider,
+                model: args.model,
+                pageId: page.pageId,
+                code: failure.code,
+                fingerprint: failure.fingerprint,
+                occurrences: circuitState.occurrences
+              })
+            }
+            args.emit?.({
+              type: 'page_failed',
+              payload: {
+                runId: args.runId || '',
+                stage: 'rendering',
+                label: progressText(args.appLocale, 'failed'),
+                progress: getOverallRenderProgress(),
+                currentPage: page.pageNumber,
+                totalPages,
+                pageNumber: page.pageNumber,
+                pageId: page.pageId,
+                title: page.title,
+                htmlPath: args.pageFileMap[page.pageId] || '',
+                error: reason
+              }
             })
-          }
-          args.emit?.({
-            type: 'page_failed',
-            payload: {
-              runId: args.runId || '',
-              stage: 'rendering',
-              label: progressText(args.appLocale, 'failed'),
-              progress: getOverallRenderProgress(),
-              currentPage: page.pageNumber,
-              totalPages,
+            await args.onPageFailed?.({
               pageNumber: page.pageNumber,
               pageId: page.pageId,
               title: page.title,
+              contentOutline: page.outline,
+              layoutIntent: page.layoutIntent,
+              layoutId: page.layoutId,
+              imageAssetPath: page.imageAssetPath,
+              imageAssetPaths: page.imageAssetPaths,
               htmlPath: args.pageFileMap[page.pageId] || '',
-              error: reason
-            }
-          })
-          await args.onPageFailed?.({
-            pageNumber: page.pageNumber,
-            pageId: page.pageId,
-            title: page.title,
-            contentOutline: page.outline,
-            layoutIntent: page.layoutIntent,
-            layoutId: page.layoutId,
-            imageAssetPath: page.imageAssetPath,
-            imageAssetPaths: page.imageAssetPaths,
-            htmlPath: args.pageFileMap[page.pageId] || '',
-            reason
-          })
-          throw error
+              reason
+            })
+            throw error
+          }
+        } finally {
+          pageConcurrencyGate.release()
         }
       })
     )

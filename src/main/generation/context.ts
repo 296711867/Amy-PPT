@@ -34,6 +34,11 @@ import {
   LAYOUT_RULES_SETTING_KEY,
   normalizeLayoutRules
 } from '@shared/layout-rules'
+import {
+  normalizePageConcurrencyPreference,
+  PAGE_CONCURRENCY_SETTING_KEY,
+  type PageConcurrencyPreference
+} from '@shared/page-concurrency'
 import type { SessionProjectResolver } from '../ipc/runtime/session-project'
 import type { SessionScaffold } from '../ipc/runtime/session-scaffold'
 import type { SessionRunStateStore } from '../ipc/runtime/session-run-state'
@@ -222,6 +227,7 @@ export type CommonGenerationContext = {
   deckBackgroundPolicy: import('@shared/generation').DeckBackgroundPolicy
   sourcePlan: SourceDocumentPlan | null
   projectId: string
+  pageConcurrency: PageConcurrencyPreference
 }
 
 /**
@@ -656,6 +662,7 @@ export async function resolveCommonContext(
     imagePolicy: normalizeImagePolicy(sessionMetadata.imagePolicy),
     deckBackgroundPolicy: normalizeDeckBackgroundPolicy(sessionMetadata.deckBackgroundPolicy),
     sourcePlan,
-    projectId
+    projectId,
+    pageConcurrency: normalizePageConcurrencyPreference(settings[PAGE_CONCURRENCY_SETTING_KEY])
   }
 }

@@ -73,6 +73,7 @@ export type GenerationRunContext = {
   maxTokens: number
   modelRuntime: ModelRuntimeConfig
   modelTimeouts: Record<ModelTimeoutProfile, number>
+  pageConcurrency: CommonGenerationContext['pageConcurrency']
   providerBaseUrl: string
   projectId: string
   messageScope: GenerateChatType

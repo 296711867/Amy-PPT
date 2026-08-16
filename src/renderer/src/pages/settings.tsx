@@ -30,6 +30,7 @@ import {
 } from '../components/settings/model-settings-utils'
 import type { ImageModelForm, ModelForm } from '../components/settings/types'
 import type { UiThemeId } from '@shared/ui-theme'
+import { normalizePageConcurrencyPreference, type PageConcurrencyPreference } from '@shared/page-concurrency'
 
 const createTimeoutSeconds = (
   timeouts?: Partial<Record<ConfigurableModelTimeoutProfile, number>>
@@ -99,6 +100,10 @@ export function SettingsPage(): React.JSX.Element {
   const [proxyUrl, setProxyUrl] = useState(
     () => useSettingsStore.getState().settings?.proxyUrl || ''
   )
+  const [pageConcurrency, setPageConcurrency] = useState<PageConcurrencyPreference>(
+    () =>
+      normalizePageConcurrencyPreference(useSettingsStore.getState().settings?.pageConcurrency)
+  )
   const [verifying, setVerifying] = useState(false)
   const [verifyingImageModel, setVerifyingImageModel] = useState(false)
   const [activatingId, setActivatingId] = useState<string | null>(null)
@@ -121,6 +126,7 @@ export function SettingsPage(): React.JSX.Element {
       setStoragePath(nextSettings?.storagePath || '')
       setTimeoutSeconds(createTimeoutSeconds(nextSettings?.timeouts))
       setProxyUrl(nextSettings?.proxyUrl || '')
+      setPageConcurrency(normalizePageConcurrencyPreference(nextSettings?.pageConcurrency))
     }
     void loadSettings()
     return () => {
@@ -346,7 +352,8 @@ export function SettingsPage(): React.JSX.Element {
         timeouts: Object.fromEntries(
           timeoutEntries.map(({ field, num }) => [field.profile, Math.round(num) * 1000])
         ) as Record<ConfigurableModelTimeoutProfile, number>,
-        proxyUrl: proxyUrl.trim()
+        proxyUrl: proxyUrl.trim(),
+        pageConcurrency
       })
       const saveError = useSettingsStore.getState().verificationMessage
       if (saveError) {
@@ -610,12 +617,17 @@ export function SettingsPage(): React.JSX.Element {
         <TabsContent value="advanced">
           <AdvancedSettingsTab
             proxyUrl={proxyUrl}
+            pageConcurrency={pageConcurrency}
             savingTimeouts={savingTimeouts}
             timeoutFields={timeoutFields}
             timeoutSeconds={timeoutSeconds}
             t={t}
             onProxyUrlChange={(value) => {
               setProxyUrl(value)
+              setVerificationMessage(null)
+            }}
+            onPageConcurrencyChange={(value) => {
+              setPageConcurrency(normalizePageConcurrencyPreference(value))
               setVerificationMessage(null)
             }}
             onSaveAdvanced={() => void handleSaveAdvanced()}

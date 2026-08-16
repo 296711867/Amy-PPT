@@ -20,6 +20,10 @@ import {
 import type { ModelUsagePeriod } from '@shared/model-usage'
 import { normalizeThinkingParameterMode } from '@shared/model-config'
 import { LAYOUT_RULES_SETTING_KEY, normalizeLayoutRules } from '@shared/layout-rules'
+import {
+  normalizePageConcurrencyPreference,
+  PAGE_CONCURRENCY_SETTING_KEY
+} from '@shared/page-concurrency'
 import { buildTextCredentialScope, redactSensitiveText } from './credential-redaction'
 
 const readGlobalTimeouts = (
@@ -137,6 +141,9 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       storagePath,
       timeouts: readGlobalTimeouts(settings),
       proxyUrl,
+      pageConcurrency: normalizePageConcurrencyPreference(
+        settings[PAGE_CONCURRENCY_SETTING_KEY]
+      ),
       layoutRules: normalizeLayoutRules(settings[LAYOUT_RULES_SETTING_KEY])
     }
   })
@@ -253,6 +260,12 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
         )
       }
       await db.setSetting('proxy_url', nextProxy)
+    }
+    if (settings.pageConcurrency !== undefined) {
+      await db.setSetting(
+        PAGE_CONCURRENCY_SETTING_KEY,
+        normalizePageConcurrencyPreference(settings.pageConcurrency)
+      )
     }
     if (settings.layoutRules !== undefined) {
       await db.setSetting(LAYOUT_RULES_SETTING_KEY, normalizeLayoutRules(settings.layoutRules))

@@ -10,6 +10,10 @@ import type { ThinkingParameterMode } from '@shared/model-config.js'
 import { normalizeUiThemeId, type UiThemeId } from '@shared/ui-theme'
 import { applyUiTheme } from '@renderer/theme/ui-theme'
 import { normalizeLayoutRules, type LayoutRulesProfile } from '@shared/layout-rules'
+import {
+  normalizePageConcurrencyPreference,
+  type PageConcurrencyPreference
+} from '@shared/page-concurrency'
 
 interface Settings {
   theme: UiThemeId
@@ -17,6 +21,7 @@ interface Settings {
   storagePath: string
   timeouts: Record<ConfigurableModelTimeoutProfile, number>
   proxyUrl: string
+  pageConcurrency: PageConcurrencyPreference
   layoutRules: LayoutRulesProfile
 }
 
@@ -104,6 +109,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...typedSettings,
           locale,
           theme,
+          pageConcurrency: normalizePageConcurrencyPreference(typedSettings.pageConcurrency),
           layoutRules: normalizeLayoutRules(typedSettings.layoutRules)
         },
         // Keep credentials out of renderer state as well as out of the IPC list response.
