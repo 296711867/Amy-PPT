@@ -46,7 +46,7 @@ pnpm test -- tests/unit/path/to/test.test.ts
 
 ## Updates
 
-Amy-PPT 1.0.0 uses its own update manifest at:
+Amy-PPT uses its own update manifest. The latest published version is 1.0.1; advance the manifest only after the 1.0.2 binaries are available:
 
 ```text
 https://raw.githubusercontent.com/296711867/Amy-PPT/main/version.json

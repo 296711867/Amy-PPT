@@ -149,7 +149,7 @@ export function GenerationStatusPanel({
               tone="subtle"
               size="sm"
               onRun={(modelConfigId) => {
-                if (hasGeneratedPages || isPaused) {
+                if (hasGeneratedPages || status === 'paused' || status === 'failed') {
                   onContinueRemaining(modelConfigId)
                 } else {
                   onRegenerate(modelConfigId)

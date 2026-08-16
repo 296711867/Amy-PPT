@@ -13,6 +13,7 @@ function BrokenPage(): React.JSX.Element {
 describe('RendererErrorBoundary', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    window.localStorage.clear()
     document.body.innerHTML = ''
   })
 
@@ -28,6 +29,28 @@ describe('RendererErrorBoundary', () => {
 
     expect(container.textContent).toContain('页面遇到错误')
     expect(container.querySelector('button')?.textContent).toBe('刷新应用')
+
+    await act(async () => {
+      root.unmount()
+    })
+  })
+
+  it('renders the recovery copy in English when the stored locale is English', async () => {
+    window.localStorage.setItem('amy-ppt:lang', 'en')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(React.createElement(RendererErrorBoundary, null, React.createElement(BrokenPage)))
+    })
+
+    expect(container.textContent).toContain('The page ran into a problem')
+    expect(container.textContent).toContain(
+      'This page cannot continue. Refresh the app to recover.'
+    )
+    expect(container.querySelector('button')?.textContent).toBe('Refresh app')
 
     await act(async () => {
       root.unmount()

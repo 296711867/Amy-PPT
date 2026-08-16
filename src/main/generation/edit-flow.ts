@@ -31,6 +31,7 @@ import {
   type SelectedElementRuntimeContext
 } from '@shared/generation'
 import { resolveModel } from '../agent-runtime/model'
+import { runWithModelTemperatureControl } from '../agent-runtime/model'
 import { resolveModelTimeoutMs } from '@shared/model-timeout'
 import { resolveGlobalModelTimeouts, resolveModelConfigForTask } from '../config/model-config-utils'
 import {
@@ -215,14 +216,16 @@ export async function assessPageEdit(
   if (!fs.existsSync(pagePath)) throw new Error(`目标页面文件不存在: ${page.file_slug}.html`)
 
   const appLocale = (await ctx.db.getAllSettings()).locale === 'en' ? 'en' : 'zh'
-  const model = resolveModel(
-    activeModel.provider,
-    activeModel.apiKey,
-    activeModel.model,
-    activeModel.baseUrl,
-    0.2,
-    activeModel.maxTokens,
-    ctx.modelRuntime
+  const model = runWithModelTemperatureControl(activeModel, () =>
+    resolveModel(
+      activeModel.provider,
+      activeModel.apiKey,
+      activeModel.model,
+      activeModel.baseUrl,
+      0.2,
+      activeModel.maxTokens,
+      ctx.modelRuntime
+    )
   )
   const assessmentRecorder = createSessionPageEditAssessmentTool()
   const agent = createDeepAgent({
@@ -377,6 +380,7 @@ export async function resolveEditContext(
     model: common.model,
     modelConfigId: common.modelConfigId,
     modelConfigName: common.modelConfigName,
+    modelControl: common.modelControl,
     runModel: common.runModel,
     modelTimeouts: common.modelTimeouts,
     providerBaseUrl: common.providerBaseUrl,
@@ -578,6 +582,7 @@ export async function executeEditGeneration(
     model: context.model,
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
+    modelControl: context.modelControl,
     modelTimeoutMs: context.modelTimeouts.agent,
     temperature: editTemperature,
     styleId: context.styleId,

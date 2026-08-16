@@ -46,6 +46,7 @@ import type {
 } from '@shared/image-generation.js'
 import type { ThinkingParameterMode } from '@shared/model-config.js'
 import type { ExportProgressPayload } from '@shared/export-progress.js'
+import type { ExportCapabilities } from '@shared/export-capabilities.js'
 import type { PageMergeDisabledReason } from '@shared/page-merge'
 import type { ModelUsagePeriod, ModelUsageStats } from '@shared/model-usage'
 import type { SlideSizePresetId } from '@shared/slide-size'
@@ -434,6 +435,7 @@ export interface ModelConfig {
   provider: 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu'
   model: string
   apiKey: string
+  hasApiKey: boolean
   baseUrl: string
   maxTokens: number
   disableTemperature: boolean
@@ -1073,6 +1075,8 @@ export const ipc = {
     getIpc().invoke('export:png', { sessionId }) as Promise<ExportDeckResult>,
   exportLongImage: (sessionId: string) =>
     getIpc().invoke('export:longImage', { sessionId }) as Promise<ExportDeckResult>,
+  getExportCapabilities: () =>
+    getIpc().invoke('export:capabilities') as Promise<ExportCapabilities>,
   exportVideo: (sessionId: string, options?: { pageId?: string }) =>
     getIpc().invoke('export:video', { sessionId, ...options }) as Promise<ExportDeckResult>,
   exportPptx: (
@@ -1173,6 +1177,7 @@ export const ipc = {
       message?: string
     }>,
   verifyApiKey: (payload: {
+    id?: string
     provider: string
     apiKey: string
     model: string
@@ -1185,6 +1190,7 @@ export const ipc = {
     getIpc().invoke('settings:verifyApiKey', payload) as Promise<{
       valid: boolean
       message?: string
+      thinkingParameterMode?: ThinkingParameterMode
     }>,
   chooseStoragePath: () =>
     getIpc().invoke('settings:chooseStoragePath') as Promise<{
@@ -1434,6 +1440,8 @@ export const ipc = {
     getIpc().invoke('app:getVersion') as Promise<{
       version: string
     }>,
+  reportElectronSmokeReady: () =>
+    getIpc().invoke('app:smokeReady') as Promise<{ accepted: boolean }>,
   openPresentation: (payload: { sessionId: string; startIndex?: number }) =>
     getIpc().invoke('presentation:open', payload) as Promise<{ success: boolean }>,
   generateSpeechScript: (sessionId: string, config: SpeechConfig & { currentPageId?: string }) =>

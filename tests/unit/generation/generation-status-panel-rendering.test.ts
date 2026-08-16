@@ -14,17 +14,23 @@ const createModelAction = () => ({
   activatingModelConfigId: null,
   hasMultipleModelConfigs: false,
   currentModelConfig: null,
-  ensureModelActive: vi.fn(async () => null)
+  ensureModelActive: vi.fn(async () => 'model-1')
 })
 
 async function renderPanel({
   isCancelling,
   onCancel,
-  status = 'running'
+  status = 'running',
+  hasGeneratedPages = false,
+  onContinueRemaining = vi.fn(),
+  onRegenerate = vi.fn()
 }: {
   isCancelling: boolean
   onCancel: () => void
-  status?: 'running' | 'paused'
+  status?: 'running' | 'paused' | 'failed' | 'cancelled'
+  hasGeneratedPages?: boolean
+  onContinueRemaining?: () => void
+  onRegenerate?: () => void
 }): Promise<{ container: HTMLDivElement; unmount: () => Promise<void> }> {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -58,13 +64,13 @@ async function renderPanel({
         reconnectLabel: '重新连接并继续',
         cancelLabel: '取消生成',
         isCancelling,
-        hasGeneratedPages: false,
+        hasGeneratedPages,
         canEnterEditor: false,
         showEditorShortcut: false,
         modelAction: createModelAction(),
         onEnterEditor: vi.fn(),
-        onContinueRemaining: vi.fn(),
-        onRegenerate: vi.fn(),
+        onContinueRemaining,
+        onRegenerate,
         onOpenSettings: vi.fn(),
         onCancel
       })
@@ -142,6 +148,35 @@ describe('GenerationStatusPanel', () => {
       expect(container.textContent).toContain('重新连接并继续')
       expect(container.textContent).toContain('Check settings')
       expect(container.textContent).not.toContain('取消生成')
+    } finally {
+      await unmount()
+    }
+  })
+
+  it('routes a failed generation retry through the partial retry callback', async () => {
+    const onContinueRemaining = vi.fn()
+    const onRegenerate = vi.fn()
+    const { container, unmount } = await renderPanel({
+      isCancelling: false,
+      onCancel: vi.fn(),
+      status: 'failed',
+      hasGeneratedPages: false,
+      onContinueRemaining,
+      onRegenerate
+    })
+
+    try {
+      const retryButton = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Regenerate')
+      ) as HTMLButtonElement | undefined
+
+      expect(retryButton).toBeTruthy()
+      await act(async () => {
+        retryButton?.click()
+      })
+
+      expect(onContinueRemaining).toHaveBeenCalledWith('model-1')
+      expect(onRegenerate).not.toHaveBeenCalled()
     } finally {
       await unmount()
     }

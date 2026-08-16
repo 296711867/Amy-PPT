@@ -63,6 +63,16 @@ describe('replacePageContentFragment', () => {
     ).toThrow(/CDN\/远程资源引用/)
   })
 
+  it('rejects a truncated fragment before normalization can silently close it', () => {
+    expect(() =>
+      replacePageContentFragment({
+        originalHtml: SHELL_HTML,
+        content: '<section class="grid"><h1>Target</h1><p>unfinished',
+        pageId: 'page-1'
+      })
+    ).toThrow(/疑似被截断/)
+  })
+
   it('strips model-authored block ids before persisted validation', () => {
     const { html } = replacePageContentFragment({
       originalHtml: SHELL_HTML,

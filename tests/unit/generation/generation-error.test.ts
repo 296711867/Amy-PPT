@@ -15,6 +15,21 @@ describe('classifyGenerationError', () => {
     })
   })
 
+  it('classifies middleware response contract failures as a system pause', () => {
+    const failure = classifyGenerationError(
+      new Error(
+        'Invalid response from "wrapModelCall" in middleware "thinkingToolAllowlist": expected AIMessage or Command, got object'
+      )
+    )
+
+    expect(failure).toMatchObject({
+      code: 'MODEL_RESPONSE_FORMAT',
+      scope: 'system',
+      action: 'pause-run',
+      retryable: false
+    })
+  })
+
   it('classifies connection and authentication failures as system failures', () => {
     expect(classifyGenerationError(new Error('fetch failed: ECONNRESET'))).toMatchObject({
       code: 'MODEL_CONNECTION',
@@ -69,6 +84,14 @@ describe('classifyGenerationError', () => {
       code: 'PAGE_VALIDATION',
       scope: 'page',
       action: 'retry-page',
+      retryable: true
+    })
+  })
+
+  it('does not classify a real generation cancellation as a model failure', () => {
+    expect(classifyGenerationError(new Error('Generation canceled'))).toMatchObject({
+      code: 'UNKNOWN',
+      scope: 'page',
       retryable: true
     })
   })

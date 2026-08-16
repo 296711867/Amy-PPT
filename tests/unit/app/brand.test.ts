@@ -23,7 +23,7 @@ describe('Amy-PPT brand contract', () => {
     expect(APP_NAME).toBe('Amy-PPT')
     expect(APP_PACKAGE_NAME).toBe('amy-ppt')
     expect(APP_ID).toBe('com.amyppt.app')
-    expect(APP_VERSION).toBe('1.0.1')
+    expect(APP_VERSION).toBe('1.0.2')
     expect(DEFAULT_UPDATE_MANIFEST_URL).toContain('/296711867/Amy-PPT/')
     expect(DEFAULT_UPDATE_MANIFEST_URL).not.toContain('oh-my-ppt')
   })
@@ -34,7 +34,7 @@ describe('Amy-PPT brand contract', () => {
     ).toBe('https://updates.example/amy.json')
   })
 
-  it('keeps package and update manifest versions aligned with the brand contract', () => {
+  it('keeps the development package ahead of the last published update manifest', () => {
     const packageMetadata = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')
     ) as { name?: string; version?: string; homepage?: string }
@@ -48,7 +48,7 @@ describe('Amy-PPT brand contract', () => {
       homepage: 'https://github.com/296711867/Amy-PPT'
     })
     expect(updateManifest).toMatchObject({
-      version: APP_VERSION,
+      version: '1.0.1',
       downloadhome: 'https://github.com/296711867/Amy-PPT/releases'
     })
   })

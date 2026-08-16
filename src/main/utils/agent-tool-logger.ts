@@ -54,6 +54,16 @@ const readToolPathArg = (args: Record<string, unknown> | null): string => {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+const getContentLength = (content: unknown): number => {
+  if (typeof content === 'string') return content.length
+  if (!Array.isArray(content)) return 0
+  try {
+    return JSON.stringify(content).length
+  } catch {
+    return String(content).length
+  }
+}
+
 const resolveProductSkillName = (filePath: string): RequiredProductSkillName | null => {
   const normalized = filePath.replace(/\\/g, '/')
   if (!normalized.startsWith(PRODUCT_SKILLS_ROUTE)) return null
@@ -122,7 +132,7 @@ export function logAgentToolEvents(
     const toolName = String(readField(record, 'name') ?? '').trim()
     if (toolCallId || messageType === 'tool') {
       const content = readField(record, 'content')
-      const contentLen = typeof content === 'string' ? content.length : 0
+      const contentLen = getContentLength(content)
       const key = `result:${toolCallId}:${toolName}:${contentLen}`
       if (!seen.has(key)) {
         seen.add(key)

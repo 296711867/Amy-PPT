@@ -21,6 +21,7 @@ import { useToastStore } from '../store'
 import { ModelSplitButton } from '../components/model/ModelActionButton'
 import { useModelAction } from '../hooks/useModelAction'
 import { ipc } from '@renderer/lib/ipc'
+import { resolveStyleIdOrStableDefault } from '@renderer/lib/style-selection'
 import { FontSchemeSelector } from '../components/font/FontSchemeSelector'
 import {
   normalizeAnimationPreferences,
@@ -158,10 +159,12 @@ export function SessionCreatePage(): ReactElement {
     if (!briefText) return t('home.validationBrief')
 
     const selectedModelConfig = modelConfigs.find((config) => config.id === modelConfigId)
-    const resolvedApiKey = (selectedModelConfig?.apiKey || '').trim()
     const resolvedModel = (selectedModelConfig?.model || '').trim()
     const resolvedStoragePath = (settings?.storagePath || '').trim()
-    if (!resolvedApiKey || !resolvedModel || !resolvedStoragePath) return t('home.settingsRequired')
+    const hasApiKey = selectedModelConfig?.hasApiKey ?? Boolean(selectedModelConfig?.apiKey?.trim())
+    if (!hasApiKey || !resolvedModel || !resolvedStoragePath) {
+      return t('home.settingsRequired')
+    }
 
     return ''
   }
@@ -202,7 +205,7 @@ export function SessionCreatePage(): ReactElement {
             return preferredStyleId
           }
           if (current && options.some((option) => option.id === current)) return current
-          return options.length > 0 ? options[0].id : ''
+          return resolveStyleIdOrStableDefault('', options)
         })
       } catch (err) {
         error(t('home.styleLoadFailed'), {
@@ -890,7 +893,10 @@ export function SessionCreatePage(): ReactElement {
                         {t('home.generateDeckBackgroundsHint')}
                       </span>
                       {generateDeckBackgrounds ? (
-                        <span className="mt-3 flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+                        <span
+                          className="mt-3 flex items-center gap-2"
+                          onClick={(event) => event.preventDefault()}
+                        >
                           <span className="text-[11px] text-[#626d55]">
                             {t('home.contentBackgroundCount')}
                           </span>

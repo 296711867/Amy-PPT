@@ -3,7 +3,10 @@ import path from 'path'
 import fs from 'fs'
 import log from 'electron-log/main.js'
 import type { IpcContext } from '../context'
-import { resolveGlobalModelTimeouts, resolveModelConfigForTask } from '../../config/model-config-utils'
+import {
+  resolveGlobalModelTimeouts,
+  resolveModelConfigForTask
+} from '../../config/model-config-utils'
 import {
   createWorkspace,
   deleteWorkspace,
@@ -20,10 +23,11 @@ import {
   prepareMultipleSources
 } from '../../thinking/source-prepare'
 import { invalidateRuntime, runThinkingChat } from '../../thinking/thinking-agent'
+import { runWithModelTemperatureControl } from '../../agent-runtime/model'
 import { buildThinkingSourceBrief } from '../../thinking/source-brief'
 import { buildThinkingSourcePlan } from '../../thinking/source-plan'
 import { normalizeFontSelection } from '@shared/generation'
-import { createThinkingChatIpcError } from '@shared/thinking-chat-error'
+import { classifyThinkingChatError, createThinkingChatIpcError } from '@shared/thinking-chat-error'
 import type {
   ThinkingChatMessage,
   ThinkingPageOutlineUpdate,
@@ -373,32 +377,35 @@ export function registerThinkingHandlers(ctx: IpcContext): void {
 
       let result
       try {
-        result = await runThinkingChat({
-          thinkingId,
-          thinkingDir: dir,
-          stage: workspace.stage,
-          thinkingMd: workspace.thinkingMd,
-          contextMd: workspace.contextMd,
-          sourcesDir: `${dir}/sources`,
-          userMessage: thinkingUserMessage,
-          recentMessages: Array.isArray(recentMessages)
-            ? recentMessages.slice(-8)
-            : workspace.messages.slice(-8),
-          provider: activeModel.provider,
-          apiKey: activeModel.apiKey,
-          model: activeModel.model,
-          baseUrl: activeModel.baseUrl,
-          maxTokens: activeModel.maxTokens,
-          modelRuntime: ctx.modelRuntime,
-          modelTimeoutMs: modelTimeouts.agent,
-          onThinkingEvent: emitThinkingEvent
-        })
+        result = await runWithModelTemperatureControl(activeModel, () =>
+          runThinkingChat({
+            thinkingId,
+            thinkingDir: dir,
+            stage: workspace.stage,
+            thinkingMd: workspace.thinkingMd,
+            contextMd: workspace.contextMd,
+            sourcesDir: `${dir}/sources`,
+            userMessage: thinkingUserMessage,
+            recentMessages: Array.isArray(recentMessages)
+              ? recentMessages.slice(-8)
+              : workspace.messages.slice(-8),
+            provider: activeModel.provider,
+            apiKey: activeModel.apiKey,
+            model: activeModel.model,
+            baseUrl: activeModel.baseUrl,
+            maxTokens: activeModel.maxTokens,
+            modelRuntime: ctx.modelRuntime,
+            modelTimeoutMs: modelTimeouts.agent,
+            onThinkingEvent: emitThinkingEvent
+          })
+        )
       } catch (error) {
+        const errorKind = classifyThinkingChatError(error)
         emitThinkingEvent({
           id: 'connection',
           type: 'phase_failed',
           toolName: 'connection',
-          summary: '模型服务连接或响应失败'
+          summary: errorKind === 'model-response' ? '模型响应处理失败' : '模型服务连接或响应失败'
         })
         throw createThinkingChatIpcError(error)
       }

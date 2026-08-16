@@ -69,7 +69,8 @@ export function useModelAction(): ModelActionState {
         warnModelSettingsRequired()
         return null
       }
-      if (!selected.model.trim() || !selected.apiKey.trim()) {
+      const hasApiKey = selected.hasApiKey ?? Boolean(selected.apiKey.trim())
+      if (!selected.model.trim() || !hasApiKey) {
         warnModelSettingsRequired()
         return null
       }

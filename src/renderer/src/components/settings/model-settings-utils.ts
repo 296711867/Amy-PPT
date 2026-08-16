@@ -32,6 +32,41 @@ export const stringifyJsonObject = (record: Record<string, unknown>): string => 
   return JSON.stringify(record, null, 2)
 }
 
+const normalizeCredentialKey = (key: string): string => key.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const isSensitiveCredentialKey = (key: string): boolean => {
+  const normalized = normalizeCredentialKey(key)
+  return (
+    normalized.includes('apikey') ||
+    normalized.includes('secret') ||
+    normalized.includes('accesskey') ||
+    normalized.includes('authorization') ||
+    normalized.includes('password') ||
+    normalized.includes('credential') ||
+    normalized.includes('privatekey') ||
+    normalized.includes('signingkey') ||
+    normalized === 'auth' ||
+    normalized === 'token' ||
+    normalized.endsWith('token')
+  )
+}
+
+const redactCredentialValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(redactCredentialValue)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !isSensitiveCredentialKey(key))
+      .map(([key, item]) => [key, redactCredentialValue(item)])
+  )
+}
+
+export const redactImageModelConfigForDisplay = (value: string): string => {
+  const config = readJsonObject(value)
+  if (!config) return '{}'
+  return stringifyJsonObject(redactCredentialValue(config) as Record<string, unknown>)
+}
+
 export const summarizeImageModelConfig = (value: string): string => {
   const config = readJsonObject(value)
   if (!config) return 'model_config'
@@ -116,7 +151,8 @@ export const createModelForm = (config: ModelConfig): ModelForm => ({
   name: config.name,
   provider: config.provider,
   model: config.model,
-  apiKey: config.apiKey,
+  // The list API intentionally redacts this field. Never put a stored secret into the form DOM.
+  apiKey: '',
   baseUrl: config.baseUrl,
   maxTokens: String(config.maxTokens || 4096),
   disableTemperature: config.disableTemperature,
@@ -136,7 +172,9 @@ export const createImageModelForm = (config: ImageModelConfig): ImageModelForm =
     id: config.id,
     name: config.name,
     provider: config.provider,
-    modelConfig: config.modelConfig || createDefaultImageModelConfig(config.provider),
+    modelConfig: config.modelConfig
+      ? redactImageModelConfigForDisplay(config.modelConfig)
+      : createDefaultImageModelConfig(config.provider),
     active: config.active
   }
 }

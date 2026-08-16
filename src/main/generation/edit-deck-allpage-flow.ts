@@ -241,6 +241,7 @@ export async function executeDeckAllPageEditGeneration(
     model: context.model,
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
+    modelControl: context.modelControl,
     modelTimeoutMs: context.modelTimeouts.agent,
     temperature: PAGE_EDIT_DEFAULT_TEMPERATURE,
     styleId: context.styleId,

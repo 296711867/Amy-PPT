@@ -35,7 +35,7 @@ describe('main app structure', () => {
     const trayModule = fs.readFileSync('src/main/app/tray.ts', 'utf8')
 
     expect(windowModule).toContain('const mainOutputDir = __dirname')
-    expect(windowModule).toContain("join(mainOutputDir, '../preload/index.mjs')")
+    expect(windowModule).toContain("join(mainOutputDir, '../preload/index.cjs')")
     expect(windowModule).toContain("join(mainOutputDir, '../renderer/index.html')")
     expect(trayModule).toContain('const mainOutputDir = __dirname')
     expect(trayModule).toContain("join(mainOutputDir, '../../build/icons')")

@@ -16,6 +16,7 @@ import {
   type GenerationContext,
   type RuntimeJobExecutionContext
 } from './context'
+import type { GenerationModelControl } from './context'
 import type { DesignContract } from '@shared/generation'
 import type { ModelTimeoutProfile } from '@shared/model-timeout'
 import { normalizeLayoutIntent, type LayoutIntent } from '@shared/layout-intent'
@@ -41,6 +42,7 @@ export type RetrySinglePageContext = {
   model: string
   modelConfigId?: string
   modelConfigName?: string
+  modelControl: GenerationModelControl
   runModel?: string
   providerBaseUrl: string
   modelTimeouts: Record<ModelTimeoutProfile, number>
@@ -247,6 +249,7 @@ export async function executeRetrySinglePageGeneration(
       apiKey: context.apiKey,
       model: context.model,
       baseUrl: context.providerBaseUrl,
+      modelControl: context.modelControl,
       modelTimeoutMs: context.modelTimeouts.agent,
       temperature: PAGE_GENERATION_TEMPERATURE,
       styleId: context.styleId,

@@ -3,7 +3,8 @@ import log from 'electron-log/main.js'
 import type { GenerateChunkEvent } from '@shared/generation'
 import type { SlideSizePreset } from '@shared/slide-size'
 import { progressText } from '@shared/progress'
-import { extractJsonBlock, resolveModel } from '../agent-runtime/model'
+import { extractJsonBlock, resolveModel, runWithModelTemperatureControl } from '../agent-runtime/model'
+import type { GenerationModelControl } from './context'
 import {
   enqueueHtmlThumbnail,
   waitForHtmlThumbnailTask
@@ -181,6 +182,7 @@ export async function runVisualDeckReview(args: {
     baseUrl: string
     maxTokens?: number
     modelRuntime?: Parameters<typeof resolveModel>[6]
+    modelControl?: GenerationModelControl
     timeoutMs?: number
   }
   appLocale: 'zh' | 'en'
@@ -214,13 +216,24 @@ export async function runVisualDeckReview(args: {
     const reviewedPages = sampleVisualReviewPages(
       [...args.pages].sort((a, b) => a.pageNumber - b.pageNumber)
     )
+    if (reviewedPages.length === 0) {
+      emitStatus(
+        uiText(
+          args.appLocale,
+          '视觉自检已跳过：没有可供评审的页面',
+          'Visual review skipped: there were no pages available to review'
+        ),
+        { totalPages: args.pages.length, reviewedPages: 0 }
+      )
+      return
+    }
     emitStatus(
       uiText(
         args.appLocale,
         `视觉自检：正在评审 ${reviewedPages.length} 页渲染截图`,
         `Visual review: inspecting rendered screenshots of ${reviewedPages.length} slides`
       ),
-      { totalPages: args.pages.length }
+      { totalPages: args.pages.length, reviewedPages: 0 }
     )
 
     const capturePageImage = args.capturePageImage || defaultCapturePageImage
@@ -229,28 +242,52 @@ export async function runVisualDeckReview(args: {
     let passCount = 0
     let softCount = 0
     let hardCount = 0
+    const reviewedPageIds = new Set<string>()
+    let unavailableCaptureCount = 0
 
     for (const batch of batches) {
       if (args.signal?.aborted) break
       const images: Array<{ page: VisualReviewPageRef; base64: string }> = []
       for (const page of batch) {
-        const base64 = await capturePageImage(page, {
-          sessionId: args.sessionId,
-          slideSize: args.slideSize
-        })
-        if (base64) images.push({ page, base64 })
+        try {
+          const base64 = await capturePageImage(page, {
+            sessionId: args.sessionId,
+            slideSize: args.slideSize
+          })
+          if (base64) images.push({ page, base64 })
+          else unavailableCaptureCount += 1
+        } catch (error) {
+          unavailableCaptureCount += 1
+          log.warn('[visual-review] page screenshot unavailable', {
+            sessionId: args.sessionId,
+            pageId: page.pageId,
+            message: error instanceof Error ? error.message : String(error)
+          })
+        }
       }
       if (images.length === 0) continue
 
-      const client = resolveModel(
-        args.model.provider,
-        args.model.apiKey,
-        args.model.model,
-        args.model.baseUrl,
-        0,
-        args.model.maxTokens,
-        args.model.modelRuntime
-      )
+      const client = args.model.modelControl
+        ? runWithModelTemperatureControl(args.model.modelControl, () =>
+            resolveModel(
+              args.model.provider,
+              args.model.apiKey,
+              args.model.model,
+              args.model.baseUrl,
+              0,
+              args.model.maxTokens,
+              args.model.modelRuntime
+            )
+          )
+        : resolveModel(
+            args.model.provider,
+            args.model.apiKey,
+            args.model.model,
+            args.model.baseUrl,
+            0,
+            args.model.maxTokens,
+            args.model.modelRuntime
+          )
       const response = await client.invoke([
         {
           role: 'user',
@@ -284,6 +321,8 @@ export async function runVisualDeckReview(args: {
       )
 
       for (const verdict of verdicts) {
+        if (reviewedPageIds.has(verdict.pageId)) continue
+        reviewedPageIds.add(verdict.pageId)
         reviewed += 1
         if (verdict.verdict === 'pass') {
           passCount += 1
@@ -305,22 +344,32 @@ export async function runVisualDeckReview(args: {
       }
     }
 
-    if (reviewed > 0) {
+    if (reviewed === reviewedPages.length) {
       emitStatus(
         uiText(
           args.appLocale,
           `视觉自检完成：${passCount} 页通过，${softCount} 页有优化建议，${hardCount} 页存在严重视觉问题（可在编辑器中手动修复）`,
           `Visual review finished: ${passCount} passed, ${softCount} with suggestions, ${hardCount} with hard issues (fix them manually in the editor)`
         ),
-        { totalPages: args.pages.length }
+        { totalPages: args.pages.length, reviewedPages: reviewed }
+      )
+    } else if (reviewed > 0) {
+      emitStatus(
+        uiText(
+          args.appLocale,
+          `视觉自检未完成：仅获得 ${reviewed}/${reviewedPages.length} 页评审结果${unavailableCaptureCount > 0 ? `，${unavailableCaptureCount} 页截图不可用` : ''}`,
+          `Visual review incomplete: received verdicts for ${reviewed}/${reviewedPages.length} slides${unavailableCaptureCount > 0 ? `; screenshots unavailable for ${unavailableCaptureCount}` : ''}`
+        ),
+        { totalPages: args.pages.length, reviewedPages: reviewed }
       )
     } else {
       emitStatus(
         uiText(
           args.appLocale,
-          '视觉自检已跳过：未能获得可用的页面截图',
-          'Visual review skipped: no page screenshots were available'
-        )
+          '视觉自检已跳过：未能获得可用的页面评审结果',
+          'Visual review skipped: no usable page verdicts were available'
+        ),
+        { totalPages: args.pages.length, reviewedPages: 0 }
       )
     }
   } catch (error) {

@@ -15,8 +15,17 @@ const state = vi.hoisted(() => ({
   listStyles: vi.fn(async () => ({
     items: [
       {
-        id: 'style-1',
-        label: 'Style One',
+        id: 'recent-custom',
+        styleKey: 'custom-style',
+        label: 'Recent Custom',
+        description: '',
+        createdAt: 2,
+        updatedAt: 20
+      },
+      {
+        id: 'minimal-white',
+        styleKey: 'minimal-white',
+        label: 'Minimal White',
         description: '',
         createdAt: 1,
         updatedAt: 1
@@ -63,7 +72,7 @@ vi.mock('@renderer/i18n', () => ({
 
 vi.mock('../../../src/renderer/src/hooks/useModelAction', () => ({
   useModelAction: () => ({
-    modelConfigs: [{ id: 'model-1', apiKey: 'key', model: 'model' }],
+    modelConfigs: [{ id: 'model-1', apiKey: '', hasApiKey: true, model: 'model' }],
     selectedModelConfigId: 'model-1',
     ensureModelActive: vi.fn(async (id: string) => id)
   })
@@ -71,10 +80,12 @@ vi.mock('../../../src/renderer/src/hooks/useModelAction', () => ({
 
 vi.mock('../../../src/renderer/src/components/style/StyleSelect', () => ({
   StyleSelect: ({
+    value,
     className,
     dropdownAlign,
     dropdownClassName
   }: {
+    value?: string
     className?: string
     dropdownAlign?: string
     dropdownClassName?: string
@@ -84,6 +95,7 @@ vi.mock('../../../src/renderer/src/components/style/StyleSelect', () => ({
       {
         type: 'button',
         className,
+        'data-style-value': value,
         'data-dropdown-align': dropdownAlign,
         'data-dropdown-class': dropdownClassName
       },
@@ -151,6 +163,7 @@ describe('SessionCreatePage layout', () => {
 
     const styleSelect = settings?.querySelector('[data-dropdown-align="end"]')
     expect(styleSelect).toBeTruthy()
+    expect(styleSelect?.getAttribute('data-style-value')).toBe('minimal-white')
     expect(styleSelect?.className).toContain('h-8')
     expect(styleSelect?.getAttribute('data-dropdown-class')).toContain('700px')
     expect(settings?.querySelector('input[inputmode="numeric"]')).toBeTruthy()

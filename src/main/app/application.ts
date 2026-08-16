@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import log from 'electron-log/main.js'
 import { AgentManager } from '../agent-runtime/agent'
@@ -26,6 +26,7 @@ import { createMainWindow, showMainWindow } from './window'
 import { normalizeUiThemeId, type UiThemeId } from '@shared/ui-theme'
 import { APP_ID } from '@shared/brand'
 import { resolveBrandDatabasePath } from './database-path'
+import { attachElectronSmokeMonitor, ELECTRON_SMOKE_ENV } from './smoke-monitor'
 
 /** Owns the main-process composition state; `index.ts` only wires Electron lifecycle events. */
 export class MainApplication {
@@ -118,6 +119,15 @@ export class MainApplication {
 
     this.agentManager = new AgentManager()
     const window = this.createWindow()
+    const smokeEnabled = process.env[ELECTRON_SMOKE_ENV] === '1'
+    const smokeMonitor = attachElectronSmokeMonitor(window.webContents, {
+      enabled: smokeEnabled,
+      onResult: ({ code, reason }) => {
+        const writeLog = code === 0 ? log.info : log.error
+        writeLog('[smoke] Electron startup result', { code, reason })
+        setImmediate(() => app.exit(code))
+      }
+    })
     window.webContents.on('did-finish-load', () => {
       void stylesReadyPromise
         .then(() => this.db?.listStyleRows() || [])
@@ -135,6 +145,9 @@ export class MainApplication {
 
     registerLocalAssetProtocol()
     setupIPC(window, this.db, this.agentManager)
+    if (smokeEnabled) {
+      ipcMain.handle('app:smokeReady', () => ({ accepted: smokeMonitor.reportReady() }))
+    }
     scheduleUpdateNotification(window)
 
     try {

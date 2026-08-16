@@ -3,7 +3,7 @@ import { createMiddleware } from 'langchain'
 import {
   CompositeBackend,
   FilesystemBackend,
-  createSkillsMiddleware,
+  createSkillsMiddleware as createDeepAgentsSkillsMiddleware,
   type EditResult,
   type FileDownloadResponse,
   type WriteResult
@@ -16,6 +16,27 @@ import {
   type RequiredProductSkillName
 } from '../../product-skills/contract'
 import { getInstalledSkillsPath, waitForSkillsReady } from '../../product-skills/runtime-state'
+import { normalizeAgentModelResponse } from '../model/response'
+
+type DeepAgentsSkillsMiddleware = ReturnType<typeof createDeepAgentsSkillsMiddleware>
+
+/**
+ * Keep deepagents' skills prompt injection while normalizing compatible-provider responses
+ * before LangChain validates the middleware boundary.
+ */
+export const createSkillsMiddleware = (
+  options: Parameters<typeof createDeepAgentsSkillsMiddleware>[0]
+): DeepAgentsSkillsMiddleware => {
+  const middleware = createDeepAgentsSkillsMiddleware(options)
+  const originalWrapModelCall = middleware.wrapModelCall
+  if (!originalWrapModelCall) return middleware
+
+  middleware.wrapModelCall = async (request, handler) => {
+    const response = await originalWrapModelCall(request, handler)
+    return normalizeAgentModelResponse(response) as Awaited<ReturnType<typeof handler>>
+  }
+  return middleware
+}
 
 class ReadOnlyFilesystemBackend extends FilesystemBackend {
   async write(filePath: string, _content: string): Promise<WriteResult> {

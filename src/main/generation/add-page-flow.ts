@@ -27,6 +27,7 @@ import { planNewPage } from './agent-runner'
 import type { DesignContract } from '@shared/generation'
 import type { ModelTimeoutProfile } from '@shared/model-timeout'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
+import type { GenerationModelControl } from './context'
 import type { ImagePolicy } from '@shared/generation'
 import { prepareDeckImageAssets } from './deck-images'
 import { readDeckBackgroundManifest, resolveDeckBackgroundAsset } from './deck-backgrounds'
@@ -56,6 +57,7 @@ export type AddPageContext = {
   model: string
   modelConfigId?: string
   modelConfigName?: string
+  modelControl: GenerationModelControl
   runModel?: string
   providerBaseUrl: string
   maxTokens: number
@@ -229,6 +231,7 @@ export async function executeAddPageGeneration(
       baseUrl: context.providerBaseUrl,
       maxTokens: context.maxTokens,
       modelRuntime: context.modelRuntime,
+      modelControl: context.modelControl,
       modelTimeoutMs: context.modelTimeouts.planning,
       temperature: DESIGN_CONTRACT_TEMPERATURE,
       appLocale: context.appLocale,
@@ -248,6 +251,7 @@ export async function executeAddPageGeneration(
         baseUrl: context.providerBaseUrl,
         maxTokens: context.maxTokens,
         modelRuntime: context.modelRuntime,
+        modelControl: context.modelControl,
         modelTimeoutMs: context.modelTimeouts.planning,
         temperature: DESIGN_CONTRACT_TEMPERATURE,
         appLocale: context.appLocale,
@@ -473,6 +477,7 @@ export async function executeAddPageGeneration(
         model: context.model,
         baseUrl: context.providerBaseUrl,
         maxTokens: context.maxTokens,
+        modelControl: context.modelControl,
         modelTimeoutMs: context.modelTimeouts.agent,
         temperature: PAGE_GENERATION_TEMPERATURE,
         styleId: context.styleId,

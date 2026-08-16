@@ -36,9 +36,7 @@ export function ImageModelSettingsTab({
             <ImageIcon className="h-4 w-4 text-[#5d7b4d]" />
             {t('settings.imageModelAccess')}
           </CardTitle>
-          <p className="mt-1 text-xs text-[#6f8f64]">
-            {t('settings.imageModelUsageHint')}
-          </p>
+          <p className="mt-1 text-xs text-[#6f8f64]">{t('settings.imageModelUsageHint')}</p>
           {activeImageModelConfig && (
             <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-[#96b77f]/55 bg-[#eef6e8] px-2.5 py-1 text-xs font-medium text-[#4f6b45]">
               {t('settings.currentActiveImageModel', { name: activeImageModelConfig.name })}

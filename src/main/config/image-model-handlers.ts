@@ -3,6 +3,13 @@ import log from 'electron-log/main.js'
 import type { ImageModelProvider } from '@shared/image-generation'
 import type { IpcContext } from '../ipc/context'
 import { readAppLocale, uiText } from './locale-utils'
+import {
+  buildImageCredentialScope,
+  mergeCredentialConfig,
+  parseJsonRecord,
+  redactCredentialJson,
+  stringifyJsonRecord
+} from './credential-redaction'
 
 const VALID_IMAGE_PROVIDERS = [
   'jimeng',
@@ -42,7 +49,7 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
       name: config.name,
       provider: resolveProvider(config.provider),
       active: config.active === 1,
-      modelConfig: decryptApiKey(config.modelConfig || '{}'),
+      modelConfig: redactCredentialJson(decryptApiKey(config.modelConfig || '{}')),
       createdAt: config.createdAt,
       updatedAt: config.updatedAt
     }))
@@ -50,7 +57,8 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
 
   ipcMain.handle('imageModels:upsert', async (_event, payload) => {
     const locale = await readAppLocale(ctx)
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
+    const record =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
     const name = typeof record.name === 'string' ? record.name.trim() : ''
     const provider = resolveProvider(record.provider)
     const modelConfig = normalizeModelConfig(record.modelConfig)
@@ -60,12 +68,32 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
     if (modelConfig === '{}') {
       throw new Error(uiText(locale, '请填写生图模型配置。', 'Enter image model config.'))
     }
+    let mergedModelConfig = parseJsonRecord(modelConfig)
+    if (!mergedModelConfig) {
+      throw new Error(uiText(locale, '请填写生图模型配置。', 'Enter image model config.'))
+    }
+    if (id) {
+      const existing = (await db.listImageModelConfigs()).find((config) => config.id === id)
+      if (existing) {
+        const existingModelConfig = parseJsonRecord(decryptApiKey(existing.modelConfig || '{}'))
+        if (
+          existingModelConfig &&
+          buildImageCredentialScope(existing.provider, existingModelConfig) ===
+            buildImageCredentialScope(provider, mergedModelConfig)
+        ) {
+          mergedModelConfig = mergeCredentialConfig(
+            existingModelConfig,
+            mergedModelConfig
+          ) as Record<string, unknown>
+        }
+      }
+    }
     const savedId = await db.upsertImageModelConfig({
       id,
       name,
       provider,
-      modelConfig: encryptApiKey(modelConfig),
-      active: record.active === true,
+      modelConfig: encryptApiKey(stringifyJsonRecord(mergedModelConfig)),
+      active: record.active === true
     })
     return { success: true, id: savedId }
   })
@@ -73,13 +101,17 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
   ipcMain.handle('imageModels:setActive', async (_event, id) => {
     const locale = await readAppLocale(ctx)
     if (typeof id !== 'string' || id.trim().length === 0) {
-      throw new Error(uiText(locale, '生图模型配置 ID 不能为空。', 'Image model config ID is required.'))
+      throw new Error(
+        uiText(locale, '生图模型配置 ID 不能为空。', 'Image model config ID is required.')
+      )
     }
     try {
       await db.setActiveImageModelConfig(id.trim())
     } catch (error) {
       if (error instanceof Error && error.message === 'Image model config does not exist') {
-        throw new Error(uiText(locale, '生图模型配置不存在。', 'Image model config does not exist.'))
+        throw new Error(
+          uiText(locale, '生图模型配置不存在。', 'Image model config does not exist.')
+        )
       }
       throw error
     }
@@ -89,13 +121,17 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
   ipcMain.handle('imageModels:delete', async (_event, id) => {
     const locale = await readAppLocale(ctx)
     if (typeof id !== 'string' || id.trim().length === 0) {
-      throw new Error(uiText(locale, '生图模型配置 ID 不能为空。', 'Image model config ID is required.'))
+      throw new Error(
+        uiText(locale, '生图模型配置 ID 不能为空。', 'Image model config ID is required.')
+      )
     }
     try {
       await db.deleteImageModelConfig(id.trim())
     } catch (error) {
       if (error instanceof Error && error.message === 'Image model config does not exist') {
-        throw new Error(uiText(locale, '生图模型配置不存在。', 'Image model config does not exist.'))
+        throw new Error(
+          uiText(locale, '生图模型配置不存在。', 'Image model config does not exist.')
+        )
       }
       throw error
     }
@@ -104,7 +140,8 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
 
   ipcMain.handle('imageModels:verify', async (_event, payload) => {
     const locale = await readAppLocale(ctx)
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
+    const record =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
     const provider = resolveProvider(record.provider)
     const modelConfig = normalizeModelConfig(record.modelConfig)
     log.info('[imageModels:verify] received', { provider, hasConfig: modelConfig !== '{}' })

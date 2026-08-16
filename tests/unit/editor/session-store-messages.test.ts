@@ -66,6 +66,7 @@ describe('session store messages', () => {
   })
 
   it('keeps process and tool records out of the visible chat conversation', async () => {
+    useSessionStore.setState({ currentSession: { id: 'session-1' } as never })
     ipcMocks.getSessionMessages.mockResolvedValue([
       message,
       { ...message, id: 'assistant-1', role: 'assistant', content: 'AI 最终回复' },

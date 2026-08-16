@@ -38,6 +38,8 @@ export class JobCoordinator {
   private readonly lock: ResourceLock
   private readonly jobsById = new Map<string, ManagedJob>()
   private readonly jobIdByOwner = new Map<string, string>()
+  private readonly suspendedOwners = new Map<string, number>()
+  private readonly ownerIdleWaiters = new Map<string, Set<() => void>>()
 
   constructor(lock = new ResourceLock()) {
     this.lock = lock
@@ -45,6 +47,9 @@ export class JobCoordinator {
 
   async reserve(args: JobReservationArgs): Promise<JobReservationResult> {
     if (args.wait === 'fail') return this.tryReserve(args)
+    if (this.suspendedOwners.has(ownerKey(args.owner))) {
+      return { status: 'busy', conflictingJobId: `lifecycle:${ownerKey(args.owner)}` }
+    }
     if (this.jobsById.has(args.jobId)) {
       return { status: 'busy', conflictingJobId: args.jobId }
     }
@@ -101,6 +106,9 @@ export class JobCoordinator {
   tryReserve(args: JobReservationArgs): JobReservationResult {
     if (args.wait !== 'fail') {
       throw new Error('JobCoordinator.tryReserve only supports wait=fail')
+    }
+    if (this.suspendedOwners.has(ownerKey(args.owner))) {
+      return { status: 'busy', conflictingJobId: `lifecycle:${ownerKey(args.owner)}` }
     }
     if (this.jobsById.has(args.jobId)) {
       return { status: 'busy', conflictingJobId: args.jobId }
@@ -164,6 +172,42 @@ export class JobCoordinator {
     return cancelled
   }
 
+  async suspendOwners(owners: JobOwner[], timeoutMs = 15_000): Promise<() => void> {
+    const uniqueOwners = [...new Map(owners.map((owner) => [ownerKey(owner), owner])).values()]
+    for (const owner of uniqueOwners) {
+      const key = ownerKey(owner)
+      this.suspendedOwners.set(key, (this.suspendedOwners.get(key) || 0) + 1)
+    }
+
+    try {
+      for (const owner of uniqueOwners) this.cancelOwner(owner)
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          Promise.all(uniqueOwners.map((owner) => this.waitForOwnerIdle(owner))),
+          new Promise<never>((_resolve, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error('Timed out waiting for active session work to stop')),
+              timeoutMs
+            )
+          })
+        ])
+      } finally {
+        if (timeout) clearTimeout(timeout)
+      }
+    } catch (error) {
+      this.releaseSuspendedOwners(uniqueOwners)
+      throw error
+    }
+
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.releaseSuspendedOwners(uniqueOwners)
+    }
+  }
+
   getByOwner(owner: JobOwner): ActiveJob | null {
     const jobId = this.jobIdByOwner.get(ownerKey(owner))
     const job = jobId ? this.jobsById.get(jobId) : undefined
@@ -190,6 +234,32 @@ export class JobCoordinator {
     if (this.jobsById.get(job.jobId) === job) this.jobsById.delete(job.jobId)
     if (this.jobIdByOwner.get(ownerKey(job.owner)) === job.jobId) {
       this.jobIdByOwner.delete(ownerKey(job.owner))
+      const waiters = this.ownerIdleWaiters.get(ownerKey(job.owner))
+      this.ownerIdleWaiters.delete(ownerKey(job.owner))
+      waiters?.forEach((resolve) => resolve())
+    }
+  }
+
+  private waitForOwnerIdle(owner: JobOwner): Promise<void> {
+    const key = ownerKey(owner)
+    if (!this.jobIdByOwner.has(key)) return Promise.resolve()
+    return new Promise((resolve) => {
+      const waiters = this.ownerIdleWaiters.get(key) || new Set<() => void>()
+      waiters.add(resolve)
+      this.ownerIdleWaiters.set(key, waiters)
+      if (!this.jobIdByOwner.has(key)) {
+        waiters.delete(resolve)
+        resolve()
+      }
+    })
+  }
+
+  private releaseSuspendedOwners(owners: JobOwner[]): void {
+    for (const owner of owners) {
+      const key = ownerKey(owner)
+      const count = this.suspendedOwners.get(key) || 0
+      if (count <= 1) this.suspendedOwners.delete(key)
+      else this.suspendedOwners.set(key, count - 1)
     }
   }
 

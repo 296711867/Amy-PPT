@@ -10,10 +10,16 @@ import type {
   OutlineItem
 } from '@shared/generation'
 import type { SlideSizePreset } from '@shared/slide-size'
-import { assertModelText, extractJsonBlock, resolveModel } from '../agent-runtime/model'
+import {
+  assertModelText,
+  extractJsonBlock,
+  resolveModel,
+  runWithModelTemperatureControl
+} from '../agent-runtime/model'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
 import { uiText, type AppLocale } from '../config/locale-utils'
+import type { GenerationModelControl } from './context'
 
 const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
   'jimeng',
@@ -110,15 +116,27 @@ const buildPromptPlan = async (args: {
   slideSize: SlideSizePreset
   requested: BackgroundPlanItem[]
   signal: AbortSignal
+  modelControl?: GenerationModelControl
 }): Promise<BackgroundPlanItem[]> => {
-  const client = resolveModel(
-    args.provider,
-    args.apiKey,
-    args.model,
-    args.baseUrl,
-    0.35,
-    args.maxTokens
-  )
+  const client = args.modelControl
+    ? runWithModelTemperatureControl(args.modelControl, () =>
+        resolveModel(
+          args.provider,
+          args.apiKey,
+          args.model,
+          args.baseUrl,
+          0.35,
+          args.maxTokens
+        )
+      )
+    : resolveModel(
+        args.provider,
+        args.apiKey,
+        args.model,
+        args.baseUrl,
+        0.35,
+        args.maxTokens
+      )
   const response = await client.invoke(
     [
       {
@@ -280,6 +298,7 @@ export async function prepareDeckBackgroundAssets(args: {
   baseUrl: string
   maxTokens: number
   signal: AbortSignal
+  modelControl?: GenerationModelControl
   onStatus?: (status: {
     state: 'planning' | 'generating' | 'generated'
     current: number

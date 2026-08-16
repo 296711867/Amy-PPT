@@ -13,6 +13,7 @@ import {
 import { validateDataAnimPatch } from '../animation/data-anim-validator'
 import type { ElementAnimationPatch } from '../../shared/element-animation'
 import { ensureSessionRuntimeCompatible } from '../session/runtime-assets'
+import { restorePageEditSnapshots, type PageEditFileSnapshot } from '../edit-jobs/page-edit-rollback'
 import {
   withHtmlFileLock,
   clampDragValue,
@@ -511,6 +512,21 @@ export function registerEditorHandlers(ctx: IpcContext): void {
     let updatedCount = 0
     const changedPageIds: string[] = []
 
+    type SyncPagePlan = {
+      pageId: string
+      safePagePath: string
+      snapshot: PageEditFileSnapshot
+      patchedHtml: string
+      changed: boolean
+      inserted: boolean
+      updated: boolean
+      syncElementId: string
+    }
+    const plans: SyncPagePlan[] = []
+    const seenPagePaths = new Set<string>()
+
+    // Read and transform every page before the first write. A malformed page or a path
+    // validation failure therefore leaves the whole deck untouched.
     for (const page of pages) {
       const rawPagePath = page.html_path || `${page.file_slug}.html`
       const candidatePath = path.isAbsolute(rawPagePath)
@@ -523,8 +539,11 @@ export function registerEditorHandlers(ctx: IpcContext): void {
         sessionId,
         htmlOnly: true
       })
+      const normalizedPagePath = path.resolve(safePagePath)
+      if (seenPagePaths.has(normalizedPagePath)) continue
+      seenPagePaths.add(normalizedPagePath)
       const isSourcePage = path.resolve(safePagePath) === path.resolve(safeSourceHtmlPath)
-      const result = await withHtmlFileLock(safePagePath, async () => {
+      const plan = await withHtmlFileLock(safePagePath, async () => {
         const html = await fs.promises.readFile(safePagePath, 'utf-8')
         const patched = applySyncElementToPageHtml({
           html,
@@ -532,37 +551,82 @@ export function registerEditorHandlers(ctx: IpcContext): void {
           syncElementId: resolvedSyncElementId || undefined,
           preserveSourceBlockId: isSourcePage ? sourceBlockId : undefined
         })
-        if (patched.changed) {
-          await fs.promises.writeFile(safePagePath, patched.html, 'utf-8')
+        return {
+          pageId: page.file_slug,
+          safePagePath,
+          snapshot: { path: safePagePath, exists: true, content: html },
+          patchedHtml: patched.html,
+          changed: patched.changed,
+          inserted: patched.inserted,
+          updated: patched.updated,
+          syncElementId: patched.syncElementId
         }
-        return patched
       })
-      if (!resolvedSyncElementId) resolvedSyncElementId = result.syncElementId
-      if (result.changed) {
+      if (!resolvedSyncElementId) resolvedSyncElementId = plan.syncElementId
+      plans.push(plan)
+      if (plan.changed) {
         changedCount++
-        if (result.inserted) insertedCount++
-        if (result.updated) updatedCount++
+        if (plan.inserted) insertedCount++
+        if (plan.updated) updatedCount++
         changedPageIds.push(page.file_slug)
       }
     }
 
     if (changedCount > 0) {
-      await new GitHistoryService(db).recordOperation({
-        sessionId,
-        projectDir,
-        type: 'edit',
-        scope: 'deck',
-        prompt: '同步元素到所有页面',
-        metadata: {
-          action: 'applySyncElementToAllPages',
-          sourcePageId: pageId,
-          syncElementId: resolvedSyncElementId,
-          changedCount,
-          insertedCount,
-          updatedCount,
-          changedPageIds
+      try {
+        for (const plan of plans) {
+          if (!plan.changed) continue
+          await withHtmlFileLock(plan.safePagePath, async () => {
+            await fs.promises.writeFile(plan.safePagePath, plan.patchedHtml, 'utf-8')
+          })
         }
-      })
+
+        await new GitHistoryService(db).recordOperation({
+          sessionId,
+          projectDir,
+          type: 'edit',
+          scope: 'deck',
+          prompt: '同步元素到所有页面',
+          allowedPaths: plans
+            .filter((plan) => plan.changed)
+            .map((plan) => path.relative(projectDir, plan.safePagePath).split(path.sep).join('/')),
+          metadata: {
+            action: 'applySyncElementToAllPages',
+            sourcePageId: pageId,
+            syncElementId: resolvedSyncElementId,
+            changedCount,
+            insertedCount,
+            updatedCount,
+            changedPageIds
+          }
+        })
+      } catch (error) {
+        const rollbackFailures = await restorePageEditSnapshots(plans.map((plan) => plan.snapshot))
+        if (rollbackFailures.length > 0) {
+          rollbackFailures.forEach((failure) => {
+            log.error('[element-editor:sync] rollback failed', {
+              sessionId,
+              path: failure.path,
+              message: failure.error instanceof Error ? failure.error.message : String(failure.error)
+            })
+          })
+          const originalError = error instanceof Error ? error : new Error(String(error))
+          const diagnostics = rollbackFailures.map(
+            (failure) =>
+              new Error(
+                `同步回滚失败：${failure.path || '未知路径'}：${
+                  failure.error instanceof Error ? failure.error.message : String(failure.error)
+                }`,
+                { cause: failure.error }
+              )
+          )
+          throw new AggregateError(
+            [originalError, ...diagnostics],
+            '同步元素失败，且部分页面未能恢复'
+          )
+        }
+        throw error
+      }
     }
 
     return {

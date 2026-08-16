@@ -26,4 +26,14 @@ describe('thinking chat error normalization', () => {
     expect(classifyThinkingChatError(new Error('429 rate limit exceeded'))).toBe('rate-limit')
     expect(classifyThinkingChatError(new Error('Request timed out'))).toBe('timeout')
   })
+
+  it('distinguishes agent response contract failures from connection failures', () => {
+    const error = new Error(
+      'Invalid response from "wrapModelCall": expected AIMessage or Command, got object'
+    )
+
+    expect(classifyThinkingChatError(error)).toBe('model-response')
+    expect(normalizeThinkingChatFailure(error).message).toContain('模型已连接')
+    expect(normalizeThinkingChatFailure(error).reconnectable).toBe(true)
+  })
 })

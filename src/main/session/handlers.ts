@@ -17,7 +17,7 @@ import { requireSlideSizePreset } from '@shared/slide-size'
 import { normalizeSourcePlan } from '../generation/source-plan'
 import { ensureSessionRuntimeCompatible } from './runtime-assets'
 import { GitHistoryService } from '../history/git-history-service'
-import { allowLocalAssetRoot } from '../io/local-asset-roots'
+import { allowLocalAssetRoot, revokeLocalAssetRootsUnder } from '../io/local-asset-roots'
 import { resolveOutlinesForPages } from './page-outline-utils'
 import {
   normalizeIndexTransitionConfig,
@@ -33,6 +33,13 @@ const THINKING_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
 const THINKING_REFERENCE_SOURCE_EXTENSIONS = new Set(['.md', '.txt', '.text', '.csv'])
 const THINKING_REFERENCE_THINKING_MD_LINE_OFFSET = 6
 const MAX_PAGE_COUNT = 500
+const PENDING_DELETE_DIR_RE = /^\..+\.deleting-[0-9a-f-]{36}$/i
+const DELETE_COMMITTED_MARKER = '.amy-ppt-delete-committed'
+const DELETE_COMMITTED_MARKER_CONTENT = 'amy-ppt-session-delete-committed\n'
+
+export interface SessionLifecycleDependencies {
+  suspendSessionWork?: (sessionId: string) => Promise<() => void>
+}
 
 const normalizeRequestedPageCount = (value: unknown): number | undefined => {
   if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) {
@@ -46,6 +53,56 @@ const normalizeRequestedPageCount = (value: unknown): number | undefined => {
 const isPathInside = (candidate: string, root: string): boolean => {
   const relative = path.relative(root, candidate)
   return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
+const resolveStorageRoot = async (storagePath: string): Promise<string> =>
+  fs.promises.realpath(storagePath).catch(() => path.resolve(storagePath))
+
+const assertDeletableSessionProjectDir = async (
+  projectDir: string,
+  storageRoot: string
+): Promise<string | null> => {
+  if (!fs.existsSync(projectDir)) return null
+  const stat = await fs.promises.lstat(projectDir)
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    throw new Error('会话项目目录不是受控目录，已停止删除以保护用户文件。')
+  }
+  const realProjectDir = await fs.promises.realpath(projectDir)
+  if (!isPathInside(realProjectDir, storageRoot) || realProjectDir === storageRoot) {
+    throw new Error('会话项目目录不在配置存储目录内，已停止删除以保护用户文件。')
+  }
+  return realProjectDir
+}
+
+const removeCreatedSessionProjectDir = async (
+  projectDir: string,
+  storageRoot: string
+): Promise<void> => {
+  const realProjectDir = await assertDeletableSessionProjectDir(projectDir, storageRoot)
+  if (!realProjectDir) return
+  await fs.promises.rm(realProjectDir, { recursive: true, force: true })
+}
+
+export const cleanupPendingSessionDeletionDirs = async (storagePath: string): Promise<number> => {
+  const storageRoot = await resolveStorageRoot(storagePath)
+  const entries = await fs.promises.readdir(storageRoot, { withFileTypes: true }).catch(() => [])
+  let removed = 0
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.isSymbolicLink() || !PENDING_DELETE_DIR_RE.test(entry.name)) {
+      continue
+    }
+    const candidate = path.join(storageRoot, entry.name)
+    const realCandidate = await fs.promises.realpath(candidate).catch(() => '')
+    if (!realCandidate || !isPathInside(realCandidate, storageRoot) || realCandidate === storageRoot) {
+      continue
+    }
+    const markerPath = path.join(realCandidate, DELETE_COMMITTED_MARKER)
+    const markerContent = await fs.promises.readFile(markerPath, 'utf-8').catch(() => '')
+    if (markerContent !== DELETE_COMMITTED_MARKER_CONTENT) continue
+    await fs.promises.rm(realCandidate, { recursive: true, force: true })
+    removed += 1
+  }
+  return removed
 }
 
 const toSafeAssetName = (value: string): string =>
@@ -258,7 +315,10 @@ const createThinkingReferenceDocument = async (args: {
   return '/docs/thinking-reference.md'
 }
 
-export function registerSessionHandlers(ctx: IpcContext): void {
+export function registerSessionHandlers(
+  ctx: IpcContext,
+  lifecycle: SessionLifecycleDependencies = {}
+): void {
   const {
     db,
     agentManager,
@@ -268,6 +328,17 @@ export function registerSessionHandlers(ctx: IpcContext): void {
     getPageSourceUrl,
     resolveSessionProjectDir
   } = ctx
+
+  void resolveStoragePath()
+    .then((storagePath) => cleanupPendingSessionDeletionDirs(storagePath))
+    .then((removed) => {
+      if (removed > 0) log.info('[session:delete] cleaned pending project directories', { removed })
+    })
+    .catch((error) => {
+      log.warn('[session:delete] pending project cleanup failed', {
+        message: error instanceof Error ? error.message : String(error)
+      })
+    })
 
   const resolvePageHtmlPath = (
     projectDir: string,
@@ -392,9 +463,7 @@ export function registerSessionHandlers(ctx: IpcContext): void {
       )
     }
     let validatedReferenceSourcePath: string | null = null
-    const storageRoot = fs.existsSync(storagePath)
-      ? await fs.promises.realpath(storagePath)
-      : path.resolve(storagePath)
+    const storageRoot = await resolveStorageRoot(storagePath)
     if (referenceDocumentPath) {
       const sourcePath = path.resolve(referenceDocumentPath)
       if (!fs.existsSync(sourcePath)) {
@@ -420,97 +489,153 @@ export function registerSessionHandlers(ctx: IpcContext): void {
       validatedReferenceSourcePath = sourceRealPath
     }
     const sessionId = crypto.randomUUID()
-    const projectDir = path.join(storagePath, sessionId)
-
-    if (!fs.existsSync(projectDir)) {
-      fs.mkdirSync(projectDir, { recursive: true })
+    const projectDir = path.join(storageRoot, sessionId)
+    if (!isPathInside(projectDir, storageRoot) || projectDir === storageRoot) {
+      throw new Error('会话项目目录路径不合法')
     }
-    await ensureSessionAssets(projectDir)
-    await createSessionMasterIfMissing(projectDir)
-    let isThinkingSource = false
-    const copyReferenceDocumentToSession = async (): Promise<string | null> => {
-      if (!validatedReferenceSourcePath) return null
-      const docsDir = path.join(projectDir, 'docs')
-      await fs.promises.mkdir(docsDir, { recursive: true })
-      const thinkingDir = detectThinkingWorkspaceDir(storageRoot, validatedReferenceSourcePath)
-      if (thinkingDir) {
-        isThinkingSource = true
-        return createThinkingReferenceDocument({
-          thinkingDir,
-          projectDir,
-          docsDir,
-          thinkingMdPath: validatedReferenceSourcePath
+    if (fs.existsSync(projectDir)) {
+      throw new Error('会话项目目录已存在，已停止创建以保护已有数据。')
+    }
+
+    await fs.promises.mkdir(projectDir, { recursive: true })
+    let sessionRecordCreated = false
+    let databaseStateUncertain = false
+    try {
+      await ensureSessionAssets(projectDir)
+      await createSessionMasterIfMissing(projectDir)
+      let isThinkingSource = false
+      const copyReferenceDocumentToSession = async (): Promise<string | null> => {
+        if (!validatedReferenceSourcePath) return null
+        const docsDir = path.join(projectDir, 'docs')
+        await fs.promises.mkdir(docsDir, { recursive: true })
+        const thinkingDir = detectThinkingWorkspaceDir(storageRoot, validatedReferenceSourcePath)
+        if (thinkingDir) {
+          isThinkingSource = true
+          return createThinkingReferenceDocument({
+            thinkingDir,
+            projectDir,
+            docsDir,
+            thinkingMdPath: validatedReferenceSourcePath
+          })
+        }
+        const ext = path.extname(validatedReferenceSourcePath).toLowerCase() || '.md'
+        const fileName = `${Date.now()}${ext}`
+        const targetPath = path.join(docsDir, fileName)
+        await fs.promises.copyFile(validatedReferenceSourcePath, targetPath)
+        return `/docs/${fileName}`
+      }
+      const sessionReferenceDocumentPath = await copyReferenceDocumentToSession()
+
+      const styleDetail = getStyleDetail(normalizedStyleId)
+      log.info('[session:create] style selected', {
+        sessionId,
+        styleId: normalizedStyleId,
+        styleKey: styleDetail.styleKey,
+        styleLabel: styleDetail.label
+      })
+
+      try {
+        await db.createSession({
+          id: sessionId,
+          title: `PPT: ${normalizedTopic}`,
+          topic: normalizedTopic,
+          styleId: normalizedStyleId,
+          pageCount,
+          slideSizeId: slideSize.id,
+          slideWidth: slideSize.width,
+          slideHeight: slideSize.height,
+          referenceDocumentPath: sessionReferenceDocumentPath,
+          provider,
+          model: model.trim()
+        })
+        sessionRecordCreated = true
+      } catch (error) {
+        try {
+          const partiallyCreated = await db.getSession(sessionId)
+          sessionRecordCreated = Boolean(partiallyCreated)
+        } catch (lookupError) {
+          databaseStateUncertain = true
+          throw new AggregateError(
+            [error, lookupError],
+            `会话创建失败，且无法确认数据库状态；项目目录已保留以便恢复：${projectDir}`
+          )
+        }
+        throw error
+      }
+
+      agentManager.ensureSession({
+        sessionId,
+        provider,
+        model,
+        baseUrl,
+        projectDir,
+        modelRuntime: ctx.modelRuntime
+      })
+      if (sourcePlan && sessionReferenceDocumentPath) {
+        const sourcePlanItems = isThinkingSource
+          ? offsetSourcePlanLineRanges(
+              sourcePlan.pageSkeleton,
+              THINKING_REFERENCE_THINKING_MD_LINE_OFFSET
+            )
+          : sourcePlan.pageSkeleton
+        await db.replaceSourcePageSkeletons({
+          sessionId,
+          sourceDocumentPath: sessionReferenceDocumentPath,
+          sourceDocumentName: isThinkingSource
+            ? path.basename(sessionReferenceDocumentPath)
+            : sourcePlan.sourceDocumentName || path.basename(sessionReferenceDocumentPath),
+          confidence: sourcePlan.confidence,
+          items: sourcePlanItems
         })
       }
-      const ext = path.extname(validatedReferenceSourcePath).toLowerCase() || '.md'
-      const fileName = `${Date.now()}${ext}`
-      const targetPath = path.join(docsDir, fileName)
-      await fs.promises.copyFile(validatedReferenceSourcePath, targetPath)
-      return `/docs/${fileName}`
-    }
-    const sessionReferenceDocumentPath = await copyReferenceDocumentToSession()
-
-    const styleDetail = getStyleDetail(normalizedStyleId)
-    log.info('[session:create] style selected', {
-      sessionId,
-      styleId: normalizedStyleId,
-      styleKey: styleDetail.styleKey,
-      styleLabel: styleDetail.label
-    })
-
-    await db.createSession({
-      id: sessionId,
-      title: `PPT: ${normalizedTopic}`,
-      topic: normalizedTopic,
-      styleId: normalizedStyleId,
-      pageCount,
-      slideSizeId: slideSize.id,
-      slideWidth: slideSize.width,
-      slideHeight: slideSize.height,
-      referenceDocumentPath: sessionReferenceDocumentPath,
-      provider,
-      model: model.trim()
-    })
-    agentManager.ensureSession({
-      sessionId,
-      provider,
-      model,
-      baseUrl,
-      projectDir,
-      modelRuntime: ctx.modelRuntime
-    })
-    if (sourcePlan && sessionReferenceDocumentPath) {
-      const sourcePlanItems = isThinkingSource
-        ? offsetSourcePlanLineRanges(
-            sourcePlan.pageSkeleton,
-            THINKING_REFERENCE_THINKING_MD_LINE_OFFSET
-          )
-        : sourcePlan.pageSkeleton
-      await db.replaceSourcePageSkeletons({
-        sessionId,
-        sourceDocumentPath: sessionReferenceDocumentPath,
-        sourceDocumentName: isThinkingSource
-          ? path.basename(sessionReferenceDocumentPath)
-          : sourcePlan.sourceDocumentName || path.basename(sessionReferenceDocumentPath),
-        confidence: sourcePlan.confidence,
-        items: sourcePlanItems
+      await db.updateSessionMetadata(sessionId, {
+        fontSelection,
+        imagePolicy,
+        deckBackgroundPolicy,
+        ...(isThinkingSource ? { source: 'thinking' } : {})
       })
+
+      await db.createProject({
+        session_id: sessionId,
+        title: normalizedTopic,
+        output_path: projectDir,
+        root_path: projectDir
+      })
+
+      return { sessionId }
+    } catch (error) {
+      agentManager.removeSession(sessionId)
+      if (databaseStateUncertain) throw error
+      if (sessionRecordCreated) {
+        try {
+          await db.deleteSession(sessionId)
+        } catch (cleanupError) {
+          log.error('[session:create] database cleanup failed', {
+            sessionId,
+            message: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+          })
+          throw new AggregateError(
+            [error, cleanupError],
+            `会话创建失败，且数据库补偿失败；项目目录已保留以便恢复：${projectDir}`
+          )
+        }
+      }
+      revokeLocalAssetRootsUnder(projectDir)
+      try {
+        await removeCreatedSessionProjectDir(projectDir, storageRoot)
+      } catch (cleanupError) {
+        log.error('[session:create] project cleanup failed', {
+          sessionId,
+          projectDir,
+          message: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+        })
+        throw new AggregateError(
+          [error, cleanupError],
+          `会话创建失败，且项目目录补偿失败：${projectDir}`
+        )
+      }
+      throw error
     }
-    await db.updateSessionMetadata(sessionId, {
-      fontSelection,
-      imagePolicy,
-      deckBackgroundPolicy,
-      ...(isThinkingSource ? { source: 'thinking' } : {})
-    })
-
-    await db.createProject({
-      session_id: sessionId,
-      title: normalizedTopic,
-      output_path: projectDir,
-      root_path: projectDir
-    })
-
-    return { sessionId }
   })
 
   ipcMain.handle('session:list', async () => {
@@ -684,7 +809,75 @@ export function registerSessionHandlers(ctx: IpcContext): void {
   )
 
   ipcMain.handle('session:delete', async (_event, sessionId) => {
-    await db.deleteSession(sessionId)
-    return { success: true }
+    const normalizedSessionId = typeof sessionId === 'string' ? sessionId.trim() : ''
+    if (!normalizedSessionId) throw new Error('sessionId 不能为空')
+
+    const existingSession = await db.getSession(normalizedSessionId)
+    if (!existingSession) {
+      return { success: true, alreadyDeleted: true }
+    }
+
+    const releaseSessionWork = lifecycle.suspendSessionWork
+      ? await lifecycle.suspendSessionWork(normalizedSessionId)
+      : () => undefined
+
+    try {
+      const project = await db.getProject(normalizedSessionId)
+      let stagedProjectDir: string | null = null
+      let originalProjectDir: string | null = null
+      if (project?.root_path) {
+        const storageRoot = await resolveStorageRoot(await resolveStoragePath())
+        const projectDir = path.resolve(project.root_path)
+        const realProjectDir = await assertDeletableSessionProjectDir(projectDir, storageRoot)
+        if (realProjectDir) {
+          originalProjectDir = realProjectDir
+          stagedProjectDir = path.join(
+            path.dirname(realProjectDir),
+            `.${path.basename(realProjectDir)}.deleting-${crypto.randomUUID()}`
+          )
+          await fs.promises.rename(realProjectDir, stagedProjectDir)
+        }
+      }
+
+      let dbCommitted = false
+      try {
+        await db.deleteSession(normalizedSessionId)
+        dbCommitted = true
+        agentManager.removeSession(normalizedSessionId)
+        if (originalProjectDir) revokeLocalAssetRootsUnder(originalProjectDir)
+        if (stagedProjectDir) {
+          try {
+            await fs.promises.writeFile(
+              path.join(stagedProjectDir, DELETE_COMMITTED_MARKER),
+              DELETE_COMMITTED_MARKER_CONTENT,
+              'utf-8'
+            )
+            await fs.promises.rm(stagedProjectDir, { recursive: true, force: true })
+          } catch (error) {
+            log.warn('[session:delete] project cleanup pending after database commit', {
+              sessionId: normalizedSessionId,
+              stagedProjectDir,
+              message: error instanceof Error ? error.message : String(error)
+            })
+            return { success: true, cleanupPending: true }
+          }
+        }
+        return { success: true }
+      } catch (error) {
+        if (!dbCommitted && stagedProjectDir && originalProjectDir && fs.existsSync(stagedProjectDir)) {
+          try {
+            await fs.promises.rename(stagedProjectDir, originalProjectDir)
+          } catch (restoreError) {
+            throw new AggregateError(
+              [error, restoreError],
+              `会话删除失败，且项目目录恢复失败：${stagedProjectDir}`
+            )
+          }
+        }
+        throw error
+      }
+    } finally {
+      releaseSessionWork()
+    }
   })
 }

@@ -15,6 +15,7 @@ vi.mock('../../../src/main/generation/finalization', () => ({
 
 import { GenerateJobManager } from '../../../src/main/generation/job-manager'
 import { JobCoordinator } from '../../../src/main/agent-runtime/job/coordinator'
+import { getCurrentModelTemperatureControl } from '../../../src/main/agent-runtime/model'
 
 const createGenerationJobContext = (ctx: Record<string, any>) => ({
   ...ctx,
@@ -117,6 +118,72 @@ describe('GenerateJobManager', () => {
       ctx.db.updateSessionJobStatus.mock.invocationCallOrder[sessionJobFinishedCall]
     ).toBeLessThan(emitRuntimeJobTerminal.mock.invocationCallOrder[0])
     expect(coordinator.getByOwner({ kind: 'session', id: 'session-1' })).toBeNull()
+  })
+
+  it('restores model control at the background generation task boundary', async () => {
+    const observed: Array<ReturnType<typeof getCurrentModelTemperatureControl>> = []
+    const ctx = {
+      db: {
+        createGenerationRunWithSessionJob: vi.fn().mockResolvedValue(undefined),
+        updateSessionJobStatus: vi.fn().mockResolvedValue(undefined)
+      },
+      sessionRunStates: new Map(),
+      beginSessionRunState: vi.fn(),
+      emitGenerateChunk: vi.fn(),
+      emitRuntimeJobTerminal: vi.fn(),
+      agentManager: { removeSession: vi.fn() }
+    }
+    const manager = new GenerateJobManager(createGenerationJobContext(ctx) as never)
+    const reserved = await manager.reserve('generate:start', 'session-model-control', 'run-model-control')
+    if (reserved.alreadyRunning) throw new Error('expected available job reservation')
+
+    await manager.enqueue({
+      reservation: reserved.reservation,
+      kind: 'standard',
+      context: {
+        sessionId: 'session-model-control',
+        runId: 'run-model-control',
+        styleId: 'style-1',
+        previousSessionStatus: 'completed',
+        effectiveMode: 'generate',
+        messageScope: 'main',
+        projectId: 'project-1',
+        modelControl: {
+          id: 'model-config-glm-52',
+          disableTemperature: true,
+          thinkingParameterMode: 'omit'
+        }
+      },
+      totalPages: 3,
+      execute: async () => {
+        await Promise.all(
+          [1, 2].map(async () => {
+            await Promise.resolve()
+            observed.push(getCurrentModelTemperatureControl())
+          })
+        )
+      }
+    })
+
+    await vi.waitFor(() => {
+      expect(ctx.db.updateSessionJobStatus).toHaveBeenCalledWith(
+        'run-model-control',
+        'finished'
+      )
+    })
+    expect(observed).toHaveLength(2)
+    expect(observed).toEqual([
+      {
+        modelConfigId: 'model-config-glm-52',
+        disableTemperature: true,
+        thinkingParameterMode: 'omit'
+      },
+      {
+        modelConfigId: 'model-config-glm-52',
+        disableTemperature: true,
+        thinkingParameterMode: 'omit'
+      }
+    ])
   })
 
   it('does not leave a run behind when atomic job creation fails', async () => {

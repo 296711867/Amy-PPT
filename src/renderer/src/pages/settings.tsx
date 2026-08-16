@@ -49,6 +49,7 @@ const normalizeModelMaxTokens = (value: string): number => {
 
 const createModelVerificationSignature = (form: ModelForm): string =>
   JSON.stringify({
+    id: form.id || '',
     provider: form.provider,
     model: form.model.trim(),
     apiKey: form.apiKey.trim(),
@@ -144,6 +145,9 @@ export function SettingsPage(): React.JSX.Element {
   const activeImageModelConfig = imageModelConfigs.find((config) => config.active)
   const modelVerificationSignature = createModelVerificationSignature(modelForm)
   const modelVerified = verifiedModelSignature === modelVerificationSignature
+  const modelHasStoredApiKey = Boolean(
+    modelForm.id && modelConfigs.find((config) => config.id === modelForm.id)?.hasApiKey
+  )
   const timeoutFields: Array<{
     profile: ConfigurableModelTimeoutProfile
     label: string
@@ -241,7 +245,7 @@ export function SettingsPage(): React.JSX.Element {
       warning(t('settings.fillModel'))
       return
     }
-    if (!modelForm.apiKey.trim()) {
+    if (!modelForm.apiKey.trim() && !modelHasStoredApiKey) {
       warning(t('settings.fillApiKey'))
       return
     }
@@ -358,7 +362,7 @@ export function SettingsPage(): React.JSX.Element {
   }
 
   const handleVerify = async (): Promise<void> => {
-    if (!modelForm.apiKey.trim()) {
+    if (!modelForm.apiKey.trim() && !modelHasStoredApiKey) {
       warning(t('settings.fillApiKey'))
       return
     }
@@ -372,7 +376,8 @@ export function SettingsPage(): React.JSX.Element {
     setVerifiedModelSignature(null)
     const nextVerifiedSignature = createModelVerificationSignature(modelForm)
     try {
-      const valid = await verifyApiKey(
+      const verification = await verifyApiKey(
+        modelForm.id,
         modelForm.provider,
         modelForm.apiKey,
         modelForm.model,
@@ -383,8 +388,20 @@ export function SettingsPage(): React.JSX.Element {
         resolveModelTimeoutMs(undefined, 'verify')
       )
       const verifyMessage = useSettingsStore.getState().verificationMessage
-      if (valid) {
-        setVerifiedModelSignature(nextVerifiedSignature)
+      if (verification.valid) {
+        if (
+          verification.thinkingParameterMode &&
+          verification.thinkingParameterMode !== modelForm.thinkingParameterMode
+        ) {
+          const verifiedForm = {
+            ...modelForm,
+            thinkingParameterMode: verification.thinkingParameterMode
+          }
+          setModelForm(verifiedForm)
+          setVerifiedModelSignature(createModelVerificationSignature(verifiedForm))
+        } else {
+          setVerifiedModelSignature(nextVerifiedSignature)
+        }
         success(t('settings.verifyPassed'), {
           description: verifyMessage || t('settings.verifyPassedDescription')
         })

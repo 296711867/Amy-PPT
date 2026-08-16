@@ -243,6 +243,7 @@ export async function executeTemplateDeckGeneration(
           baseUrl: context.providerBaseUrl,
           maxTokens: context.maxTokens,
           modelRuntime: context.modelRuntime,
+          modelControl: context.modelControl,
           modelTimeoutMs: context.modelTimeouts.planning,
           temperature: PLANNER_TEMPERATURE,
           styleId: context.styleId,
@@ -523,6 +524,7 @@ export async function executeTemplateDeckGeneration(
     model: context.model,
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
+    modelControl: context.modelControl,
     modelTimeoutMs: context.modelTimeouts.agent,
     temperature: PAGE_GENERATION_TEMPERATURE,
     styleId: context.styleId,
@@ -746,6 +748,7 @@ export async function executeTemplateDeckGeneration(
       baseUrl: context.providerBaseUrl,
       maxTokens: context.maxTokens,
       modelRuntime: context.modelRuntime,
+      modelControl: context.modelControl,
       timeoutMs: context.modelTimeouts.document
     },
     appLocale: context.appLocale,

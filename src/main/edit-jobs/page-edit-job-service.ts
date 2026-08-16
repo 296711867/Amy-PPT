@@ -11,6 +11,8 @@ import type { EditContext } from '../generation/types'
 import { isCancellationMessage, normalizeRestoredSessionStatus } from '../generation/status-utils'
 import { resolvePageHtmlPath } from '../generation/generation-utils'
 import { JobCoordinator, sessionLockKey, type JobLease } from '../agent-runtime'
+import type { SessionJobRecord } from '../db/database'
+import { GitHistoryService } from '../history/git-history-service'
 import { settleEditJobFailure, settleEditJobSuccess } from './edit-job-finalization'
 import { restorePageEditSnapshots, type PageEditFileSnapshot } from './page-edit-rollback'
 
@@ -19,6 +21,47 @@ type ActivePageEditJob = {
   runId: string
   lease: JobLease
   context: EditContext
+}
+
+type PersistedPageEditRollback = {
+  targetPageId: string
+  snapshots: Array<{
+    relativePath: string
+    exists: boolean
+    content: string
+  }>
+}
+
+const PAGE_EDIT_ROLLBACK_METADATA_KEY = 'pageEditRollback'
+
+const parseMetadata = (value: string | null | undefined): Record<string, unknown> => {
+  if (!value || value.trim().length === 0) return {}
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+const toError = (value: unknown): Error =>
+  value instanceof Error ? value : new Error(String(value || '未知错误'))
+
+const makeRollbackError = (
+  originalError: unknown,
+  failures: Array<{ path: string; error: unknown }>,
+  message: string
+): AggregateError => {
+  const original = toError(originalError)
+  const diagnostics = failures.map(
+    (failure) =>
+      new Error(`回滚文件失败：${failure.path || '未知路径'}：${toError(failure.error).message}`, {
+        cause: failure.error
+      })
+  )
+  return new AggregateError([original, ...diagnostics], message)
 }
 
 type ActivePageEditAssessment = {
@@ -316,8 +359,38 @@ export class PageEditJobService {
     const jobs = await this.ctx.db.listActiveSessionJobs(['page-edit'])
     for (const job of jobs) {
       if (this.activeJobs.has(job.session_id)) continue
-      await this.ctx.db.updateSessionJobStatus(job.id, 'aborted', { abortReason: reason })
-      await this.ctx.db.updateGenerationRunStatus(job.id, 'failed', reason)
+      let terminalReason = reason
+      try {
+        const rollbackFailures = await this.restoreInterruptedJob(job)
+        if (rollbackFailures.length > 0) {
+          const rollbackError = makeRollbackError(
+            new Error(reason),
+            rollbackFailures,
+            '页面编辑中断后的文件恢复未完成'
+          )
+          terminalReason = `${reason}；${rollbackError.message}：${rollbackFailures
+            .map((failure) => `${failure.path || '未知路径'}（${toError(failure.error).message}）`)
+            .join('；')}`
+          log.error('[page-edit:job] interrupted file restore failed', {
+            sessionId: job.session_id,
+            runId: job.id,
+            failures: rollbackFailures.map((failure) => ({
+              path: failure.path,
+              message: toError(failure.error).message
+            }))
+          })
+        }
+      } catch (error) {
+        terminalReason = `${reason}；页面编辑中断后的文件恢复失败：${toError(error).message}`
+        log.error('[page-edit:job] interrupted file restore threw', {
+          sessionId: job.session_id,
+          runId: job.id,
+          message: toError(error).message
+        })
+      }
+
+      await this.ctx.db.updateSessionJobStatus(job.id, 'aborted', { abortReason: terminalReason })
+      await this.ctx.db.updateGenerationRunStatus(job.id, 'failed', terminalReason)
       await this.ctx.db.updateSessionStatus(
         job.session_id,
         normalizeRestoredSessionStatus(job.previous_session_status)
@@ -325,10 +398,162 @@ export class PageEditJobService {
     }
   }
 
+  private async rollbackCommittedPageEdit(
+    job: ActivePageEditJob,
+    snapshots: readonly PageEditFileSnapshot[],
+    beforeOperationId: string | null
+  ): Promise<void> {
+    if (
+      typeof this.ctx.db.getSession !== 'function' ||
+      typeof this.ctx.db.getSessionOperation !== 'function'
+    ) {
+      return
+    }
+    const session = await this.ctx.db.getSession(job.sessionId)
+    const currentOperationId = session?.currentOperationId || null
+    if (!currentOperationId || currentOperationId === beforeOperationId) return
+    const operation = await this.ctx.db.getSessionOperation(currentOperationId)
+    if (!operation || operation.session_id !== job.sessionId || !operation.after_commit) return
+    const metadata = parseMetadata(operation.metadata_json)
+    if (metadata.runId !== job.runId) return
+    const projectDir = path.resolve(job.context.projectDir)
+    const allowedPaths = snapshots.flatMap((snapshot) => {
+      const relativePath = path.relative(projectDir, path.resolve(snapshot.path))
+      if (
+        !relativePath ||
+        relativePath === '..' ||
+        relativePath.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativePath)
+      ) {
+        return []
+      }
+      return [relativePath.split(path.sep).join('/')]
+    })
+    if (allowedPaths.length === 0) return
+    await new GitHistoryService(this.ctx.db).rollbackCommittedOperation({
+      sessionId: job.sessionId,
+      projectDir,
+      operation,
+      allowedPaths,
+      reason: '页面编辑任务异常，已恢复页面文件'
+    })
+  }
+
+  private async persistRollbackSnapshots(
+    job: ActivePageEditJob,
+    snapshots: readonly PageEditFileSnapshot[]
+  ): Promise<void> {
+    const projectDir = path.resolve(job.context.projectDir)
+    const metadataRecord =
+      typeof this.ctx.db.getGenerationRun === 'function'
+        ? parseMetadata((await this.ctx.db.getGenerationRun(job.runId))?.metadata)
+        : {}
+    const persistedSnapshots = snapshots.flatMap((snapshot) => {
+      const relativePath = path.relative(projectDir, path.resolve(snapshot.path))
+      if (
+        !relativePath ||
+        relativePath === '..' ||
+        relativePath.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativePath)
+      ) {
+        return []
+      }
+      return [
+        {
+          relativePath: relativePath.split(path.sep).join('/'),
+          exists: snapshot.exists,
+          content: snapshot.content
+        }
+      ]
+    })
+    const targetPageId =
+      typeof metadataRecord.targetPageId === 'string'
+        ? metadataRecord.targetPageId
+        : job.context.selectedPageId || ''
+    const rollback: PersistedPageEditRollback = {
+      targetPageId,
+      snapshots: persistedSnapshots
+    }
+    if (typeof this.ctx.db.updateGenerationRunMetadata !== 'function') return
+    await this.ctx.db.updateGenerationRunMetadata(job.runId, {
+      ...metadataRecord,
+      [PAGE_EDIT_ROLLBACK_METADATA_KEY]: rollback
+    })
+  }
+
+  private async restoreInterruptedJob(
+    job: SessionJobRecord
+  ): Promise<Array<{ path: string; error: unknown }>> {
+    if (
+      typeof this.ctx.db.getGenerationRun !== 'function' ||
+      typeof this.ctx.resolveSessionProjectDir !== 'function'
+    ) {
+      return []
+    }
+    const run = await this.ctx.db.getGenerationRun(job.id)
+    const metadata = parseMetadata(run?.metadata)
+    const rawRollback = metadata[PAGE_EDIT_ROLLBACK_METADATA_KEY]
+    if (!rawRollback || typeof rawRollback !== 'object' || Array.isArray(rawRollback)) {
+      return []
+    }
+    const rollback = rawRollback as Partial<PersistedPageEditRollback>
+    const targetPageId = job.target_page_id || rollback.targetPageId || ''
+    if (!targetPageId || (rollback.targetPageId && rollback.targetPageId !== targetPageId)) return []
+    if (!Array.isArray(rollback.snapshots)) return []
+
+    const projectDir = path.resolve(await this.ctx.resolveSessionProjectDir(job.session_id))
+    const pages = await this.ctx.db.listSessionPages(job.session_id)
+    const targetPage = pages.find(
+      (page) => page.file_slug === targetPageId || page.id === targetPageId
+    )
+    if (!targetPage) return []
+    const targetPagePath = path.resolve(
+      resolvePageHtmlPath({
+        projectDir,
+        fileSlug: targetPage.file_slug,
+        candidates: [targetPage.html_path]
+      })
+    )
+    const allowedRelativePaths = new Set([
+      path.relative(projectDir, targetPagePath).split(path.sep).join('/'),
+      'index.html'
+    ])
+    const snapshots: PageEditFileSnapshot[] = rollback.snapshots.flatMap((snapshot) => {
+      if (!snapshot || typeof snapshot !== 'object') return []
+      const rawPath =
+        typeof snapshot.relativePath === 'string'
+          ? snapshot.relativePath
+          : typeof (snapshot as unknown as { path?: unknown }).path === 'string'
+            ? String((snapshot as unknown as { path: string }).path)
+            : ''
+      const normalizedPath = (path.isAbsolute(rawPath)
+        ? path.relative(projectDir, rawPath)
+        : rawPath
+      )
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '')
+      if (!allowedRelativePaths.has(normalizedPath)) return []
+      if (typeof snapshot.exists !== 'boolean' || typeof snapshot.content !== 'string') return []
+      return [
+        {
+          path: path.resolve(projectDir, normalizedPath),
+          exists: snapshot.exists,
+          content: snapshot.content
+        }
+      ]
+    })
+    if (snapshots.length === 0) return []
+    return restorePageEditSnapshots(snapshots)
+  }
+
   private async run(job: ActivePageEditJob): Promise<void> {
     const emitAssistant = createEmitAssistantMessage(this.ctx.db, this.ctx.emitGenerateChunk)
     let snapshots: PageEditFileSnapshot[] = []
+    let beforeOperationId: string | null = null
     try {
+      if (typeof this.ctx.db.getSession === 'function') {
+        beforeOperationId = (await this.ctx.db.getSession(job.sessionId))?.currentOperationId || null
+      }
       const pages = await this.ctx.db.listSessionPages(job.sessionId)
       const targetPage = pages.find(
         (page) => page.id === job.context.selectedPageId || page.file_slug === job.context.selectedPageId
@@ -350,27 +575,47 @@ export class PageEditJobService {
           content: fs.existsSync(filePath) ? await fs.promises.readFile(filePath, 'utf-8') : ''
         }))
       )
+      await this.persistRollbackSnapshots(job, snapshots)
       await executeEditGeneration(createGenerationContext(this.ctx), emitAssistant, job.context)
       await settleEditJobSuccess({ ctx: this.ctx, context: job.context })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || '')
       const cancelled = job.lease.signal.aborted || isCancellationMessage(message)
-      if (cancelled) {
-        const rollbackFailures = await restorePageEditSnapshots(snapshots)
+      let failureForFinalization: unknown = error
+      const rollbackFailures = await restorePageEditSnapshots(snapshots)
+      if (rollbackFailures.length > 0) {
         rollbackFailures.forEach((failure) => {
-          log.error('[page-edit:job] failed to restore cancelled file', {
+          log.error('[page-edit:job] failed to restore file after edit failure', {
             sessionId: job.sessionId,
             runId: job.runId,
             path: failure.path,
-            message:
-              failure.error instanceof Error ? failure.error.message : String(failure.error || '')
+            message: toError(failure.error).message
           })
         })
+        failureForFinalization = makeRollbackError(
+          error,
+          rollbackFailures,
+          '页面编辑失败，且文件恢复未完成'
+        )
+      }
+      try {
+        await this.rollbackCommittedPageEdit(job, snapshots, beforeOperationId)
+      } catch (historyRollbackError) {
+        log.error('[page-edit:job] failed to compensate committed history operation', {
+          sessionId: job.sessionId,
+          runId: job.runId,
+          message: toError(historyRollbackError).message
+        })
+        failureForFinalization = makeRollbackError(
+          failureForFinalization,
+          [{ path: 'history', error: historyRollbackError }],
+          '页面编辑失败，且历史记录补偿未完成'
+        )
       }
       await settleEditJobFailure({
         ctx: this.ctx,
         context: job.context,
-        error,
+        error: failureForFinalization,
         cancelled,
         hasPersistedJob: true,
         logPrefix: '[page-edit:job]'

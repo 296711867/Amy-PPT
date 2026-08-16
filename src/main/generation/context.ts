@@ -20,6 +20,7 @@ import {
 } from '@shared/generation'
 import type { AnimationPreferencesPayload } from '@shared/generation'
 import type { ModelTimeoutProfile } from '@shared/model-timeout'
+import type { ThinkingParameterMode } from '@shared/model-config'
 import type { AgentManager } from '../agent-runtime/agent'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
 import type { GenerateChatType } from './types'
@@ -133,6 +134,13 @@ export type GenerationContext = {
   tuning: GenerationTuning
 }
 
+/** Model settings that must survive background-job and p-limit async boundaries. */
+export type GenerationModelControl = {
+  id: string
+  disableTemperature: boolean
+  thinkingParameterMode: ThinkingParameterMode
+}
+
 /**
  * IPC composition helper. The input is structural on purpose so the setup
  * layer can pass its compatibility facade without Generation importing it.
@@ -180,6 +188,7 @@ export type CommonGenerationContext = {
   model: string
   modelConfigId?: string
   modelConfigName?: string
+  modelControl: GenerationModelControl
   runModel?: string
   providerBaseUrl: string
   maxTokens: number
@@ -540,6 +549,11 @@ export async function resolveCommonContext(
     modelConfigId,
     purpose: 'generation'
   })
+  const modelControl: GenerationModelControl = {
+    id: activeModel.id,
+    disableTemperature: activeModel.disableTemperature,
+    thinkingParameterMode: activeModel.thinkingParameterMode
+  }
   const modelTimeouts = await resolveGlobalModelTimeouts({ db })
   const runModel = JSON.stringify({
     modelConfigId: activeModel.id,
@@ -618,6 +632,7 @@ export async function resolveCommonContext(
     model: activeModel.model,
     modelConfigId: activeModel.id,
     modelConfigName: activeModel.name,
+    modelControl,
     runModel,
     providerBaseUrl: activeModel.baseUrl,
     maxTokens: activeModel.maxTokens,

@@ -1,6 +1,5 @@
 import { LRUCache } from 'lru-cache'
 import log from 'electron-log/main.js'
-import { createMiddleware } from 'langchain'
 import { resolveModel } from '../agent'
 import type { ModelRuntimeConfig } from '../agent'
 import { FilesystemBackend, createDeepAgent } from 'deepagents'
@@ -12,6 +11,7 @@ import { findUnsupportedPrecisionClaims, type CredibilityIssue } from './content
 import { routeThinkingIntent, type ThinkingIntentRoute } from './intent-router'
 import { normalizeThinkingAssistantReply } from './reply-normalizer'
 import { createThinkingToolInputRecoveryMiddleware } from './tool-error-recovery'
+import { createThinkingToolAllowlistMiddleware } from './model-response'
 import { canRecoverThinkingStreamError } from './stream-error-recovery'
 import {
   checkStageTransition,
@@ -19,7 +19,12 @@ import {
   isRestartRequest,
   resolveRequestedStage
 } from './stage-manager'
-import { buildInitialContextMd, buildInitialThinkingMd, writeContextMd, writeThinkingMd } from './workspace'
+import {
+  buildInitialContextMd,
+  buildInitialThinkingMd,
+  writeContextMd,
+  writeThinkingMd
+} from './workspace'
 import {
   createThinkingWorkflowTools,
   type StagedThinkingFinalizeResult,
@@ -42,21 +47,8 @@ const THINKING_WORKFLOW_TOOL_NAMES = new Set([
 
 const SOURCE_READ_TOOL_NAMES = ['read_file', 'grep'] as const
 
-function createThinkingToolAllowlistMiddleware(allowedToolNames: Set<string>) {
-  return createMiddleware({
-    name: 'thinkingToolAllowlist',
-    wrapModelCall: async (request, handler) => {
-      const tools = request.tools?.filter((tool) => allowedToolNames.has(String(tool.name || '')))
-      return handler({ ...request, tools })
-    }
-  })
-}
-
 function getThinkingAllowedToolNames(hasSources: boolean): Set<string> {
-  return new Set([
-    ...THINKING_WORKFLOW_TOOL_NAMES,
-    ...(hasSources ? SOURCE_READ_TOOL_NAMES : [])
-  ])
+  return new Set([...THINKING_WORKFLOW_TOOL_NAMES, ...(hasSources ? SOURCE_READ_TOOL_NAMES : [])])
 }
 
 function getObject(value: unknown): Record<string, unknown> | null {
@@ -176,7 +168,10 @@ function upsertSection(markdown: string, heading: string, content: string): stri
 
   for (let index = SECTION_ORDER.indexOf(heading) - 1; index >= 0; index -= 1) {
     const previous = SECTION_ORDER[index]
-    const previousRegex = new RegExp(`^##\\s*${previous.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\n[\\s\\S]*?(?=^##\\s+|(?![\\s\\S]))`, 'm')
+    const previousRegex = new RegExp(
+      `^##\\s*${previous.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\n[\\s\\S]*?(?=^##\\s+|(?![\\s\\S]))`,
+      'm'
+    )
     const match = markdown.match(previousRegex)
     if (match?.[0]) {
       const insertAt = (match.index || 0) + match[0].length
@@ -267,8 +262,9 @@ function extractAndEmitToolEvents(
       return
     }
     const record = value as Record<string, unknown>
-    const role = String(readMessageField(record, 'role') || readMessageField(record, 'type') || '')
-      .toLowerCase()
+    const role = String(
+      readMessageField(record, 'role') || readMessageField(record, 'type') || ''
+    ).toLowerCase()
     const toolCallId = String(
       readMessageField(record, 'tool_call_id') || readMessageField(record, 'toolCallId') || ''
     ).trim()
@@ -290,10 +286,13 @@ function extractAndEmitToolEvents(
     const toolCalls = readMessageField(record, 'tool_calls') ?? additional?.tool_calls
     if (Array.isArray(toolCalls)) {
       for (const call of toolCalls) {
-        const callRecord = call && typeof call === 'object' ? call as Record<string, unknown> : null
+        const callRecord =
+          call && typeof call === 'object' ? (call as Record<string, unknown>) : null
         if (!callRecord) continue
-        const fnRecord = callRecord.function && typeof callRecord.function === 'object'
-          ? callRecord.function as Record<string, unknown> : null
+        const fnRecord =
+          callRecord.function && typeof callRecord.function === 'object'
+            ? (callRecord.function as Record<string, unknown>)
+            : null
         const name = String(callRecord.name ?? fnRecord?.name ?? '').trim()
         const id = String(callRecord.id ?? '').trim()
         const rawArgs = callRecord.args ?? fnRecord?.arguments ?? ''
@@ -339,8 +338,9 @@ function summarizeToolCall(toolName: string, rawArgs: unknown): string {
     const pages = getNestedField(args, 'pages') as Array<Record<string, unknown>> | undefined
     const topic = getNestedField(args, 'topic') as string | undefined
     if (pages && Array.isArray(pages) && pages.length > 0) {
-      const titles = pages.map((p) => getNestedField(p, 'title') as string || '').filter(Boolean)
-      if (titles.length > 0) return `正在整理 ${pages.length} 页方案：${titles.slice(0, 2).join('、')}${titles.length > 2 ? '…' : ''}`
+      const titles = pages.map((p) => (getNestedField(p, 'title') as string) || '').filter(Boolean)
+      if (titles.length > 0)
+        return `正在整理 ${pages.length} 页方案：${titles.slice(0, 2).join('、')}${titles.length > 2 ? '…' : ''}`
       return `正在整理 ${pages.length} 页方案`
     }
     if (topic) return `正在确认主题：${String(topic).slice(0, 24)}`
@@ -353,7 +353,11 @@ function summarizeToolCall(toolName: string, rawArgs: unknown): string {
 }
 
 function safeParseJson(text: string): unknown {
-  try { return JSON.parse(text) } catch { return null }
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
 }
 
 function getNestedField(obj: unknown, key: string): unknown {
@@ -381,16 +385,16 @@ function getThinkingRepairTarget(args: {
   ) {
     return args.rawAgentRequestedStage
   }
-  if (
-    args.rawRequestedStage &&
-    isValidTransition(args.currentStage, args.rawRequestedStage)
-  ) {
+  if (args.rawRequestedStage && isValidTransition(args.currentStage, args.rawRequestedStage)) {
     return args.rawRequestedStage
   }
   return null
 }
 
-function buildForcedThinkingUpdateMessage(targetStage: ThinkingStage, fullUserMessage: string): string {
+function buildForcedThinkingUpdateMessage(
+  targetStage: ThinkingStage,
+  fullUserMessage: string
+): string {
   return [
     `Internal repair task. The previous response did not persist /thinking.md in a form that can enter stage "${targetStage}".`,
     'You must now call update_thinking_document to persist a complete page-by-page thinking brief into /thinking.md.',
@@ -439,9 +443,7 @@ async function runAgentMessage(args: {
 }): Promise<{ replyText: string; latestAssistantStateText: string }> {
   const stream = await args.runtime.agent.stream(
     {
-      messages: [
-        { role: 'user', content: args.message }
-      ]
+      messages: [{ role: 'user', content: args.message }]
     },
     {
       streamMode: ['updates', 'messages'],
@@ -640,7 +642,8 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
     id: 'analysis',
     type: 'phase_running',
     toolName: 'analysis',
-    summary: routedIntent.intent === 'plan_outline' ? '正在分析需求并规划 PPT 大纲' : '正在分析本轮要求'
+    summary:
+      routedIntent.intent === 'plan_outline' ? '正在分析需求并规划 PPT 大纲' : '正在分析本轮要求'
   })
 
   let replyText = ''
@@ -749,10 +752,13 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
   }
 
   if (!runtime.workflowState.contextUpdated && updatedContextMd === inputContextMd) {
-    log.warn('[thinking:agent] context.md was not updated by workflow tool; retrying forced context update', {
-      thinkingId,
-      stage: inputStage
-    })
+    log.warn(
+      '[thinking:agent] context.md was not updated by workflow tool; retrying forced context update',
+      {
+        thinkingId,
+        stage: inputStage
+      }
+    )
     const forcedMessage = [
       'Internal repair task. Your previous response did not call update_context_document.',
       'You must now call update_context_document to persist the confirmed user intent, decisions, and open questions into /context.md.',
@@ -771,10 +777,13 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
         updatedContextMd = await fs.promises.readFile(contextMdPath, 'utf-8')
       }
     } catch (err) {
-      log.warn('[thinking:agent] forced context write retry failed; latest-direction fallback will run', {
-        thinkingId,
-        error: err instanceof Error ? err.message : String(err)
-      })
+      log.warn(
+        '[thinking:agent] forced context write retry failed; latest-direction fallback will run',
+        {
+          thinkingId,
+          error: err instanceof Error ? err.message : String(err)
+        }
+      )
     }
   }
 
@@ -820,13 +829,16 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
       thinkingMd: updatedThinkingMd
     })
   ) {
-    log.warn('[thinking:agent] thinking.md is not ready for requested stage; retrying forced thinking update', {
-      thinkingId,
-      stage: inputStage,
-      repairTarget,
-      rawAgentRequestedStage,
-      rawRequestedStage
-    })
+    log.warn(
+      '[thinking:agent] thinking.md is not ready for requested stage; retrying forced thinking update',
+      {
+        thinkingId,
+        stage: inputStage,
+        repairTarget,
+        rawAgentRequestedStage,
+        rawRequestedStage
+      }
+    )
     try {
       const repairResult = await runAgentMessage({
         runtime,
@@ -863,11 +875,14 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
         thinkingMd: updatedThinkingMd
       })
     } catch (err) {
-      log.warn('[thinking:agent] forced thinking update retry failed; leaving thinking.md unchanged', {
-        thinkingId,
-        repairTarget,
-        error: err instanceof Error ? err.message : String(err)
-      })
+      log.warn(
+        '[thinking:agent] forced thinking update retry failed; leaving thinking.md unchanged',
+        {
+          thinkingId,
+          repairTarget,
+          error: err instanceof Error ? err.message : String(err)
+        }
+      )
     }
   }
 
@@ -928,11 +943,7 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
   const autoStage = checkStageTransition(inputStage, updatedThinkingMd)
   let newStage = agentRequestedStage || resolvedRequestedStage || autoStage
 
-  if (
-    rawRequestedStage === 'collect' &&
-    resolvedRequestedStage === 'collect' &&
-    restartRequested
-  ) {
+  if (rawRequestedStage === 'collect' && resolvedRequestedStage === 'collect' && restartRequested) {
     updatedThinkingMd = buildInitialThinkingMd()
     updatedContextMd = buildInitialContextMd('collect')
     await writeThinkingMd(thinkingDir, updatedThinkingMd)
@@ -972,10 +983,7 @@ export async function runThinkingChat(args: RunThinkingChatArgs): Promise<Thinki
 
 function updateContextStage(contextMd: string, newStage: ThinkingStage): string {
   if (/^## Stage:\s*\S+/m.test(contextMd)) {
-    return contextMd.replace(
-      /^## Stage:\s*\S+/m,
-      `## Stage: ${newStage}`
-    )
+    return contextMd.replace(/^## Stage:\s*\S+/m, `## Stage: ${newStage}`)
   }
   return upsertSection(contextMd, 'Stage', newStage)
 }

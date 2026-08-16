@@ -11,6 +11,7 @@ function isKind(value: string): value is ThinkingChatErrorKind {
   return [
     'connection',
     'response-format',
+    'model-response',
     'authentication',
     'rate-limit',
     'timeout',
@@ -28,6 +29,13 @@ export function classifyThinkingChatError(error: unknown): ThinkingChatErrorKind
     )
   ) {
     return 'response-format'
+  }
+  if (
+    /expected AIMessage or Command|unsupported response object|model response.*(?:invalid|unsupported)/i.test(
+      message
+    )
+  ) {
+    return 'model-response'
   }
   if (/401|403|unauthori[sz]ed|forbidden|invalid api.?key|authentication/i.test(message)) {
     return 'authentication'
@@ -54,18 +62,24 @@ export function normalizeThinkingChatFailure(
     connection: '模型服务连接已中断。请检查网络或服务地址，然后重新连接。',
     'response-format':
       '模型接口返回格式与当前 Provider 不匹配。Responses API 请选择 OpenAI Responses；Chat Completions 接口请选择 OpenAI / 兼容。',
+    'model-response': '模型已连接，但返回内容无法被 Agent 解析。请重试或更换兼容模型。',
     authentication: '模型服务拒绝了身份验证。请检查 API Key 和模型配置。',
     'rate-limit': '模型服务当前请求过多或额度不足，请稍后重试。',
     timeout: '模型响应超时。可以重试，或在高级设置中适当延长 Agent 超时时间。',
     unknown: 'LLM 回复失败，本次请求没有完成。'
   }
   const enMessages: Record<ThinkingChatErrorKind, string> = {
-    connection: 'The model connection was interrupted. Check the network or service URL, then reconnect.',
+    connection:
+      'The model connection was interrupted. Check the network or service URL, then reconnect.',
     'response-format':
       'The model response does not match the selected provider. Use OpenAI Responses for a Responses API, or OpenAI / compatible for Chat Completions.',
-    authentication: 'The model service rejected authentication. Check the API key and model configuration.',
+    'model-response':
+      'The model connected, but the agent could not parse its response. Retry or use a compatible model.',
+    authentication:
+      'The model service rejected authentication. Check the API key and model configuration.',
     'rate-limit': 'The model service is rate limited or out of quota. Try again later.',
-    timeout: 'The model response timed out. Retry or increase the Agent timeout in Advanced Settings.',
+    timeout:
+      'The model response timed out. Retry or increase the Agent timeout in Advanced Settings.',
     unknown: 'The LLM reply failed and this request did not complete.'
   }
 
@@ -73,7 +87,8 @@ export function normalizeThinkingChatFailure(
     kind,
     message: (locale === 'en' ? enMessages : zhMessages)[kind],
     technicalDetail,
-    reconnectable: kind === 'connection' || kind === 'timeout' || kind === 'unknown'
+    reconnectable:
+      kind === 'connection' || kind === 'timeout' || kind === 'model-response' || kind === 'unknown'
   }
 }
 

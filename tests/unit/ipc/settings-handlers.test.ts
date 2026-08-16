@@ -26,7 +26,10 @@ const settingsHandlersState = vi.hoisted(() => {
       error: vi.fn(),
       info: vi.fn()
     },
-    resolveModelMock: vi.fn()
+    modelRuntimeControls: [] as Array<Record<string, unknown>>,
+    resolveModelMock: vi.fn(),
+    encryptApiKeyMock: vi.fn((value: string) => value),
+    decryptApiKeyMock: vi.fn((value: unknown) => String(value ?? ''))
   }
 })
 
@@ -46,7 +49,10 @@ vi.mock('electron-log/main.js', () => ({
 
 vi.mock('../../../src/main/agent-runtime/model', () => ({
   resolveModel: settingsHandlersState.resolveModelMock,
-  runWithModelTemperatureControl: <T>(_config: unknown, task: () => T): T => task(),
+  runWithModelTemperatureControl: <T>(config: Record<string, unknown>, task: () => T): T => {
+    settingsHandlersState.modelRuntimeControls.push(config)
+    return task()
+  },
   OPENAI_RESPONSES_FORMAT_ERROR_EN: 'Invalid OpenAI Responses API payload.',
   OPENAI_RESPONSES_FORMAT_ERROR_ZH: '当前 provider 返回的不是 OpenAI Responses API 格式。',
   isOpenAIResponsesFormatError: (error: unknown) =>
@@ -99,8 +105,8 @@ async function registerWithDb(overrides: Partial<Record<string, unknown>> = {}) 
   const ctx = {
     mainWindow: {} as never,
     db,
-    encryptApiKey: vi.fn((value: string) => value),
-    decryptApiKey: vi.fn((value: unknown) => String(value ?? ''))
+    encryptApiKey: settingsHandlersState.encryptApiKeyMock,
+    decryptApiKey: settingsHandlersState.decryptApiKeyMock
   }
 
   registerSettingsHandlers(ctx as never)
@@ -124,7 +130,14 @@ describe('registerSettingsHandlers proxy settings', () => {
     settingsHandlersState.localeMock.uiText.mockClear()
     settingsHandlersState.logMock.error.mockClear()
     settingsHandlersState.logMock.info.mockClear()
+    settingsHandlersState.modelRuntimeControls.length = 0
     settingsHandlersState.resolveModelMock.mockReset()
+    settingsHandlersState.encryptApiKeyMock.mockReset()
+    settingsHandlersState.encryptApiKeyMock.mockImplementation((value: string) => value)
+    settingsHandlersState.decryptApiKeyMock.mockReset()
+    settingsHandlersState.decryptApiKeyMock.mockImplementation((value: unknown) =>
+      String(value ?? '')
+    )
   })
 
   it('returns trimmed proxyUrl from settings:get', async () => {
@@ -310,7 +323,16 @@ describe('registerSettingsHandlers model temperature settings', () => {
     settingsHandlersState.handlers.clear()
     settingsHandlersState.ipcMainMock.handle.mockClear()
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
+    settingsHandlersState.logMock.error.mockClear()
+    settingsHandlersState.logMock.info.mockClear()
+    settingsHandlersState.modelRuntimeControls.length = 0
     settingsHandlersState.resolveModelMock.mockReset()
+    settingsHandlersState.encryptApiKeyMock.mockReset()
+    settingsHandlersState.encryptApiKeyMock.mockImplementation((value: string) => value)
+    settingsHandlersState.decryptApiKeyMock.mockReset()
+    settingsHandlersState.decryptApiKeyMock.mockImplementation((value: unknown) =>
+      String(value ?? '')
+    )
   })
 
   it('returns disableTemperature in the model config list', async () => {
@@ -341,6 +363,432 @@ describe('registerSettingsHandlers model temperature settings', () => {
         thinkingParameterMode: 'omit'
       })
     ])
+  })
+
+  it('does not return the stored API key from the model config list', async () => {
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-secret',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    await expect(getHandler('settings:listModelConfigs')?.()).resolves.toEqual([
+      expect.objectContaining({ apiKey: '', hasApiKey: true })
+    ])
+    expect(settingsHandlersState.decryptApiKeyMock).toHaveBeenCalledWith('encrypted-secret')
+  })
+
+  it('marks a model config without a decryptable API key as unavailable', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockReturnValue('')
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-secret',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    await expect(getHandler('settings:listModelConfigs')?.()).resolves.toEqual([
+      expect.objectContaining({ apiKey: '', hasApiKey: false })
+    ])
+    expect(settingsHandlersState.decryptApiKeyMock).toHaveBeenCalledWith('encrypted-secret')
+  })
+
+  it('retains an existing encrypted API key when an edit leaves it blank', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { db, getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'old-model',
+          apiKey: 'encrypted-old-key',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ]),
+      upsertModelConfig
+    })
+
+    await getHandler('settings:upsertModelConfig')?.(undefined, {
+      id: 'model-1',
+      name: 'Edited model',
+      provider: 'openai',
+      model: 'new-model',
+      apiKey: ''
+    })
+
+    expect(db.upsertModelConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'model-1', apiKey: 'encrypted-old-key' })
+    )
+  })
+
+  it('requires a new API key when the existing encrypted key cannot be decrypted', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockReturnValue('')
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { db, getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'old-model',
+          apiKey: 'encrypted-old-key',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ]),
+      upsertModelConfig
+    })
+
+    await expect(
+      getHandler('settings:upsertModelConfig')?.(undefined, {
+        id: 'model-1',
+        name: 'Edited model',
+        provider: 'openai',
+        model: 'new-model',
+        apiKey: ''
+      })
+    ).rejects.toThrow('已保存的 api_key 无法解密，请重新填写 api_key 后再保存。')
+
+    expect(db.upsertModelConfig).not.toHaveBeenCalled()
+  })
+
+  it('does not reuse an API key when an edited endpoint changes', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { db, getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'old-model',
+          apiKey: 'encrypted-old-key',
+          baseUrl: 'https://trusted.example/v1',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ]),
+      upsertModelConfig
+    })
+
+    await expect(
+      getHandler('settings:upsertModelConfig')?.(undefined, {
+        id: 'model-1',
+        name: 'Edited model',
+        provider: 'openai',
+        model: 'new-model',
+        baseUrl: 'https://attacker.example/v1',
+        apiKey: ''
+      })
+    ).rejects.toThrow('请填写 api_key')
+
+    expect(db.upsertModelConfig).not.toHaveBeenCalled()
+  })
+
+  it('does not reuse an API key when an edited provider changes', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { db, getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'old-model',
+          apiKey: 'encrypted-old-key',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ]),
+      upsertModelConfig
+    })
+
+    await expect(
+      getHandler('settings:upsertModelConfig')?.(undefined, {
+        id: 'model-1',
+        name: 'Edited model',
+        provider: 'evil-provider',
+        model: 'new-model',
+        apiKey: ''
+      })
+    ).rejects.toThrow('请填写 api_key')
+
+    expect(db.upsertModelConfig).not.toHaveBeenCalled()
+  })
+
+  it('allows an explicit new API key to change the endpoint', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { db, getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'old-model',
+          apiKey: 'encrypted-old-key',
+          baseUrl: 'https://trusted.example/v1',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ]),
+      upsertModelConfig
+    })
+
+    await getHandler('settings:upsertModelConfig')?.(undefined, {
+      id: 'model-1',
+      name: 'Edited model',
+      provider: 'openai',
+      model: 'new-model',
+      baseUrl: 'https://new.example/v1',
+      apiKey: 'new-key'
+    })
+
+    expect(db.upsertModelConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'model-1',
+        apiKey: 'new-key',
+        baseUrl: 'https://new.example/v1'
+      })
+    )
+  })
+
+  it('still requires an API key when creating a model config', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { getHandler } = await registerWithDb({ upsertModelConfig })
+
+    await expect(
+      getHandler('settings:upsertModelConfig')?.(undefined, {
+        name: 'New model',
+        provider: 'openai',
+        model: 'model',
+        apiKey: ''
+      })
+    ).rejects.toThrow('请填写 api_key')
+    expect(upsertModelConfig).not.toHaveBeenCalled()
+  })
+
+  it('verifies an existing stored API key by id without returning it', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockReturnValue('stored-secret')
+    settingsHandlersState.resolveModelMock.mockReturnValue({
+      invoke: vi.fn(async () => ({ content: 'OK' }))
+    })
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-stored-secret',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      id: 'model-1',
+      provider: 'openai',
+      model: 'model',
+      apiKey: ''
+    })
+
+    expect(result).toEqual({ valid: true, message: '连接验证成功。' })
+    expect(settingsHandlersState.resolveModelMock).toHaveBeenCalledWith(
+      'openai',
+      'stored-secret',
+      'model',
+      '',
+      undefined,
+      4096,
+      undefined
+    )
+  })
+
+  it('explains when an existing API key cannot be decrypted during verification', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockReturnValue('')
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-stored-secret',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      id: 'model-1',
+      provider: 'openai',
+      model: 'model',
+      apiKey: ''
+    })
+
+    expect(result).toEqual({
+      valid: false,
+      message: '已保存的 api_key 无法解密，请重新填写 api_key 后再保存。'
+    })
+    expect(settingsHandlersState.resolveModelMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects verification before decrypting when the endpoint changes', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockImplementation(() => {
+      throw new Error('decrypt should not run')
+    })
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-stored-secret',
+          baseUrl: 'https://trusted.example/v1',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      id: 'model-1',
+      provider: 'openai',
+      model: 'model',
+      baseUrl: 'https://attacker.example/v1',
+      apiKey: ''
+    })
+
+    expect(result).toEqual({
+      valid: false,
+      message: 'provider 或 base_url 已变化，请重新填写 api_key。'
+    })
+    expect(settingsHandlersState.decryptApiKeyMock).not.toHaveBeenCalled()
+    expect(settingsHandlersState.resolveModelMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects verification before decrypting when the provider changes', async () => {
+    settingsHandlersState.decryptApiKeyMock.mockImplementation(() => {
+      throw new Error('decrypt should not run')
+    })
+    const { getHandler } = await registerWithDb({
+      listModelConfigs: vi.fn(async () => [
+        {
+          id: 'model-1',
+          name: 'Existing model',
+          provider: 'openai',
+          model: 'model',
+          apiKey: 'encrypted-stored-secret',
+          baseUrl: '',
+          maxTokens: 4096,
+          disableTemperature: 0,
+          thinkingParameterMode: 'auto',
+          active: 1,
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      id: 'model-1',
+      provider: 'evil-provider',
+      model: 'model',
+      apiKey: ''
+    })
+
+    expect(result).toEqual({
+      valid: false,
+      message: 'provider 或 base_url 已变化，请重新填写 api_key。'
+    })
+    expect(settingsHandlersState.decryptApiKeyMock).not.toHaveBeenCalled()
+    expect(settingsHandlersState.resolveModelMock).not.toHaveBeenCalled()
+  })
+
+  it('does not leak an API key through verification error logs', async () => {
+    settingsHandlersState.resolveModelMock.mockReturnValue({
+      invoke: vi.fn(async () => {
+        throw new Error('request failed apiKey=secret-key')
+      })
+    })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'openai',
+      model: 'model',
+      apiKey: 'secret-key',
+      baseUrl: 'https://api.example.com/v1'
+    })
+
+    expect(result).toEqual({ valid: false, message: 'request failed apiKey=[REDACTED]' })
+    expect(JSON.stringify(settingsHandlersState.logMock.error.mock.calls)).not.toContain(
+      'secret-key'
+    )
   })
 
   it('persists parameter controls when saving a model config', async () => {
@@ -430,9 +878,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
       maxTokens: 4096
     })
 
-    expect(upsertModelConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'openai' })
-    )
+    expect(upsertModelConfig).toHaveBeenCalledWith(expect.objectContaining({ provider: 'openai' }))
   })
 
   it('explains invalid Responses API payloads during model verification', async () => {
@@ -458,6 +904,104 @@ describe('registerSettingsHandlers model temperature settings', () => {
       valid: false,
       message: expect.stringContaining('不是 OpenAI Responses API 格式')
     })
+  })
+
+  it('retries mandatory-thinking models without the compatibility thinking parameter', async () => {
+    const invoke = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new Error('400 该模型始终思考，不支持关闭思考；请使用 low、high 或 max。')
+      )
+      .mockResolvedValueOnce({ content: 'OK' })
+    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'openai',
+      model: 'mandatory-reasoner',
+      apiKey: 'secret',
+      baseUrl: 'https://api.example-compatible.com/v1',
+      thinkingParameterMode: 'auto',
+      timeoutMs: 60000
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      message: expect.stringContaining('请点击保存使其生效'),
+      thinkingParameterMode: 'omit'
+    })
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(settingsHandlersState.modelRuntimeControls).toEqual([
+      expect.objectContaining({ thinkingParameterMode: 'auto' }),
+      expect.objectContaining({ thinkingParameterMode: 'omit' })
+    ])
+  })
+
+  it('returns the retry error when mandatory-thinking verification still fails', async () => {
+    const invoke = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('cannot disable reasoning; use low, high, or max'))
+      .mockRejectedValueOnce(new Error('model is unavailable'))
+    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'openai',
+      model: 'mandatory-reasoner',
+      apiKey: 'secret',
+      baseUrl: 'https://api.example-compatible.com/v1',
+      thinkingParameterMode: 'auto',
+      timeoutMs: 60000
+    })
+
+    expect(result).toEqual({ valid: false, message: 'model is unavailable' })
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it('redacts credentials when the mandatory-thinking retry fails', async () => {
+    const invoke = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('mandatory reasoning cannot be disabled'))
+      .mockRejectedValueOnce(new Error('retry failed apiKey=secret-key'))
+    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'openai',
+      model: 'mandatory-reasoner',
+      apiKey: 'secret-key',
+      baseUrl: 'https://api.example-compatible.com/v1',
+      thinkingParameterMode: 'auto',
+      timeoutMs: 60000
+    })
+
+    expect(result).toEqual({ valid: false, message: 'retry failed apiKey=[REDACTED]' })
+    expect(JSON.stringify(settingsHandlersState.logMock.error.mock.calls)).not.toContain(
+      'secret-key'
+    )
+  })
+
+  it('does not retry mandatory-thinking errors when thinking is already omitted', async () => {
+    const invoke = vi.fn(async () => {
+      throw new Error('cannot disable reasoning; use low, high, or max')
+    })
+    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'openai',
+      model: 'mandatory-reasoner',
+      apiKey: 'secret',
+      baseUrl: 'https://api.example-compatible.com/v1',
+      thinkingParameterMode: 'omit',
+      timeoutMs: 60000
+    })
+
+    expect(result).toEqual({
+      valid: false,
+      message: 'cannot disable reasoning; use low, high, or max'
+    })
+    expect(invoke).toHaveBeenCalledTimes(1)
   })
 
   it('explains unsupported thinking parameter errors during model verification', async () => {

@@ -20,8 +20,10 @@ import { resolvePptxExportLayout } from './html-pptx/static-background'
 import {
   exportHtmlPagesToVideo,
   normalizeVideoExportFps,
-  normalizeVideoExportSecondsPerPage
+  normalizeVideoExportSecondsPerPage,
+  resolveBundledFfmpegPath
 } from './html-video/exporter'
+import type { ExportCapabilities } from '@shared/export-capabilities'
 import type {
   ExportKind,
   ExportProgressPayload,
@@ -29,6 +31,11 @@ import type {
 } from '@shared/export-progress'
 import { assertPptxExportSupported, requireSessionSlideSize } from '@shared/slide-size'
 import { stitchPngBuffersVertical } from './thumbnails/png-stitch'
+import { ensureSessionRuntimeCompatible } from '../session/runtime-assets'
+import {
+  createExportOutputTransaction,
+  type ExportOutputTransaction
+} from './export-output-transaction'
 
 type PptxExportPayload = {
   sessionId?: unknown
@@ -132,12 +139,25 @@ const buildOutlinesMarkdown = (args: {
   return [`# ${args.title}`, ...sections].filter(Boolean).join('\n\n').trim() + '\n'
 }
 
-const isSameOrChildPath = async (candidatePath: string, parentPath: string): Promise<boolean> => {
-  const resolveRealPath = async (value: string): Promise<string> =>
-    fs.promises.realpath(value).catch(() => path.resolve(value))
+const resolveRealPathThroughExistingAncestor = async (value: string): Promise<string> => {
+  const unresolvedTail: string[] = []
+  let currentPath = path.resolve(value)
+  while (true) {
+    try {
+      const resolvedAncestor = await fs.promises.realpath(currentPath)
+      return path.resolve(resolvedAncestor, ...unresolvedTail)
+    } catch {
+      const parentPath = path.dirname(currentPath)
+      if (parentPath === currentPath) return path.resolve(value)
+      unresolvedTail.unshift(path.basename(currentPath))
+      currentPath = parentPath
+    }
+  }
+}
 
-  const candidate = path.resolve(await resolveRealPath(candidatePath))
-  const parent = path.resolve(await resolveRealPath(parentPath))
+const isSameOrChildPath = async (candidatePath: string, parentPath: string): Promise<boolean> => {
+  const candidate = await resolveRealPathThroughExistingAncestor(candidatePath)
+  const parent = await resolveRealPathThroughExistingAncestor(parentPath)
   const relative = path.relative(parent, candidate)
 
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
@@ -297,13 +317,41 @@ export function registerExportHandlers(ctx: IpcContext): void {
     EXPORT_CAPTURE_SETTLE_MS
   } = ctx
 
+  const resolveExportSessionPageFiles = async (sessionId: string) => {
+    const projectDir = await ctx.resolveSessionProjectDir(sessionId)
+    await ensureSessionRuntimeCompatible(ctx, projectDir)
+    return resolveSessionPageFiles(sessionId)
+  }
+
+  ipcMain.handle('export:capabilities', async (): Promise<ExportCapabilities> => {
+    try {
+      const ffmpegPath = await resolveBundledFfmpegPath()
+      return {
+        video: {
+          available: Boolean(ffmpegPath),
+          reason: ffmpegPath ? null : 'ffmpeg-missing'
+        }
+      }
+    } catch (error) {
+      log.warn('[export:capabilities] failed to resolve bundled ffmpeg', {
+        message: error instanceof Error ? error.message : String(error)
+      })
+      return {
+        video: {
+          available: false,
+          reason: 'ffmpeg-check-failed'
+        }
+      }
+    }
+  })
+
   ipcMain.handle('export:pdf', async (event, payload: unknown) => {
     const sessionId = parseSessionId(payload)
     if (!sessionId) {
       throw new Error('sessionId 不能为空')
     }
 
-    const { session, pages, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, pages, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const slideSize = requireSessionSlideSize(session)
     const sessionTitle =
       typeof session.title === 'string' && session.title.trim().length > 0
@@ -326,7 +374,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
 
     const sendProgress = createExportProgressSender(event, sessionId, 'pdf')
     const warnings: string[] = []
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
       let renderedCount = 0
       sendProgress({
         stage: 'preparing',
@@ -387,7 +437,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         total: pages.length
       })
       const outputBytes = await mergedPdf.save()
-      await fs.promises.writeFile(saveResult.filePath, outputBytes)
+      await fs.promises.writeFile(outputTransaction.tempPath, outputBytes)
+      await outputTransaction.commit()
       const project = await db.getProject(sessionId)
       if (project?.id) {
         await db.updateProjectStatus(project.id, 'exported')
@@ -414,6 +465,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -423,7 +476,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
       throw new Error('sessionId 不能为空')
     }
 
-    const { session, pages, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, pages, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const slideSize = requireSessionSlideSize(session)
     const sessionTitle =
       typeof session.title === 'string' && session.title.trim().length > 0
@@ -446,7 +499,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
 
     const sendProgress = createExportProgressSender(event, sessionId, 'longImage')
     const warnings: string[] = []
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
       sendProgress({
         stage: 'preparing',
         progress: 3,
@@ -498,7 +553,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         current: pages.length,
         total: pages.length
       })
-      await fs.promises.writeFile(saveResult.filePath, mergedPng)
+      await fs.promises.writeFile(outputTransaction.tempPath, mergedPng)
+      await outputTransaction.commit()
       const project = await db.getProject(sessionId)
       if (project?.id) {
         await db.updateProjectStatus(project.id, 'exported')
@@ -525,6 +581,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -534,7 +592,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
       throw new Error('sessionId 不能为空')
     }
 
-    const { session, pages, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, pages, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const slideSize = requireSessionSlideSize(session)
 
     const ownerWindow =
@@ -554,8 +612,10 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const outputDir = path.join(outputParentDir, `amy-ppt-export-image_${nanoid(8)}`)
     const sendProgress = createExportProgressSender(event, sessionId, 'png')
     const warnings: string[] = []
+    let outputTransaction: ExportOutputTransaction | null = null
 
     try {
+      outputTransaction = await createExportOutputTransaction(outputDir)
       let renderedCount = 0
       sendProgress({
         stage: 'preparing',
@@ -563,7 +623,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         current: 0,
         total: pages.length
       })
-      await fs.promises.mkdir(outputDir, { recursive: true })
+      await fs.promises.mkdir(outputTransaction.tempPath, { recursive: true })
+      const stagingOutputPath = outputTransaction.tempPath
       for (let start = 0; start < pages.length; start += EXPORT_PAGE_RENDER_CONCURRENCY) {
         const pageBatch = pages.slice(start, start + EXPORT_PAGE_RENDER_CONCURRENCY)
         const batchWarnings = await mapPageBatch(pageBatch, async (page) => {
@@ -578,7 +639,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
             slideSize
           })
           await fs.promises.writeFile(
-            path.join(outputDir, buildPngFileName(page.pageNumber, page.title)),
+            path.join(stagingOutputPath, buildPngFileName(page.pageNumber, page.title)),
             rendered.pngBuffer
           )
           return rendered.warning
@@ -592,6 +653,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
           total: pages.length
         })
       }
+
+      await outputTransaction.commit()
 
       const project = await db.getProject(sessionId)
       if (project?.id) {
@@ -621,6 +684,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -633,7 +698,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const fontEmbedMode = imageOnly ? 'never' : parseFontEmbedMode(payload)
     const requestedPageId = parseExportPageId(payload)
 
-    const { session, pages: allPages, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, pages: allPages, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const slideSize = requireSessionSlideSize(session)
     assertPptxExportSupported(slideSize)
     const pptxLayout = resolvePptxExportLayout(slideSize)
@@ -673,8 +738,10 @@ export function registerExportHandlers(ctx: IpcContext): void {
 
     const sendProgress = createExportProgressSender(event, sessionId, 'pptx')
     const warnings: string[] = []
+    let outputTransaction: ExportOutputTransaction | null = null
 
     try {
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
       let extractedCount = 0
       sendProgress({
         stage: 'preparing',
@@ -764,7 +831,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
         total: pages.length
       })
       try {
-        await writeHtmlToPptx(saveResult.filePath, {
+        await writeHtmlToPptx(outputTransaction.tempPath, {
           title: sessionTitle,
           author: 'Amy-PPT',
           slides,
@@ -782,7 +849,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
         })
         warnings.push('字体嵌入写入失败，已自动降级为 PowerPoint 本机字体导出。')
         embeddedFonts = []
-        await writeHtmlToPptx(saveResult.filePath, {
+        await writeHtmlToPptx(outputTransaction.tempPath, {
           title: sessionTitle,
           author: 'Amy-PPT',
           slides,
@@ -792,6 +859,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
           }
         })
       }
+      await outputTransaction.commit()
       const project = await db.getProject(sessionId)
       if (project?.id) {
         await db.updateProjectStatus(project.id, 'exported')
@@ -822,6 +890,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -829,6 +899,11 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const sessionId = parseSessionId(payload)
     if (!sessionId) {
       throw new Error('sessionId 不能为空')
+    }
+    if (!(await resolveBundledFfmpegPath())) {
+      throw new Error(
+        '视频编码器缺失，无法导出视频。请确认 resources/ffmpeg 中包含当前平台的 ffmpeg。'
+      )
     }
     const requestedPageId = parseExportPageId(payload)
     const fps = normalizeVideoExportFps(
@@ -840,7 +915,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
         : undefined
     )
 
-    const { session, pages: allPages, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, pages: allPages, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const slideSize = requireSessionSlideSize(session)
     const pages = requestedPageId
       ? allPages.filter((page) => page.id === requestedPageId)
@@ -875,7 +950,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
     }
 
     const sendProgress = createExportProgressSender(event, sessionId, 'video')
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
       sendProgress({
         stage: 'preparing',
         progress: 3,
@@ -894,7 +971,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
       })
       const exported = await exportHtmlPagesToVideo({
         pages,
-        outputPath: saveResult.filePath,
+        outputPath: outputTransaction.tempPath,
         tempRootDir: path.dirname(projectDir),
         slideSize,
         fps,
@@ -918,6 +995,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
           })
         }
       })
+      await outputTransaction.commit()
       const project = await db.getProject(sessionId)
       if (project?.id) {
         await db.updateProjectStatus(project.id, 'exported')
@@ -948,6 +1026,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -957,7 +1037,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
       throw new Error('sessionId 不能为空')
     }
 
-    const { session, projectDir } = await resolveSessionPageFiles(sessionId)
+    const { session, projectDir } = await resolveExportSessionPageFiles(sessionId)
     const pages = await db.listSessionPages(sessionId)
     if (pages.length === 0) {
       throw new Error('没有可导出的大纲页面')
@@ -990,8 +1070,11 @@ export function registerExportHandlers(ctx: IpcContext): void {
       return { success: false, cancelled: true }
     }
 
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
-      await fs.promises.writeFile(saveResult.filePath, content, 'utf-8')
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
+      await fs.promises.writeFile(outputTransaction.tempPath, content, 'utf-8')
+      await outputTransaction.commit()
       log.info('[export:outlinesMarkdown] completed', {
         sessionId,
         filePath: saveResult.filePath,
@@ -1011,6 +1094,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
         message
       })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -1019,8 +1104,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const sessionId = parseSessionId(payload)
     if (!sessionId) throw new Error('Missing sessionId')
 
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
-      const { session, projectDir } = await resolveSessionPageFiles(sessionId)
+      const { session, projectDir } = await resolveExportSessionPageFiles(sessionId)
 
       // Find pre-compiled viewer binary in resources
       const resourcesDir = is.dev
@@ -1078,7 +1164,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
       const sendProgress = createExportProgressSender(event, sessionId, 'slidePack')
       // Create output folder
       const outputFolder = path.join(outputParentDir, `amy-ppt-${nanoid(8)}`)
-      fs.mkdirSync(outputFolder, { recursive: true })
+      outputTransaction = await createExportOutputTransaction(outputFolder)
+      fs.mkdirSync(outputTransaction.tempPath, { recursive: true })
 
       log.info('[export:slidePack] starting', { sessionId, projectDir, outputFolder })
       sendProgress({
@@ -1126,7 +1213,12 @@ export function registerExportHandlers(ctx: IpcContext): void {
         if (t.os === 'darwin') {
           const appName = `${sessionName}-${t.platform}`
           const zipOutputName = `${appName}.app.zip`
-          writeMacAppZip(path.join(outputFolder, zipOutputName), appName, viewerPath, zipData)
+          writeMacAppZip(
+            path.join(outputTransaction.tempPath, zipOutputName),
+            appName,
+            viewerPath,
+            zipData
+          )
           generatedFiles.push(zipOutputName)
         } else {
           const viewerData = fs.readFileSync(viewerPath)
@@ -1137,7 +1229,7 @@ export function registerExportHandlers(ctx: IpcContext): void {
           trailer.writeBigUInt64LE(BigInt(zipData.byteLength))
 
           const output = Buffer.concat([viewerData, Buffer.from(zipData), trailer])
-          const outputPath = path.join(outputFolder, outputName)
+          const outputPath = path.join(outputTransaction.tempPath, outputName)
           fs.writeFileSync(outputPath, output)
           fs.chmodSync(outputPath, 0o755)
           generatedFiles.push(outputName)
@@ -1174,11 +1266,13 @@ export function registerExportHandlers(ctx: IpcContext): void {
 打开后会自动启动浏览器显示演示。
 关闭终端窗口或按 Ctrl+C 即可停止。
 `
-      fs.writeFileSync(path.join(outputFolder, 'README.txt'), readmeContent, 'utf-8')
+      fs.writeFileSync(path.join(outputTransaction.tempPath, 'README.txt'), readmeContent, 'utf-8')
 
       if (generatedFiles.length === 0) {
         throw new Error('No viewer binaries found in resources/')
       }
+
+      await outputTransaction.commit()
 
       await shell.openPath(outputFolder)
 
@@ -1195,6 +1289,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
       const message = error instanceof Error ? error.message : String(error)
       log.error('[export:slidePack] failed', { sessionId, message })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 
@@ -1202,8 +1298,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
     const sessionId = parseSessionId(payload)
     if (!sessionId) throw new Error('Missing sessionId')
 
+    let outputTransaction: ExportOutputTransaction | null = null
     try {
-      const { session, projectDir } = await resolveSessionPageFiles(sessionId)
+      const { session, projectDir } = await resolveExportSessionPageFiles(sessionId)
       const rawTitle =
         typeof session.title === 'string' && session.title.trim()
           ? session.title.trim()
@@ -1251,7 +1348,9 @@ export function registerExportHandlers(ctx: IpcContext): void {
         stage: 'writing',
         progress: 94
       })
-      await fs.promises.writeFile(saveResult.filePath, Buffer.from(zipData))
+      outputTransaction = await createExportOutputTransaction(saveResult.filePath)
+      await fs.promises.writeFile(outputTransaction.tempPath, Buffer.from(zipData))
+      await outputTransaction.commit()
 
       log.info('[export:sessionZip] completed', {
         sessionId,
@@ -1272,6 +1371,8 @@ export function registerExportHandlers(ctx: IpcContext): void {
       const message = error instanceof Error ? error.message : String(error)
       log.error('[export:sessionZip] failed', { sessionId, message })
       throw error
+    } finally {
+      await outputTransaction?.cleanup()
     }
   })
 }

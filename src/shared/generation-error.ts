@@ -48,7 +48,8 @@ export function classifyGenerationError(error: unknown): GenerationFailureInfo {
   if (
     /undefined.*(?:map|reading ['"]map['"])|openai_responses_invalid_payload|response\.output|responses api.*(?:payload|format)/i.test(
       technicalDetail
-    )
+    ) ||
+    /invalid response from ['"]?wrapModelCall|expected AIMessage or Command/i.test(technicalDetail)
   ) {
     code = 'MODEL_RESPONSE_FORMAT'
     scope = 'system'

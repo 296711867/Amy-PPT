@@ -12,6 +12,8 @@ import type {
 import { mergeThinkingActivity, settleThinkingActivities } from '@shared/thinking-activity'
 import { normalizeThinkingChatFailure } from '@shared/thinking-chat-error'
 import { appendThinkingUserMessage } from '@shared/thinking-request'
+import { en } from '../i18n/en'
+import { zh } from '../i18n/zh'
 
 interface FailedThinkingRequest {
   content: string
@@ -59,6 +61,16 @@ const readStoredLocale = (): 'zh' | 'en' => {
     window.localStorage.getItem('oh-my-ppt:lang')) === 'en'
     ? 'en'
     : 'zh'
+}
+
+export const getThinkingConnectionStepSummary = (
+  reconnecting: boolean,
+  locale: 'zh' | 'en' = readStoredLocale()
+): string => {
+  const messages = locale === 'en' ? en : zh
+  return reconnecting
+    ? messages.thinking.connectionRetrying
+    : messages.thinking.connectionConnecting
 }
 
 function hasAssistantReply(messages: ThinkingChatMessage[], reply: string): boolean {
@@ -175,7 +187,7 @@ export const useThinkingStore = create<ThinkingStore>((set, get) => {
           id: 'connection',
           type: 'phase',
           toolName: 'connection',
-          summary: appendUserMessage ? '正在连接模型服务' : '正在重新连接模型服务',
+          summary: getThinkingConnectionStepSummary(!appendUserMessage),
           status: appendUserMessage ? 'running' : 'retrying'
         }
       ],

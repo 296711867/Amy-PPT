@@ -45,12 +45,7 @@ export interface ThinkingChatResult {
   stage: ThinkingStage
 }
 
-export type ThinkingActivityStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'retrying'
-  | 'failed'
+export type ThinkingActivityStatus = 'pending' | 'running' | 'completed' | 'retrying' | 'failed'
 
 export interface ThinkingActivity {
   id: string
@@ -70,6 +65,7 @@ export type ThinkingConnectionState =
 export type ThinkingChatErrorKind =
   | 'connection'
   | 'response-format'
+  | 'model-response'
   | 'authentication'
   | 'rate-limit'
   | 'timeout'

@@ -75,4 +75,31 @@ describe('logAgentToolEvents', () => {
       logMock.info.mock.calls.some(([message]) => message === '[deepagent] product_skill_read_file')
     ).toBe(false)
   })
+
+  it('records serialized length for array tool result content blocks', async () => {
+    const { logAgentToolEvents } = await import('../../../src/main/utils/agent-tool-logger')
+    const content = [
+      { type: 'text', text: 'first result' },
+      { type: 'text', text: 'second result' }
+    ]
+
+    logAgentToolEvents(
+      {
+        type: 'tool',
+        tool_call_id: 'call-3',
+        name: 'read_file',
+        content
+      },
+      new Set<string>(),
+      { tag: 'deepagent', source: 'messages' }
+    )
+
+    expect(logMock.info).toHaveBeenCalledWith(
+      '[deepagent] tool_result',
+      expect.objectContaining({
+        toolCallId: 'call-3',
+        contentLength: JSON.stringify(content).length
+      })
+    )
+  })
 })

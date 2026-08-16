@@ -3,6 +3,9 @@ import { ipc } from '@renderer/lib/ipc'
 import type { FontSelection, SourceDocumentPlan } from '@shared/generation'
 import type { SlideSizePresetId } from '@shared/slide-size'
 
+export const SESSION_NOT_FOUND_ERROR = 'Session not found'
+export const SESSION_LOAD_ERROR = 'Failed to load session'
+
 export interface Session {
   id: string
   title: string
@@ -79,7 +82,7 @@ interface SessionStore {
     deckBackgroundPolicy?: import('@shared/generation').DeckBackgroundPolicy
     sourcePlan?: SourceDocumentPlan
   }) => Promise<string>
-  loadSession: (sessionId: string, guard?: () => boolean) => Promise<void>
+  loadSession: (sessionId: string, guard?: () => boolean) => Promise<boolean>
   loadMessages: (payload: {
     sessionId: string
     chatType: 'main' | 'page'
@@ -134,7 +137,11 @@ const messageMatchesContext = (
   message.chat_scope === chatType &&
   (chatType === 'main' || message.page_id === pageId)
 
-export const useSessionStore = create<SessionStore>((set, get) => ({
+export const useSessionStore = create<SessionStore>((set, get) => {
+  let sessionLoadEpoch = 0
+  let messageLoadEpoch = 0
+
+  return {
   sessions: [],
   currentSession: null,
   currentMessages: [],
@@ -158,31 +165,65 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   loadSession: async (sessionId, guard) => {
-    set({ loading: true })
+    const requestEpoch = ++sessionLoadEpoch
+    const isCurrentRequest = (): boolean =>
+      requestEpoch === sessionLoadEpoch && (!guard || guard())
+    const isSameSessionReload = get().currentSession?.id === sessionId
+
+    set({
+      ...(isSameSessionReload
+        ? {}
+        : {
+            currentSession: null,
+            currentGeneratedPages: []
+          }),
+      loading: true,
+      error: null
+    })
     try {
       const { session, generatedPages } = await ipc.getSession(sessionId)
-      if (guard && !guard()) {
-        return
-      }
+      if (!isCurrentRequest()) return false
+      const normalizedSession = (session as unknown as Session | null | undefined) ?? null
       set({
-        currentSession: (session as unknown as Session | null | undefined) ?? null,
+        currentSession: normalizedSession,
         // 消息由页面上下文独立管理。刷新会话/页面数据时不能清空正在显示的对话。
-        currentGeneratedPages: generatedPages,
+        currentGeneratedPages: normalizedSession ? generatedPages || [] : [],
+        error: normalizedSession ? null : SESSION_NOT_FOUND_ERROR,
         loading: false
       })
+      return Boolean(normalizedSession)
     } catch {
-      if (guard && !guard()) return
-      set({ error: 'Failed to load session', loading: false })
+      if (!isCurrentRequest()) return false
+      set({
+        ...(isSameSessionReload
+          ? {}
+          : {
+              currentSession: null,
+              currentGeneratedPages: []
+            }),
+        error: SESSION_LOAD_ERROR,
+        loading: false
+      })
+      return false
     }
   },
 
   loadMessages: async ({ sessionId, chatType, pageId }) => {
+    const requestEpoch = ++messageLoadEpoch
+    const requestSessionEpoch = sessionLoadEpoch
+    const isCurrentRequest = (): boolean =>
+      requestEpoch === messageLoadEpoch &&
+      requestSessionEpoch === sessionLoadEpoch &&
+      get().currentSession?.id === sessionId
     try {
       const messages = await ipc.getSessionMessages({ sessionId, chatType, pageId })
       const loadedMessages = (messages as unknown as Message[]).filter(
         (message) => message.role === 'user' || message.role === 'assistant'
       )
       set((state) => {
+        if (!isCurrentRequest() || state.currentSession?.id !== sessionId) {
+          return state
+        }
         const pendingMessages = state.currentMessages.filter((message) =>
           messageMatchesContext(message, sessionId, chatType, pageId)
         )
@@ -191,7 +232,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       })
     } catch {
-      set({ error: 'Failed to load messages' })
+      if (isCurrentRequest()) set({ error: 'Failed to load messages' })
     }
   },
 
@@ -237,11 +278,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   resetRuntimeState: () =>
-    set({
-      currentSession: null,
-      currentMessages: [],
-      currentGeneratedPages: [],
-      loading: false,
-      error: null
-    })
-}))
+    (() => {
+      sessionLoadEpoch += 1
+      messageLoadEpoch += 1
+      set({
+        currentSession: null,
+        currentMessages: [],
+        currentGeneratedPages: [],
+        loading: false,
+        error: null
+      })
+    })()
+  }
+})

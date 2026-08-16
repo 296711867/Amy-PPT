@@ -202,6 +202,51 @@ describe('presentation persistence capabilities', () => {
     await expect(fs.promises.readFile(pagePath, 'utf-8')).resolves.toBe(result.html)
   })
 
+  it('rejects an auto-repaired truncated fragment when rendered validation is unavailable', async () => {
+    const projectDir = await createTemporaryDirectory()
+    const pagePath = path.join(projectDir, 'page-truncated.html')
+    const previousHtml = '<!doctype html><html><body>Previous accepted page</body></html>'
+    await fs.promises.writeFile(pagePath, previousHtml, 'utf-8')
+
+    await expect(
+      persistPageHtmlFromFragment({
+        content:
+          '<section class="px-24"><h1 class="text-5xl">Truncated</h1><p class="text-xl">The closing tags were cut off<svg viewBox="0 0 24 24" class="w-full h-[400px]"><path d="M3 17l6-6 4 4 8-8"/></svg>',
+        pageId: 'page-truncated',
+        projectDir,
+        targetPath: pagePath,
+        slideSize: requireSlideSizePreset('wide-16-9'),
+        validateRenderedPage: async () => ({
+          available: false,
+          violations: [],
+          unavailableReason: 'renderer unavailable'
+        })
+      })
+    ).rejects.toMatchObject<PageWriteValidationError>({ kind: 'content-validation' })
+    await expect(fs.promises.readFile(pagePath, 'utf-8')).resolves.toBe(previousHtml)
+  })
+
+  it('exposes an auto-repair warning when rendered validation confirms the repaired page', async () => {
+    const projectDir = await createTemporaryDirectory()
+    const pagePath = path.join(projectDir, 'page-repaired.html')
+    const result = await persistPageHtmlFromFragment({
+      content:
+        '<section class="px-24"><h1 class="text-5xl">Repaired</h1><p class="text-xl">The closing tags were cut off<svg viewBox="0 0 24 24" class="w-full h-[400px]"><path d="M3 17l6-6 4 4 8-8"/></svg>',
+      pageId: 'page-repaired',
+      projectDir,
+      targetPath: pagePath,
+      slideSize: requireSlideSizePreset('wide-16-9'),
+      validateRenderedPage: async () => ({ available: true, violations: [] })
+    })
+
+    expect(result.qualityWarnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'creative-fragment-repaired', severity: 'warn' })
+      ])
+    )
+    await expect(fs.promises.readFile(pagePath, 'utf-8')).resolves.toBe(result.html)
+  })
+
   it('rolls back an edited page when it introduces a deck-level contract break', async () => {
     const projectDir = await createTemporaryDirectory()
     const pagePath = path.join(projectDir, 'page-deck-contract.html')

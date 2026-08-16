@@ -25,6 +25,7 @@ import { Sparkles } from 'lucide-react'
 import { ModelSplitButton } from '../model/ModelActionButton'
 import { useModelAction } from '@renderer/hooks/useModelAction'
 import { Checkbox } from '../ui/Checkbox'
+import { resolveStyleIdOrStableDefault } from '@renderer/lib/style-selection'
 
 const MIN_PAGE_COUNT = 1
 const MAX_PAGE_COUNT = 500
@@ -83,13 +84,7 @@ const tokenizeStyleText = (value: string): string[] => {
 }
 
 const resolveFallbackStyleId = (fallbackStyleId: string, options: StyleOption[]): string => {
-  if (fallbackStyleId) return fallbackStyleId
-  return (
-    options.find((option) => option.styleKey === 'minimal-white')?.id ||
-    options.find((option) => option.id === 'minimal-white')?.id ||
-    options[0]?.id ||
-    ''
-  )
+  return resolveStyleIdOrStableDefault(fallbackStyleId, options)
 }
 
 const resolveMatchedStyleId = (

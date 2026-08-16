@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import {
   buildEditModeCleanupScript,
@@ -28,6 +29,9 @@ import {
 import type { InteractionMode } from '@renderer/store'
 import type { SelectedElementRuntimeContext } from '@shared/generation'
 import { requireSlideSize, type SlideSizePreset } from '@shared/slide-size'
+import { useT } from '@renderer/i18n'
+import { Button } from '../ui/Button'
+import { useWebviewLoadError } from '../../hooks/useWebviewLoadError'
 import type { InsertChartSeries } from '../session-detail/workspace/insert-charts'
 
 const PAGE_LAYOUT_AUDIT_SCRIPT = `
@@ -305,6 +309,7 @@ export const PreviewIframe = forwardRef<
   },
   ref
 ) {
+  const t = useT()
   const slideSize = requireSlideSize(slideSizeInput)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const webviewRef = useRef<Electron.WebviewTag | null>(null)
@@ -373,6 +378,7 @@ export const PreviewIframe = forwardRef<
     : src
       ? withPreviewParams(src)
       : undefined
+  const webviewLoad = useWebviewLoadError(webviewElement, webviewSrc)
   const currentInteractionMode: InteractionMode =
     interactionMode || (editMode ? 'edit' : inspecting ? 'ai-inspect' : 'preview')
   const inspectorInteractionModeRef = useRef(currentInteractionMode)
@@ -1494,6 +1500,28 @@ export const PreviewIframe = forwardRef<
           } ${editMode ? 'cursor-move' : inspecting ? 'cursor-crosshair' : ''}`}
           style={{ width: slideSize.width, height: slideSize.height, transform }}
         />
+      ) : null}
+      {webviewSrc && webviewLoad.error ? (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#f5f1e8]/95 px-6 text-center text-[#7c786b]"
+          role="alert"
+        >
+          <AlertTriangle className="h-5 w-5 text-[#a86d52]" aria-hidden="true" />
+          <p className="text-sm font-medium text-[#514d43]">{t('sessionDetail.previewLoadFailed')}</p>
+          <p className="max-w-[min(78%,520px)] text-xs leading-5 text-[#7c786b]">
+            {webviewLoad.error}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={webviewLoad.retry}
+            className="gap-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('sessionDetail.retryPreview')}
+          </Button>
+        </div>
       ) : null}
     </div>
   )

@@ -61,6 +61,7 @@ const EDGE_TOLERANCE_PX = 2
 const OVERLAP_MIN_RATIO = 0.2
 const OVERLAP_MIN_AXIS_PX = 3
 const VALIDATION_TIMEOUT_MS = 10_000
+const MASTER_STYLE_TIMEOUT_MS = 5_000
 
 const intersection = (a: RenderedRect, b: RenderedRect): RenderedRect => {
   const x = Math.max(a.x, b.x)
@@ -403,6 +404,61 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
     )
   })
 
+const WAIT_FOR_RENDERED_PAGE_READY_SCRIPT = `
+(async () => {
+  const search = new URLSearchParams(window.location.search);
+  const master = document.querySelector('link[data-ppt-master="1"]');
+  const expectsMaster = search.get('_pptMasterExpected') === '1';
+  if (expectsMaster) {
+    if (!master) throw new Error('母版样式表链接缺失');
+    if (!(master.dataset.pptMasterRenderReady === '1' && master.sheet)) {
+      const masterUrl = new URL(master.href, window.location.href);
+      masterUrl.searchParams.set('_pptMasterRender', String(Date.now()));
+      master.href = masterUrl.toString();
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (callback) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          master.removeEventListener('load', onLoad);
+          master.removeEventListener('error', onError);
+          callback();
+        };
+        const onLoad = () => finish(() => {
+          if (!master.sheet) {
+            reject(new Error('母版样式表加载后不可用'));
+            return;
+          }
+          master.dataset.pptMasterRenderReady = '1';
+          resolve(true);
+        });
+        const onError = () => finish(() => reject(new Error('母版样式表加载失败')));
+        const timeout = setTimeout(
+          () => finish(() => reject(new Error('母版样式表加载超时'))),
+          ${MASTER_STYLE_TIMEOUT_MS}
+        );
+        master.addEventListener('load', onLoad, { once: true });
+        master.addEventListener('error', onError, { once: true });
+      });
+    }
+  }
+
+  if (window.PPT?.whenReadyForPrint) {
+    await window.PPT.whenReadyForPrint(${MASTER_STYLE_TIMEOUT_MS});
+  }
+  const expectsMasterElements = search.get('_pptMasterElementsExpected') === '1';
+  if (expectsMasterElements && !window.PPT?.assertMasterElementsReady) {
+    throw new Error('母版全局元素运行时不可用');
+  }
+  if (window.PPT?.assertMasterElementsReady) {
+    await window.PPT.assertMasterElementsReady(${MASTER_STYLE_TIMEOUT_MS});
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return true;
+})()
+`
+
 const inspectRenderedPage = async (args: {
   pageId: string
   targetPath: string
@@ -421,7 +477,15 @@ const inspectRenderedPage = async (args: {
       '_pptMasterExpected',
       fs.existsSync(path.join(path.dirname(args.targetPath), 'master', 'master.css')) ? '1' : '0'
     )
+    pageUrl.searchParams.set(
+      '_pptMasterElementsExpected',
+      fs.existsSync(path.join(path.dirname(args.targetPath), 'master', 'master.html')) ? '1' : '0'
+    )
     await withTimeout(window.loadURL(pageUrl.toString()), VALIDATION_TIMEOUT_MS)
+    await withTimeout(
+      window.webContents.executeJavaScript(WAIT_FOR_RENDERED_PAGE_READY_SCRIPT, true),
+      VALIDATION_TIMEOUT_MS
+    )
     const snapshot = await withTimeout(
       window.webContents.executeJavaScript(COLLECT_RENDERED_PAGE_SNAPSHOT_SCRIPT, true),
       VALIDATION_TIMEOUT_MS

@@ -6,7 +6,11 @@ import type {
   SelectedElementRuntimeContext,
   SourceDocumentPlan
 } from '@shared/generation'
-import type { CommonGenerationContext, GenerationDbPort } from './context'
+import type {
+  CommonGenerationContext,
+  GenerationDbPort,
+  GenerationModelControl
+} from './context'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
 
 export type GenerateMode = 'generate' | 'edit' | 'retry' | 'addPage' | 'retrySinglePage'
@@ -26,6 +30,7 @@ export type FinalizeContext = {
   projectId: string
   modelConfigId?: string
   modelConfigName?: string
+  modelControl?: GenerationModelControl
   runModel?: string
   animationPreferences?: AnimationPreferencesPayload | null
 }
@@ -64,6 +69,7 @@ export type GenerationRunContext = {
   modelConfigId?: string
   modelConfigName?: string
   runModel?: string
+  modelControl: GenerationModelControl
   maxTokens: number
   modelRuntime: ModelRuntimeConfig
   modelTimeouts: Record<ModelTimeoutProfile, number>

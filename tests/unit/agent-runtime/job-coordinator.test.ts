@@ -153,4 +153,67 @@ describe('JobCoordinator', () => {
     expect(acquired.lease.signal.aborted).toBe(true)
     acquired.lease.release()
   })
+
+  it('suspends owners until cancelled work releases and rejects new reservations', async () => {
+    const coordinator = new JobCoordinator()
+    const acquired = await reserve(coordinator, {
+      jobId: 'job-1',
+      owner: { kind: 'session', id: 'session-1' },
+      claims: { write: ['session:session-1'] }
+    })
+    if (acquired.status !== 'acquired') throw new Error('expected acquired job')
+
+    let suspensionResolved = false
+    const suspension = coordinator
+      .suspendOwners([{ kind: 'session', id: 'session-1' }])
+      .then((release) => {
+        suspensionResolved = true
+        return release
+      })
+    await Promise.resolve()
+    expect(acquired.lease.signal.aborted).toBe(true)
+    expect(suspensionResolved).toBe(false)
+
+    acquired.lease.release()
+    const releaseSuspension = await suspension
+    await expect(
+      reserve(coordinator, {
+        jobId: 'job-blocked',
+        owner: { kind: 'session', id: 'session-1' },
+        claims: { write: ['session:session-1'] }
+      })
+    ).resolves.toMatchObject({ status: 'busy' })
+
+    releaseSuspension()
+    const next = await reserve(coordinator, {
+      jobId: 'job-next',
+      owner: { kind: 'session', id: 'session-1' },
+      claims: { write: ['session:session-1'] }
+    })
+    expect(next.status).toBe('acquired')
+    if (next.status === 'acquired') next.lease.release()
+  })
+
+  it('releases owner suspension when draining times out', async () => {
+    const coordinator = new JobCoordinator()
+    const acquired = await reserve(coordinator, {
+      jobId: 'job-1',
+      owner: { kind: 'session', id: 'session-1' },
+      claims: { write: ['session:session-1'] }
+    })
+    if (acquired.status !== 'acquired') throw new Error('expected acquired job')
+
+    await expect(
+      coordinator.suspendOwners([{ kind: 'session', id: 'session-1' }], 1)
+    ).rejects.toThrow('Timed out')
+    acquired.lease.release()
+
+    const next = await reserve(coordinator, {
+      jobId: 'job-next',
+      owner: { kind: 'session', id: 'session-1' },
+      claims: { write: ['session:session-1'] }
+    })
+    expect(next.status).toBe('acquired')
+    if (next.status === 'acquired') next.lease.release()
+  })
 })

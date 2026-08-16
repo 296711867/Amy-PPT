@@ -130,7 +130,9 @@ export function ImageModelConfigDialog({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium">模型配置</label>
+            <label className="mb-1.5 block text-xs font-medium">
+              {t('settings.imageModelConfigLabel')}
+            </label>
             <Textarea
               spellCheck={false}
               rows={6}
@@ -170,6 +172,11 @@ export function ImageModelConfigDialog({
                 )}
               </div>
             </div>
+            {form.id && (
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground/65">
+                {t('settings.imageModelCredentialHint')}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end">

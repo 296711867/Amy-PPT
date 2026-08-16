@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ipc } from '@renderer/lib/ipc'
 import {
   useGenerateStore,
@@ -10,6 +10,7 @@ import { useT } from '@renderer/i18n'
 import { normalizePagesForSelection } from '../shared/pageUtils'
 import { startExportProgressToast } from './exportProgressToast'
 import type { ExportKind, ExportProgressPayload } from '@shared/export-progress.js'
+import type { ExportCapabilityReason, ExportCapabilities } from '@shared/export-capabilities.js'
 import { isDefaultSlideSize, trySessionSlideSize } from '@shared/slide-size'
 
 type PptxExportOptions = {
@@ -23,6 +24,15 @@ type VideoExportOptions = {
 }
 
 type ExportProgressToastController = ReturnType<typeof startExportProgressToast>
+
+const getVideoExportUnavailableReason = (
+  reason: ExportCapabilityReason | null,
+  t: ReturnType<typeof useT>
+): string => {
+  if (reason === 'ffmpeg-missing') return t('sessionDetail.toolbarExportVideoUnavailableFfmpeg')
+  if (reason === 'ffmpeg-check-failed') return t('sessionDetail.toolbarExportVideoUnavailableCheck')
+  return t('sessionDetail.toolbarExportVideoUnavailable')
+}
 
 function getPptxExportNotice(
   warnings: string[] | undefined,
@@ -54,6 +64,8 @@ export function useSessionExportActions(sessionId: string): {
   exportPng: () => Promise<void>
   exportLongImage: () => Promise<void>
   exportVideo: (options?: VideoExportOptions) => Promise<void>
+  canExportVideo: boolean
+  videoExportUnavailableReason: string | null
   exportPptx: (options?: PptxExportOptions) => Promise<void>
   canExportPptx: boolean
   exportSlidePack: () => Promise<void>
@@ -84,6 +96,40 @@ export function useSessionExportActions(sessionId: string): {
   const currentSession = useSessionStore((state) => state.currentSession)
   const slideSize = trySessionSlideSize(currentSession)
   const canExportPptx = slideSize ? isDefaultSlideSize(slideSize) : false
+  const [videoExportCapability, setVideoExportCapability] = useState<
+    ExportCapabilities['video']
+  >({ available: false, reason: null })
+
+  useEffect(() => {
+    let disposed = false
+    if (typeof ipc.getExportCapabilities !== 'function') {
+      setVideoExportCapability({ available: false, reason: 'ffmpeg-check-failed' })
+      return () => {
+        disposed = true
+      }
+    }
+    void Promise.resolve()
+      .then(() => ipc.getExportCapabilities())
+      .then((capabilities) => {
+        if (!capabilities?.video || typeof capabilities.video.available !== 'boolean') {
+          throw new Error('Invalid export capabilities response')
+        }
+        if (!disposed) setVideoExportCapability(capabilities.video)
+      })
+      .catch(() => {
+        if (!disposed) {
+          setVideoExportCapability({ available: false, reason: 'ffmpeg-check-failed' })
+        }
+      })
+    return () => {
+      disposed = true
+    }
+  }, [sessionId])
+
+  const canExportVideo = videoExportCapability.available
+  const videoExportUnavailableReason = canExportVideo
+    ? null
+    : getVideoExportUnavailableReason(videoExportCapability.reason, t)
 
   const pages = useMemo(() => normalizePagesForSelection(currentPages), [currentPages])
   const selectedPage = useMemo(
@@ -298,6 +344,10 @@ export function useSessionExportActions(sessionId: string): {
   const exportVideo = async (options?: VideoExportOptions): Promise<void> => {
     const detailState = useSessionDetailUiStore.getState()
     if (!sessionId || detailState.isExportingVideo) return
+    if (!canExportVideo) {
+      toastError(videoExportUnavailableReason || t('sessionDetail.toolbarExportVideoUnavailable'))
+      return
+    }
     detailState.setIsExportingVideo(true)
     const progressToast = createExportProgressToast({
       kind: 'video',
@@ -487,6 +537,8 @@ export function useSessionExportActions(sessionId: string): {
     exportPng,
     exportLongImage,
     exportVideo,
+    canExportVideo,
+    videoExportUnavailableReason,
     exportPptx,
     canExportPptx,
     exportSlidePack,

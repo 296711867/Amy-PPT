@@ -8,6 +8,7 @@ import {
 } from './finalization'
 import { isCancellationMessage, normalizeRestoredSessionStatus } from './status-utils'
 import { JobCoordinator, sessionLockKey, type JobLease } from '../agent-runtime'
+import { runWithModelTemperatureControl } from '../agent-runtime/model'
 
 const MAX_ACTIVE_GENERATION_JOBS = 2
 
@@ -343,7 +344,12 @@ export class GenerateJobManager {
     try {
       try {
         if (activationError) throw activationError
-        await job.execute(job.context)
+        const execute = (): Promise<void> => job.execute(job.context)
+        if (job.context.modelControl) {
+          await runWithModelTemperatureControl(job.context.modelControl, execute)
+        } else {
+          await execute()
+        }
       } catch (error) {
         await this.settleFailedJob(job, error)
         return

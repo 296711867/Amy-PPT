@@ -34,6 +34,8 @@ vi.mock('../../../src/renderer/src/components/session-detail/toolbar/useSessionT
     handleSaveAsNewSession: vi.fn(),
     exportActions: {
       canExportPptx: true,
+      canExportVideo: false,
+      videoExportUnavailableReason: 'FFmpeg is unavailable',
       exportPptx: vi.fn(),
       exportPng: vi.fn(),
       exportVideo: vi.fn(),
@@ -115,6 +117,31 @@ describe('SessionToolbar titlebar drag region', () => {
       for (const button of buttons) {
         expect(button.classList.contains('app-no-drag')).toBe(true)
       }
+    } finally {
+      await cleanupRoot(root, container)
+    }
+  })
+
+  it('shows the MP4 unavailable reason while keeping the menu item disabled', async () => {
+    const { container, root } = await renderToolbar()
+
+    try {
+      const exportButton = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('sessionDetail.toolbarExport')
+      )
+      expect(exportButton).toBeTruthy()
+      await act(async () => {
+        exportButton?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+      })
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      const videoItem = Array.from(document.querySelectorAll('[role="menuitem"]')).find((item) =>
+        item.textContent?.includes('FFmpeg is unavailable')
+      )
+      expect(videoItem).toBeTruthy()
+      expect(videoItem?.getAttribute('data-disabled')).toBe('')
     } finally {
       await cleanupRoot(root, container)
     }

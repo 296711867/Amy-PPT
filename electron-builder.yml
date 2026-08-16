@@ -6,8 +6,8 @@ files:
   - '!**/.DS_Store'
   - '!**/._*'
   # ffmpeg is copied by build/after-pack.cjs per platform so unused binaries are not bundled.
-  # Linux currently has no bundled ffmpeg binary in resources/ffmpeg; MP4 export needs a Linux
-  # ffmpeg asset before Linux video export can be enabled in packaged apps.
+  # Optional per-platform ffmpeg binaries are copied by afterPack when present. Packages remain
+  # usable without them; MP4 export reports the missing encoder at runtime.
   - '!resources/ffmpeg/**'
   - '!**/.vscode/*'
   - '!**/.idea/**'
@@ -90,9 +90,6 @@ mac:
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
 linux:
-  # Packaging metadata is ready for Linux, but resources/ffmpeg currently only contains
-  # macOS and Windows binaries. build/after-pack.cjs already looks for ffmpeg-linux-x64;
-  # add that binary before advertising MP4 export support for Linux packages.
   executableName: amy-ppt
   target:
     - target: AppImage
@@ -121,7 +118,7 @@ deb:
 npmRebuild: false
 publish:
   provider: github
-  owner: PAN
+  owner: 296711867
   repo: Amy-PPT
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

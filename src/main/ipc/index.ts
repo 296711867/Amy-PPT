@@ -75,11 +75,17 @@ export function setupIPC(
   const jobCoordinator = new JobCoordinator()
   const generationContext = createGenerationContext(context)
 
-  registerSessionHandlers(context)
+  registerSessionHandlers(context, {
+    suspendSessionWork: (sessionId) =>
+      jobCoordinator.suspendOwners([
+        { kind: 'session', id: sessionId },
+        { kind: 'image-history', id: sessionId }
+      ])
+  })
   registerSessionSaveAsNewHandler(context)
   registerSessionImportHandlers(context)
   registerMasterHandlers(context)
-  registerPageManagementHandlers(context)
+  registerPageManagementHandlers(context, jobCoordinator)
   registerPageMergeHandlers(context)
   registerAssetHandlers(context)
   registerThumbnailHandlers(context)

@@ -431,6 +431,18 @@ export function validateOrRepairHtmlContent(content: string): {
   }
 }
 
+const repairedCreativeFragmentWarning = (originalErrors: readonly string[] = []): QualityViolation => ({
+  code: 'creative-fragment-repaired',
+  severity: 'warn',
+  detail: `创意页面片段存在结构性截断，已自动闭合标签后继续校验${originalErrors.length > 0 ? `：${originalErrors.slice(0, 2).join('；')}` : ''}`,
+  fix: '重新提交完整的 HTML 页面片段，确认所有 section/div/p 等结构标签成对闭合；不要依赖自动修复'
+})
+
+const unverifiedRepairedFragmentDetails = (originalErrors: readonly string[] = []): string[] => [
+  'creative-fragment-repaired: 创意页面片段疑似被截断，自动修复结果未经过浏览器渲染验收',
+  ...originalErrors
+]
+
 export function replacePageContentFragment(args: {
   originalHtml: string
   content: string
@@ -442,11 +454,30 @@ export function replacePageContentFragment(args: {
       `检测到禁止的 CDN/远程资源引用 (${args.pageId})，仅允许使用系统预注入的本地 ./assets/*。`
     )
   }
+  // Selector edits intentionally strip model-authored block ids below, so ignore
+  // duplicate ids during the raw structure check without letting Cheerio normalize
+  // an actually truncated fragment before validation.
+  const structureInput = args.content.replace(
+    /\sdata-block-id\s*=\s*(["'])[^"']*\1/gi,
+    ''
+  )
+  const prepared = validateOrRepairHtmlContent(structureInput)
+  if (!prepared.validation.valid) {
+    throw new Error(
+      `HTML 验证失败 (${args.pageId}): ${prepared.validation.errors.join('; ')}。请修正后重试。`
+    )
+  }
+  if (prepared.repaired) {
+    throw new Error(
+      `HTML 片段疑似被截断 (${args.pageId})：${
+        prepared.originalErrors?.join('; ') || '结构性标签不完整'
+      }。请提交完整片段后重试。`
+    )
+  }
   const normalizedFragment = normalizeCreativePageFragment(preprocessPageHtml(args.content), {
     blockIdMode: 'strip'
   })
-  const prepared = validateOrRepairHtmlContent(normalizedFragment)
-  const normalizedValidation = validateHtmlContent(prepared.content)
+  const normalizedValidation = validateHtmlContent(normalizedFragment)
   if (!normalizedValidation.valid) {
     throw new Error(
       `HTML 验证失败 (${args.pageId}): ${normalizedValidation.errors.join('; ')}。请修正后重试。`
@@ -460,7 +491,7 @@ export function replacePageContentFragment(args: {
       `一键美化无法定位页面主体容器 (${args.pageId})：页面骨架已被破坏，请先修复页面后再美化。`
     )
   }
-  contentNode.html(prepared.content)
+  contentNode.html(normalizedFragment)
   const html = syncRootBackgroundFromScaffold($.html())
   const persistedValidation = validatePersistedPageHtml(html, args.pageId)
   if (!persistedValidation.valid) {
@@ -468,7 +499,7 @@ export function replacePageContentFragment(args: {
       `HTML 落盘校验失败 (${args.pageId}): ${persistedValidation.errors.join('; ')}。请修正页面片段后重试。`
     )
   }
-  return { html, content: args.content, repaired: prepared.repaired }
+  return { html, content: args.content, repaired: false }
 }
 
 function hasDataAnim(html: string): boolean {
@@ -687,6 +718,17 @@ export async function persistPageHtmlFromFragment(args: {
       )
     }
   }
+  if (persisted.repaired) {
+    qualityWarnings.push(repairedCreativeFragmentWarning(persisted.originalErrors))
+    if (!args.validateRenderedPage) {
+      throw new PageWriteValidationError(
+        'content-validation',
+        args.pageId,
+        unverifiedRepairedFragmentDetails(persisted.originalErrors),
+        `HTML 片段疑似被截断 (${args.pageId})，当前没有浏览器渲染验收可供确认。请提交完整片段后重试。`
+      )
+    }
+  }
   await serializedWrite(args.projectDir, async () => {
     const previousHtml = await fs.promises.readFile(args.targetPath, 'utf-8').catch((error) => {
       const code =
@@ -723,6 +765,15 @@ export async function persistPageHtmlFromFragment(args: {
       }
 
       if (!rendered.available) {
+        if (persisted.repaired) {
+          await restorePreviousHtml()
+          throw new PageWriteValidationError(
+            'content-validation',
+            args.pageId,
+            unverifiedRepairedFragmentDetails(persisted.originalErrors),
+            `HTML 片段疑似被截断 (${args.pageId})，浏览器渲染验收不可用，已拒绝自动修复后的落盘结果。请提交完整片段后重试。`
+          )
+        }
         qualityWarnings.push({
           code: 'rendered-validation-unavailable',
           severity: 'warn',

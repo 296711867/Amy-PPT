@@ -1,15 +1,37 @@
-import { describe, expect, it, vi } from 'vitest'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
   app: { isReady: () => false },
   BrowserWindow: class BrowserWindow {}
 }))
 
+const { inspectRenderedPresentationPageMock } = vi.hoisted(() => ({
+  inspectRenderedPresentationPageMock: vi.fn()
+}))
+
+vi.mock('../../../src/main/presentation/html/rendered-page-validator', () => ({
+  inspectRenderedPresentationPage: inspectRenderedPresentationPageMock
+}))
+
 import type { DeckPageQualityObservation } from '../../../src/main/presentation/html/deck-quality-validator'
-import { evaluateDeckQuality } from '../../../src/main/presentation/html/deck-quality-validator'
+import {
+  evaluateDeckQuality,
+  inspectPresentationDeckQuality
+} from '../../../src/main/presentation/html/deck-quality-validator'
 import { requireSlideSizePreset } from '../../../src/shared/slide-size'
 
 const slideSize = requireSlideSizePreset('wide-16-9')
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  inspectRenderedPresentationPageMock.mockReset()
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => fs.promises.rm(directory, { recursive: true }))
+  )
+})
 
 const page = (
   pageNumber: number,
@@ -57,6 +79,50 @@ const designContract = {
 }
 
 describe('deck quality validator', () => {
+  it('does not mark a partially rendered deck available or run cross-page rules', async () => {
+    const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ohmyppt-deck-quality-'))
+    temporaryDirectories.push(directory)
+    const pagePaths = await Promise.all(
+      [1, 2].map(async (pageNumber) => {
+        const pagePath = path.join(directory, `page-${pageNumber}.html`)
+        await fs.promises.writeFile(
+          pagePath,
+          '<html><body><main class="ppt-page-root" data-ppt-guard-root="1" data-ppt-slide-size-id="wide-16-9" data-ppt-width="1600" data-ppt-height="900"></main></body></html>',
+          'utf-8'
+        )
+        return pagePath
+      })
+    )
+    inspectRenderedPresentationPageMock
+      .mockResolvedValueOnce({
+        available: true,
+        snapshot: { scale: 1, canvas: { x: 0, y: 0, width: 1600, height: 900 }, texts: [], metrics: page(1).metrics }
+      })
+      .mockResolvedValueOnce({ available: false, unavailableReason: 'renderer unavailable' })
+
+    const report = await inspectPresentationDeckQuality({
+      pages: [
+        { pageId: 'page-1', pageNumber: 1, title: 'Page 1', htmlPath: pagePaths[0] },
+        { pageId: 'page-2', pageNumber: 2, title: 'Page 2', htmlPath: pagePaths[1] }
+      ],
+      slideSize,
+      designContract
+    })
+
+    expect(report.available).toBe(false)
+    expect(report.pages).toHaveLength(1)
+    expect(report.unavailablePages).toEqual([
+      { pageId: 'page-2', reason: 'renderer unavailable' }
+    ])
+    expect(report.violations).toEqual([
+      expect.objectContaining({
+        code: 'deck-render-validation-unavailable',
+        severity: 'warn',
+        pageIds: ['page-2']
+      })
+    ])
+  })
+
   it('accepts a coherent deck with varied adjacent silhouettes', () => {
     expect(
       evaluateDeckQuality({

@@ -174,9 +174,21 @@ export function SessionToolbar({
                 <Rows3 className={dropIconClass} />
                 {t('sessionDetail.toolbarExportLongImage')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void exportActions.exportVideo()}>
+              <DropdownMenuItem
+                className="items-start"
+                disabled={!exportActions.canExportVideo}
+                title={exportActions.videoExportUnavailableReason || undefined}
+                onClick={() => void exportActions.exportVideo()}
+              >
                 <Video className={dropIconClass} />
-                {t('sessionDetail.toolbarExportVideo')}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5 whitespace-normal">
+                  <span>{t('sessionDetail.toolbarExportVideo')}</span>
+                  {!exportActions.canExportVideo && exportActions.videoExportUnavailableReason && (
+                    <span className="text-[11px] leading-snug text-[#9a8f80]">
+                      {exportActions.videoExportUnavailableReason}
+                    </span>
+                  )}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportActions.exportPdf()}>
                 <FileDown className={dropIconClass} />

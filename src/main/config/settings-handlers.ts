@@ -20,6 +20,7 @@ import {
 import type { ModelUsagePeriod } from '@shared/model-usage'
 import { normalizeThinkingParameterMode } from '@shared/model-config'
 import { LAYOUT_RULES_SETTING_KEY, normalizeLayoutRules } from '@shared/layout-rules'
+import { buildTextCredentialScope, redactSensitiveText } from './credential-redaction'
 
 const readGlobalTimeouts = (
   settings: Record<string, unknown>
@@ -38,6 +39,18 @@ const normalizeProvider = (provider: unknown): Provider =>
 const normalizeMaxTokens = (value: unknown): number => {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 4096
   return Math.max(256, Math.min(16384, Math.floor(value)))
+}
+
+const isMandatoryThinkingError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : ''
+  return [
+    /始终思考/i,
+    /不支持(?:关闭|禁用)(?:思考|推理)/i,
+    /(?:思考|推理).*(?:不能|无法).*(?:关闭|禁用)/i,
+    /(?:always[- ]on|mandatory)\s+(?:thinking|reasoning)/i,
+    /(?:thinking|reasoning).*(?:cannot|can't|does not support|unsupported).*(?:disable|disabled|off)/i,
+    /(?:cannot|can't|does not support|unsupported).*(?:disable|disabled|turn(?:ing)? off).*(?:thinking|reasoning)/i
+  ].some((pattern) => pattern.test(message))
 }
 
 const normalizeVerifyErrorMessage = (
@@ -82,6 +95,27 @@ const normalizeVerifyErrorMessage = (
 export function registerSettingsHandlers(ctx: IpcContext): void {
   const { mainWindow, db, encryptApiKey, decryptApiKey } = ctx
 
+  const resolveStoredApiKey = (
+    rawValue: unknown
+  ): { value: string; unavailable: boolean } => {
+    const rawApiKey = typeof rawValue === 'string' ? rawValue.trim() : ''
+    if (!rawApiKey) return { value: '', unavailable: false }
+    try {
+      const decrypted = decryptApiKey(rawApiKey)
+      const value = typeof decrypted === 'string' ? decrypted.trim() : ''
+      return { value, unavailable: value.length === 0 }
+    } catch {
+      return { value: '', unavailable: true }
+    }
+  }
+
+  const storedApiKeyReentryMessage = (locale: 'zh' | 'en'): string =>
+    uiText(
+      locale,
+      '已保存的 api_key 无法解密，请重新填写 api_key 后再保存。',
+      'The saved api_key could not be decrypted. Enter api_key again and save.'
+    )
+
   ipcMain.handle('app:getVersion', async () => {
     return { version: app.getVersion() }
   })
@@ -108,20 +142,26 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
   })
 
   ipcMain.handle('settings:listModelConfigs', async () => {
-    return (await db.listModelConfigs()).map((config) => ({
-      id: config.id,
-      name: config.name,
-      provider: config.provider,
-      model: config.model,
-      apiKey: decryptApiKey(config.apiKey),
-      baseUrl: config.baseUrl,
-      maxTokens: config.maxTokens || 4096,
-      disableTemperature: config.disableTemperature === 1,
-      thinkingParameterMode: normalizeThinkingParameterMode(config.thinkingParameterMode),
-      active: config.active === 1,
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt
-    }))
+    return (await db.listModelConfigs()).map((config) => {
+      const storedApiKey = resolveStoredApiKey(config.apiKey)
+      return {
+        id: config.id,
+        name: config.name,
+        provider: config.provider,
+        model: config.model,
+        // API keys stay in the main process. Editing an existing config with an empty field
+        // tells the upsert handler to retain the encrypted value already stored for this id.
+        apiKey: '',
+        hasApiKey: storedApiKey.value.length > 0,
+        baseUrl: config.baseUrl,
+        maxTokens: config.maxTokens || 4096,
+        disableTemperature: config.disableTemperature === 1,
+        thinkingParameterMode: normalizeThinkingParameterMode(config.thinkingParameterMode),
+        active: config.active === 1,
+        createdAt: config.createdAt,
+        updatedAt: config.updatedAt
+      }
+    })
   })
 
   ipcMain.handle('settings:getModelUsage', async (_event, requestedPeriod) => {
@@ -201,8 +241,8 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
         applyProxy(nextProxy || undefined)
       } catch (proxyError) {
         log.error('[settings:save] failed to apply proxy', {
-          proxyUrl: nextProxy,
-          message: proxyError instanceof Error ? proxyError.message : String(proxyError)
+          proxyUrl: redactSensitiveText(nextProxy),
+          message: redactSensitiveText(proxyError)
         })
         throw new Error(
           uiText(
@@ -233,7 +273,29 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       typeof record.id === 'string' && record.id.trim().length > 0 ? record.id.trim() : undefined
     if (!name) throw new Error(uiText(locale, '请填写模型名称。', 'Enter model name.'))
     if (!model) throw new Error(uiText(locale, '请填写 model。', 'Enter model.'))
-    if (!apiKey) throw new Error(uiText(locale, '请填写 api_key。', 'Enter api_key.'))
+    let encryptedApiKey = ''
+    let storedApiKeyUnavailable = false
+    if (apiKey) {
+      encryptedApiKey = encryptApiKey(apiKey)
+    } else if (id) {
+      const existing = (await db.listModelConfigs()).find((config) => config.id === id)
+      if (
+        existing?.apiKey &&
+        buildTextCredentialScope(existing.provider, existing.baseUrl) ===
+          buildTextCredentialScope(record.provider, baseUrl)
+      ) {
+        const storedApiKey = resolveStoredApiKey(existing.apiKey)
+        if (storedApiKey.value) encryptedApiKey = existing.apiKey
+        storedApiKeyUnavailable = storedApiKey.unavailable
+      }
+    }
+    if (!encryptedApiKey) {
+      throw new Error(
+        storedApiKeyUnavailable
+          ? storedApiKeyReentryMessage(locale)
+          : uiText(locale, '请填写 api_key。', 'Enter api_key.')
+      )
+    }
     const maxTokens = normalizeMaxTokens(record.maxTokens)
     const thinkingParameterMode = normalizeThinkingParameterMode(record.thinkingParameterMode)
     const savedId = await db.upsertModelConfig({
@@ -241,7 +303,7 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       name,
       provider,
       model,
-      apiKey: encryptApiKey(apiKey),
+      apiKey: encryptedApiKey,
       baseUrl,
       maxTokens,
       disableTemperature: record.disableTemperature === true,
@@ -289,6 +351,7 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
     async (
       _event,
       {
+        id,
         provider,
         apiKey,
         model,
@@ -303,38 +366,68 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       const resolvedTimeoutMs = resolveModelTimeoutMs(timeoutMs, 'verify')
       const resolvedMaxTokens = normalizeMaxTokens(maxTokens)
       const resolvedThinkingParameterMode = normalizeThinkingParameterMode(thinkingParameterMode)
+      const requestedApiKey = typeof apiKey === 'string' ? apiKey.trim() : ''
+      const requestedBaseUrl = typeof baseUrl === 'string' ? baseUrl.trim() : ''
       log.info('[settings:verifyApiKey] received', {
         provider,
         model,
-        hasApiKey: typeof apiKey === 'string' && apiKey.trim().length > 0,
-        baseUrl: typeof baseUrl === 'string' ? baseUrl : '',
+        hasApiKey: requestedApiKey.length > 0,
+        baseUrl: redactSensitiveText(requestedBaseUrl),
         maxTokens: resolvedMaxTokens,
         thinkingParameterMode: resolvedThinkingParameterMode,
         timeoutMs: resolvedTimeoutMs
       })
 
-      if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
-        return {
-          valid: false,
-          message: uiText(locale, '请先填写 api_key。', 'Enter api_key first.')
-        }
-      }
       if (typeof model !== 'string' || model.trim().length === 0) {
         return { valid: false, message: uiText(locale, '请先填写 model。', 'Enter model first.') }
       }
 
-      try {
+      let resolvedApiKey = requestedApiKey
+      let storedApiKeyUnavailable = false
+      if (!resolvedApiKey && typeof id === 'string' && id.trim().length > 0) {
+        const existing = (await db.listModelConfigs()).find((config) => config.id === id.trim())
+        const sameScope =
+          existing &&
+          buildTextCredentialScope(existing.provider, existing.baseUrl) ===
+            buildTextCredentialScope(provider, requestedBaseUrl)
+        if (!sameScope) {
+          return {
+            valid: false,
+            message: uiText(
+              locale,
+              'provider 或 base_url 已变化，请重新填写 api_key。',
+              'Provider or base_url changed. Enter api_key again.'
+            )
+          }
+        }
+        const storedApiKey = resolveStoredApiKey(existing?.apiKey)
+        resolvedApiKey = storedApiKey.value
+        storedApiKeyUnavailable = storedApiKey.unavailable
+      }
+
+      if (!resolvedApiKey) {
+        return {
+          valid: false,
+          message: storedApiKeyUnavailable
+            ? storedApiKeyReentryMessage(locale)
+            : uiText(locale, '请先填写 api_key。', 'Enter api_key first.')
+        }
+      }
+
+      const invokeVerification = async (
+        verificationThinkingParameterMode: 'auto' | 'omit'
+      ): Promise<void> => {
         const client = runWithModelTemperatureControl(
           {
             disableTemperature: disableTemperature === true,
-            thinkingParameterMode: resolvedThinkingParameterMode
+            thinkingParameterMode: verificationThinkingParameterMode
           },
           () =>
             resolveModel(
               provider,
-              apiKey.trim(),
+              resolvedApiKey,
               model.trim(),
-              typeof baseUrl === 'string' ? baseUrl.trim() : '',
+              requestedBaseUrl,
               undefined,
               resolvedMaxTokens,
               ctx.modelRuntime
@@ -343,20 +436,51 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
         await client.invoke('Reply with OK.', {
           signal: AbortSignal.timeout(resolvedTimeoutMs)
         })
+      }
+
+      try {
+        await invokeVerification(resolvedThinkingParameterMode)
         log.info('[settings:verifyApiKey] success', { provider, model })
         return { valid: true, message: uiText(locale, '连接验证成功。', 'Connection verified.') }
       } catch (error) {
-        const message =
+        if (
+          resolvedThinkingParameterMode === 'auto' &&
+          (provider === 'openai' || provider === 'zhipu') &&
+          requestedBaseUrl.length > 0 &&
+          isMandatoryThinkingError(error)
+        ) {
+          try {
+            await invokeVerification('omit')
+            log.info('[settings:verifyApiKey] success after omitting thinking parameter', {
+              provider,
+              model
+            })
+            return {
+              valid: true,
+              message: uiText(
+                locale,
+                '连接验证成功。当前表单已切换为不发送 thinking 参数，请点击保存使其生效。',
+                'Connection verified. The form now omits the thinking parameter; click Save to apply it.'
+              ),
+              thinkingParameterMode: 'omit' as const
+            }
+          } catch (retryError) {
+            error = retryError
+          }
+        }
+        const message = redactSensitiveText(
           normalizeVerifyErrorMessage(error, { locale, provider }) ||
-          uiText(
-            locale,
-            '连接验证失败，请检查 api_key、model 或 base_url。',
-            'Connection verification failed. Check api_key, model, or base_url.'
-          )
+            uiText(
+              locale,
+              '连接验证失败，请检查 api_key、model 或 base_url。',
+              'Connection verification failed. Check api_key, model, or base_url.'
+            ),
+          [resolvedApiKey, requestedBaseUrl]
+        )
         log.error('[settings:verifyApiKey] failed', {
           provider,
           model,
-          baseUrl: typeof baseUrl === 'string' ? baseUrl : '',
+          baseUrl: redactSensitiveText(requestedBaseUrl, [resolvedApiKey]),
           message
         })
         return { valid: false, message }

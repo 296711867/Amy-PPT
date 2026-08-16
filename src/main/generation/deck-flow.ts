@@ -97,6 +97,7 @@ export async function resolveDeckContext(
     model: common.model,
     modelConfigId: common.modelConfigId,
     modelConfigName: common.modelConfigName,
+    modelControl: common.modelControl,
     runModel: common.runModel,
     modelTimeouts: common.modelTimeouts,
     providerBaseUrl: common.providerBaseUrl,
@@ -245,6 +246,7 @@ export async function executeDeckGeneration(
           baseUrl: context.providerBaseUrl,
           maxTokens: context.maxTokens,
           modelRuntime: context.modelRuntime,
+          modelControl: context.modelControl,
           modelTimeoutMs: context.modelTimeouts.planning,
           temperature: PLANNER_TEMPERATURE,
           styleId: context.styleId,
@@ -287,6 +289,7 @@ export async function executeDeckGeneration(
       baseUrl: context.providerBaseUrl,
       maxTokens: context.maxTokens,
       modelRuntime: context.modelRuntime,
+      modelControl: context.modelControl,
       modelTimeoutMs: context.modelTimeouts.design,
       temperature: DESIGN_CONTRACT_TEMPERATURE,
       styleId: context.styleId,
@@ -343,6 +346,7 @@ export async function executeDeckGeneration(
     model: context.model,
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
+    modelControl: context.modelControl,
     signal: context.abortSignal,
     onStatus: ({ state, current, total, role, whitespace }) =>
       emitDeckChunk({
@@ -1062,6 +1066,7 @@ export async function executeDeckGeneration(
       baseUrl: context.providerBaseUrl,
       maxTokens: context.maxTokens,
       modelRuntime: context.modelRuntime,
+      modelControl: context.modelControl,
       timeoutMs: context.modelTimeouts.document
     },
     appLocale: context.appLocale,

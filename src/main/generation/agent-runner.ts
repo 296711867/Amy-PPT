@@ -4,8 +4,9 @@ import pLimit from 'p-limit'
 import log from 'electron-log/main.js'
 import { createSessionDeckAgent, createSessionEditAgent } from '../agent-runtime/agent'
 import { assertModelText, extractJsonBlock, extractModelText, resolveModel } from '../agent-runtime/model'
-import type { GenerationAgentManager } from './context'
+import type { GenerationAgentManager, GenerationModelControl } from './context'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
+import { runWithModelTemperatureControl } from '../agent-runtime/model'
 import {
   buildDesignContractSystemPrompt,
   buildDesignContractUserPrompt,
@@ -70,6 +71,7 @@ import {
   inspectPresentationDeckQuality,
   type DeckQualityViolation
 } from '../presentation/html/deck-quality-validator'
+import { resolveIncompleteDeckRenderPages } from './deck-render-gate'
 import {
   formatDeckNarrativeFeedback,
   inspectPresentationDeckNarrative,
@@ -82,6 +84,11 @@ import {
 } from './deck-narrative-reviewer'
 
 type AppLocale = 'zh' | 'en'
+
+const withModelControl = <T>(
+  modelControl: GenerationModelControl | undefined,
+  task: () => T
+): T => (modelControl ? runWithModelTemperatureControl(modelControl, task) : task())
 
 const uiText = (locale: AppLocale | undefined, zh: string, en: string): string =>
   locale === 'en' ? en : zh
@@ -349,6 +356,7 @@ export const planDeckWithLLM = async (args: {
   temperature?: number
   maxTokens?: number
   modelRuntime?: ModelRuntimeConfig
+  modelControl?: GenerationModelControl
   styleId: string | null | undefined
   totalPages: number
   appLocale?: AppLocale
@@ -361,14 +369,16 @@ export const planDeckWithLLM = async (args: {
   runId?: string
   signal?: AbortSignal
 }): Promise<OutlineItem[]> => {
-  const client = resolveModel(
-    args.provider,
-    args.apiKey,
-    args.model,
-    args.baseUrl,
-    args.temperature,
-    args.maxTokens,
-    args.modelRuntime
+  const client = withModelControl(args.modelControl, () =>
+    resolveModel(
+      args.provider,
+      args.apiKey,
+      args.model,
+      args.baseUrl,
+      args.temperature,
+      args.maxTokens,
+      args.modelRuntime
+    )
   )
   const systemPrompt = buildPlanningSystemPrompt(args.totalPages)
   const userPrompt = buildPlanningUserPrompt({
@@ -583,6 +593,7 @@ export const planNewPage = async (args: {
   temperature?: number
   maxTokens?: number
   modelRuntime?: ModelRuntimeConfig
+  modelControl?: GenerationModelControl
   appLocale?: AppLocale
   modelTimeoutMs?: number
   userDescription: string
@@ -600,14 +611,16 @@ export const planNewPage = async (args: {
   contentDensity?: import('@shared/universal-layouts').ContentDensity
   layoutId?: UniversalLayoutId
 }> => {
-  const client = resolveModel(
-    args.provider,
-    args.apiKey,
-    args.model,
-    args.baseUrl,
-    args.temperature,
-    args.maxTokens,
-    args.modelRuntime
+  const client = withModelControl(args.modelControl, () =>
+    resolveModel(
+      args.provider,
+      args.apiKey,
+      args.model,
+      args.baseUrl,
+      args.temperature,
+      args.maxTokens,
+      args.modelRuntime
+    )
   )
   const systemPrompt = [
     'You are a PPT slide planner. The user wants to add ONE new slide to an existing deck.',
@@ -723,6 +736,7 @@ export const buildDesignContractWithLLM = async (args: {
   temperature?: number
   maxTokens?: number
   modelRuntime?: ModelRuntimeConfig
+  modelControl?: GenerationModelControl
   styleId: string | null | undefined
   styleSkillPrompt: string
   layoutRulesPrompt?: string
@@ -740,14 +754,16 @@ export const buildDesignContractWithLLM = async (args: {
   runId?: string
   signal?: AbortSignal
 }): Promise<DesignContract> => {
-  const client = resolveModel(
-    args.provider,
-    args.apiKey,
-    args.model,
-    args.baseUrl,
-    args.temperature,
-    args.maxTokens,
-    args.modelRuntime
+  const client = withModelControl(args.modelControl, () =>
+    resolveModel(
+      args.provider,
+      args.apiKey,
+      args.model,
+      args.baseUrl,
+      args.temperature,
+      args.maxTokens,
+      args.modelRuntime
+    )
   )
   const totalPages = Math.max(1, args.totalPages)
   const availableFonts: AvailableFont[] = await buildAvailableFontsForPrompt()
@@ -955,6 +971,7 @@ export const runDeepAgentDeckGeneration = async (args: {
   baseUrl: string
   temperature?: number
   maxTokens?: number
+  modelControl?: GenerationModelControl
   styleId: string | null | undefined
   styleSkillPrompt: string
   layoutRulesPrompt: string
@@ -1322,17 +1339,18 @@ export const runDeepAgentDeckGeneration = async (args: {
       injectedCharacterCount: referenceDocumentSnippets.length
     })
 
-    const deepAgent = createSessionDeckAgent({
-      provider: args.provider,
-      apiKey: args.apiKey,
-      model: args.model,
-      baseUrl: args.baseUrl,
-      temperature: args.temperature,
-      maxTokens: args.maxTokens,
-      modelRuntime: args.agentManager.getSession(args.sessionId)?.modelRuntime,
-      styleId: args.styleId,
-      systemPromptAddendum: args.systemPromptAddendum,
-      context: {
+    const deepAgent = withModelControl(args.modelControl, () =>
+      createSessionDeckAgent({
+        provider: args.provider,
+        apiKey: args.apiKey,
+        model: args.model,
+        baseUrl: args.baseUrl,
+        temperature: args.temperature,
+        maxTokens: args.maxTokens,
+        modelRuntime: args.agentManager.getSession(args.sessionId)?.modelRuntime,
+        styleId: args.styleId,
+        systemPromptAddendum: args.systemPromptAddendum,
+        context: {
         sessionId: args.sessionId,
         projectDir: args.projectDir,
         indexPath: args.indexPath,
@@ -1376,8 +1394,9 @@ export const runDeepAgentDeckGeneration = async (args: {
         selectedPageNumber: page.pageNumber,
         existingPageIds: [page.pageId],
         allowedPageIds: [page.pageId]
-      }
-    })
+        }
+      })
+    )
     args.agentManager.setPageAgent(args.sessionId, page.pageId, deepAgent)
 
     try {
@@ -1721,7 +1740,9 @@ export const runDeepAgentDeckGeneration = async (args: {
         })
         dispatchedPageIds.add(page.pageId)
         try {
-          const summary = await generateSinglePageWithRetry(page, workerLabel)
+          const summary = await withModelControl(args.modelControl, () =>
+            generateSinglePageWithRetry(page, workerLabel)
+          )
           if (summary) {
             pageSummaryMap.set(
               page.pageNumber,
@@ -1841,9 +1862,33 @@ export const runDeepAgentDeckGeneration = async (args: {
       }))
     })
 
-    const hardViolations = deckReport.violations.filter(
-      (violation) => violation.severity === 'error'
-    )
+    const incompleteRenderPages = resolveIncompleteDeckRenderPages(deckReport)
+    for (const unavailable of incompleteRenderPages) {
+      const page = pageRefs.find((candidate) => candidate.pageId === unavailable.pageId)
+      if (!page || failedPages.some((failure) => failure.pageId === page.pageId)) continue
+      const reason = uiText(
+        args.appLocale,
+        `浏览器渲染验收不可用：${unavailable.reason}。本页未被视为生成完成。`,
+        `Browser render validation was unavailable: ${unavailable.reason}. This slide was not accepted as complete.`
+      )
+      failedPages.push({ pageId: page.pageId, title: page.title, reason })
+      await args.onPageFailed?.({
+        pageNumber: page.pageNumber,
+        pageId: page.pageId,
+        title: page.title,
+        contentOutline: page.outline,
+        layoutIntent: page.layoutIntent,
+        layoutId: page.layoutId,
+        imageAssetPath: page.imageAssetPath,
+        imageAssetPaths: page.imageAssetPaths,
+        htmlPath: args.pageFileMap[page.pageId] || '',
+        reason
+      })
+    }
+
+    const hardViolations = deckReport.available
+      ? deckReport.violations.filter((violation) => violation.severity === 'error')
+      : []
     const repairPageIds = Array.from(
       new Set(hardViolations.flatMap((violation) => violation.pageIds))
     )
@@ -1921,9 +1966,17 @@ export const runDeepAgentDeckGeneration = async (args: {
     }
     deckQualityWarnings = deckReport.violations.filter((violation) => violation.severity === 'warn')
     emitRenderingStatus({
-      label: progressLabel(args.appLocale, '整套一致性检查完成'),
-      detail:
-        deckQualityWarnings.length > 0
+      label: progressLabel(
+        args.appLocale,
+        deckReport.available ? '整套一致性检查完成' : '整套一致性检查未完成'
+      ),
+      detail: !deckReport.available
+        ? uiText(
+            args.appLocale,
+            `跨页浏览器验收未完成，${incompleteRenderPages.length} 页已标记为失败，待渲染恢复后重试`,
+            `Cross-slide browser validation was incomplete; ${incompleteRenderPages.length} slides were marked failed for retry`
+          )
+        : deckQualityWarnings.length > 0
           ? uiText(
               args.appLocale,
               `已完成 Deck 评审，记录 ${deckQualityWarnings.length} 项非阻断优化建议`,
@@ -2118,6 +2171,7 @@ type RunDeepAgentEditBaseArgs = {
   baseUrl: string
   temperature?: number
   maxTokens?: number
+  modelControl?: GenerationModelControl
   styleId: string | null | undefined
   styleSkillPrompt: string
   layoutRulesPrompt: string
@@ -2174,16 +2228,17 @@ const runDeepAgentScopedEdit = async (args: RunDeepAgentScopedEditArgs): Promise
   const outlineItems = appliesLayoutMaster
     ? await resolveLayoutMasterOutlineItems(args.projectDir, args.outlineItems)
     : args.outlineItems
-  const editAgent = createSessionEditAgent({
-    provider: args.provider,
-    apiKey: args.apiKey,
-    model: args.model,
-    baseUrl: args.baseUrl,
-    temperature: args.temperature,
-    maxTokens: args.maxTokens,
-    modelRuntime: args.agentManager.getSession(args.sessionId)?.modelRuntime,
-    styleId: args.styleId,
-    context: {
+  const editAgent = withModelControl(args.modelControl, () =>
+    createSessionEditAgent({
+      provider: args.provider,
+      apiKey: args.apiKey,
+      model: args.model,
+      baseUrl: args.baseUrl,
+      temperature: args.temperature,
+      maxTokens: args.maxTokens,
+      modelRuntime: args.agentManager.getSession(args.sessionId)?.modelRuntime,
+      styleId: args.styleId,
+      context: {
       mode: 'edit',
       editScope: args.editScope,
       sessionId: args.sessionId,
@@ -2220,8 +2275,9 @@ const runDeepAgentScopedEdit = async (args: RunDeepAgentScopedEditArgs): Promise
           : args.editScope === 'deck'
             ? Object.keys(args.pageFileMap)
             : undefined
-    }
-  })
+      }
+    })
+  )
   const concurrentDeckPageId =
     args.editScope === 'deck' && args.selectPageIds?.length === 1
       ? args.selectPageIds[0]

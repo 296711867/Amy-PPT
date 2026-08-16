@@ -769,6 +769,14 @@ export class PPTDatabase {
       .run()
   }
 
+  async restoreSessionMetadata(sessionId: string, metadata: string | null): Promise<void> {
+    await this.db
+      .update(schema.sessions)
+      .set({ metadata, updatedAt: Math.floor(Date.now() / 1000) })
+      .where(eq(schema.sessions.id, sessionId))
+      .run()
+  }
+
   async updateSessionTitle(sessionId: string, title: string): Promise<void> {
     const updatedAt = Math.floor(Date.now() / 1000)
     await this.db

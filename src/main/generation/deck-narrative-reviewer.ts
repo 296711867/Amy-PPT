@@ -1,6 +1,8 @@
 import type { BaseLanguageModel } from '@langchain/core/language_models/base'
 import type { ModelRuntimeConfig } from '../agent-runtime/model'
 import { extractJsonBlock, extractModelText, resolveModel } from '../agent-runtime/model'
+import { runWithModelTemperatureControl } from '../agent-runtime/model'
+import type { GenerationModelControl } from './context'
 import type {
   DeckNarrativeViolation,
   NarrativePageSnapshot
@@ -136,6 +138,7 @@ export async function reviewDeckNarrativeWithLLM(args: {
   temperature?: number
   maxTokens?: number
   modelRuntime?: ModelRuntimeConfig
+  modelControl?: GenerationModelControl
   modelTimeoutMs?: number
   signal?: AbortSignal
   topic: string
@@ -151,14 +154,16 @@ export async function reviewDeckNarrativeWithLLM(args: {
   try {
     const client =
       args.client ||
-      resolveModel(
-        args.provider,
-        args.apiKey,
-        args.model,
-        args.baseUrl,
-        args.temperature,
-        Math.min(args.maxTokens || 4096, 4096),
-        args.modelRuntime
+      runWithModelTemperatureControl(args.modelControl || {}, () =>
+        resolveModel(
+          args.provider,
+          args.apiKey,
+          args.model,
+          args.baseUrl,
+          args.temperature,
+          Math.min(args.maxTokens || 4096, 4096),
+          args.modelRuntime
+        )
       )
     const prompts = buildDeckNarrativeReviewPrompts(args)
     const timeoutSignal = AbortSignal.timeout(Math.max(1_000, args.modelTimeoutMs || 90_000))

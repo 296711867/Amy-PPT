@@ -85,6 +85,32 @@ export interface EditSessionContext {
   getPageContext: () => { pageId: string; htmlPath: string; sessionId: string } | null
 }
 
+export type ManualEditPromptCounts = {
+  added: number
+  deleted: number
+  moved: number
+  text: number
+  properties: number
+}
+
+export function buildManualEditPrompt(
+  t: EditSessionContext['t'],
+  counts: ManualEditPromptCounts
+): string {
+  const parts: string[] = []
+  if (counts.added > 0) parts.push(t('sessionDetail.manualAddElements', { count: counts.added }))
+  if (counts.deleted > 0)
+    parts.push(t('sessionDetail.manualDeleteElements', { count: counts.deleted }))
+  if (counts.moved > 0) parts.push(t('sessionDetail.manualMoveElements', { count: counts.moved }))
+  if (counts.text > 0) parts.push(t('sessionDetail.manualEditText', { count: counts.text }))
+  if (counts.properties > 0) {
+    parts.push(t('sessionDetail.manualEditProperties', { count: counts.properties }))
+  }
+  return parts.length > 0
+    ? parts.join(t('sessionDetail.manualPromptSeparator'))
+    : t('sessionDetail.manualAdjustHistory')
+}
+
 function getCommitFieldsForSelection(selection: EditSelectionPayload): Set<keyof ElementEditDraft> {
   const fields = new Set<keyof ElementEditDraft>()
   const capabilities = selection.capabilities || []
@@ -1046,18 +1072,18 @@ export const useEditSessionStore = create<EditSessionState>((set, get) => ({
       const safePropertyEdits = snapshot.propertyEdits.filter(
         (e) => !isDeletedTarget(e.selector, e.blockId)
       )
-      const parts: string[] = []
       const ac = snapshot.addElements.length
       const dc = snapshot.deletes.length
       const rc = safeDragEdits.length
       const tc = safeTextEdits.length
       const pcount = safePropertyEdits.length
-      if (ac > 0) parts.push(`添加 ${ac} 个元素`)
-      if (dc > 0) parts.push(`删除 ${dc} 个元素`)
-      if (rc > 0) parts.push(`调整 ${rc} 个元素位置`)
-      if (tc > 0) parts.push(`编辑 ${tc} 个元素文字`)
-      if (pcount > 0) parts.push(`编辑 ${pcount} 个元素属性`)
-      const prompt = parts.join('、') || '手动调整'
+      const prompt = buildManualEditPrompt(ctx.t, {
+        added: ac,
+        deleted: dc,
+        moved: rc,
+        text: tc,
+        properties: pcount
+      })
       const result = await ipc.saveEditBatch({
         sessionId: pc.sessionId,
         htmlPath: pc.htmlPath,

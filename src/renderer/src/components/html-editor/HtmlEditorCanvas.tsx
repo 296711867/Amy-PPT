@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import { nanoid } from 'nanoid'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
 import {
   buildEditModeCleanupScript,
   buildEditModeInjectScript,
@@ -26,6 +26,8 @@ import {
 } from '@renderer/lib/presentation-layout-island'
 import { useT } from '@renderer/i18n'
 import { useHtmlEditorStore } from '../../store/htmlEditorStore'
+import { Button } from '../ui/Button'
+import { useWebviewLoadError } from '../../hooks/useWebviewLoadError'
 import {
   HtmlEditorGuidesOverlay,
   type GuidesSnapBridge,
@@ -271,6 +273,7 @@ export const HtmlEditorCanvas = forwardRef<
     : src
       ? withPreviewParams(src)
       : undefined
+  const webviewLoad = useWebviewLoadError(webviewElement, webviewSrc)
   const currentInteractionMode: InteractionMode =
     interactionMode || (editMode ? 'edit' : inspecting ? 'ai-inspect' : 'preview')
   const pointerEnabled = inspectable
@@ -1423,7 +1426,30 @@ export const HtmlEditorCanvas = forwardRef<
           </div>
         ) : null}
       </div>
-      {webviewSrc && !webviewReady ? (
+      {webviewSrc && webviewLoad.error ? (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#f5f1e8]/95 px-6 text-center text-[#7c786b]"
+          role="alert"
+        >
+          <AlertTriangle className="h-5 w-5 text-[#a86d52]" aria-hidden="true" />
+          <p className="text-sm font-medium text-[#514d43]">
+            {t('sessionDetail.htmlEditorLoadFailed')}
+          </p>
+          <p className="max-w-[min(78%,520px)] text-xs leading-5 text-[#7c786b]">
+            {webviewLoad.error}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={webviewLoad.retry}
+            className="gap-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('sessionDetail.retryHtmlEditor')}
+          </Button>
+        </div>
+      ) : webviewSrc && !webviewReady ? (
         <div
           className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-[#f5f1e8] text-[#7c786b]"
           aria-busy="true"

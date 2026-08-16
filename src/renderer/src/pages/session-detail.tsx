@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { ipc } from '@renderer/lib/ipc'
 import type { EditableElementSnapshot } from '@arcsin1/presentation-editor-runtime'
 import type { PreviewIframeHandle } from '../components/preview/PreviewIframe'
@@ -46,6 +47,7 @@ import {
   useSessionDetailUiStore,
   useSessionStore,
   useToastStore,
+  SESSION_NOT_FOUND_ERROR,
   type AddSessionElementHandler,
   type AddSessionElementOptions
 } from '../store'
@@ -66,7 +68,8 @@ import {
 import { escapeHtmlText } from '../lib/utils'
 import { useT } from '../i18n'
 import { nanoid } from 'nanoid'
-import { requireSessionSlideSize } from '@shared/slide-size'
+import { trySessionSlideSize } from '@shared/slide-size'
+import { Button } from '../components/ui/Button'
 
 const ADDED_ELEMENT_EDGE_PADDING = 20
 const ADDED_TEXT_WIDTH = 420
@@ -91,6 +94,57 @@ function escapeCssString(value: string): string {
     .replace(/>/g, '\\3E ')
 }
 
+function SessionLoadState({
+  kind,
+  title,
+  description,
+  retryLabel,
+  backLabel,
+  onRetry,
+  onBack
+}: {
+  kind: 'loading' | 'error' | 'not-found' | 'missing-size'
+  title: string
+  description: string
+  retryLabel?: string
+  backLabel: string
+  onRetry?: () => void
+  onBack: () => void
+}): React.JSX.Element {
+  const isLoading = kind === 'loading'
+  return (
+    <div
+      className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground"
+      role={isLoading ? 'status' : 'alert'}
+      aria-busy={isLoading}
+    >
+      {isLoading ? (
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+      ) : (
+        <AlertTriangle className="h-6 w-6 text-destructive" aria-hidden="true" />
+      )}
+      <div className="max-w-lg space-y-1.5">
+        <h1 className="text-base font-semibold">{title}</h1>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+      {!isLoading ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {onRetry && retryLabel ? (
+            <Button type="button" variant="outline" size="sm" onClick={onRetry} className="gap-2">
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              {retryLabel}
+            </Button>
+          ) : null}
+          <Button type="button" variant="ghost" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            {backLabel}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function SessionDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -99,13 +153,16 @@ export function SessionDetailPage(): React.JSX.Element {
   const {
     currentSession,
     currentGeneratedPages,
+    loading,
+    error,
     loadSession,
     loadMessages,
     setMessages,
     addMessage,
+    setLoading,
     resetRuntimeState
   } = useSessionStore()
-  const slideSize = currentSession ? requireSessionSlideSize(currentSession) : null
+  const slideSize = currentSession ? trySessionSlideSize(currentSession) : null
   const { updateProgress, currentPages } = useGenerateStore()
   const styleSwitchJob = useGenerateStore((state) =>
     id ? state.styleSwitchJobs[id] || null : null
@@ -127,6 +184,7 @@ export function SessionDetailPage(): React.JSX.Element {
   const setAssetPickerOpen = useSessionDetailUiStore((state) => state.setAssetPickerOpen)
   const workspaceTab = useSessionDetailUiStore((state) => state.workspaceTab)
   const activeChatRef = useRef<{ chatType: ChatType; pageId?: string }>({ chatType: 'page' })
+  const sessionStateEpochRef = useRef(0)
   const pageEditStateEpochRef = useRef(0)
   const pageBeautifyStateEpochRef = useRef(0)
   const deckEditStateEpochRef = useRef(0)
@@ -243,9 +301,16 @@ export function SessionDetailPage(): React.JSX.Element {
   useEffect(() => {
     if (!id) return
     let cancelled = false
+    sessionStateEpochRef.current += 1
+    pageEditStateEpochRef.current += 1
+    pageBeautifyStateEpochRef.current += 1
+    deckEditStateEpochRef.current += 1
+    styleSwitchStateEpochRef.current += 1
+    resetRuntimeState()
     setMessages([])
     useGenerateStore.getState().setPages([])
     resetForSessionChange()
+    setLoading(true)
     void (async () => {
       try {
         await ipc.migratePageOutlinesToSourceSkeletons({ sessionId: id })
@@ -259,12 +324,25 @@ export function SessionDetailPage(): React.JSX.Element {
     // Cleanup on unmount (leaving session-detail)
     return () => {
       cancelled = true
+      sessionStateEpochRef.current += 1
+      pageEditStateEpochRef.current += 1
+      pageBeautifyStateEpochRef.current += 1
+      deckEditStateEpochRef.current += 1
+      styleSwitchStateEpochRef.current += 1
+      resetRuntimeState()
       useGenerateStore.getState().reset()
       useSessionDetailUiStore.getState().resetForSessionChange()
       useEditHistoryStore.getState().clear()
       useEditSessionStore.getState().resetForPage()
     }
-  }, [id, loadSession, resetForSessionChange, setMessages])
+  }, [
+    id,
+    loadSession,
+    resetForSessionChange,
+    resetRuntimeState,
+    setLoading,
+    setMessages
+  ])
 
   useEffect(() => {
     useGenerateStore.getState().setPages(currentGeneratedPages)
@@ -273,10 +351,17 @@ export function SessionDetailPage(): React.JSX.Element {
   useEffect(() => {
     if (!id) return
     let disposed = false
+    const requestEpoch = sessionStateEpochRef.current
     void ipc
       .getGenerateState(id)
       .then((state) => {
-        if (disposed || !state.hasActiveRun) return
+        if (
+          disposed ||
+          requestEpoch !== sessionStateEpochRef.current ||
+          sessionIdRef.current !== id ||
+          !state.hasActiveRun
+        )
+          return
         const ui = useSessionDetailUiStore.getState()
         if (state.activityKind === 'addPage') {
           ui.setIsAddingPage(true)
@@ -290,11 +375,21 @@ export function SessionDetailPage(): React.JSX.Element {
         }
         useGenerateStore.setState({ isGenerating: true, error: null, status: 'running' })
       })
-      .catch(() => {})
+      .catch(() => {
+        if (
+          disposed ||
+          requestEpoch !== sessionStateEpochRef.current ||
+          sessionIdRef.current !== id
+        )
+          return
+        useGenerateStore
+          .getState()
+          .setSessionError(id, t('sessionDetail.restoreStateFailed'))
+      })
     return () => {
       disposed = true
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (!id || !currentSession) return
@@ -361,11 +456,21 @@ export function SessionDetailPage(): React.JSX.Element {
           progress: state.progress
         })
       })
-      .catch(() => {})
+      .catch(() => {
+        if (
+          disposed ||
+          requestEpoch !== pageBeautifyStateEpochRef.current ||
+          sessionIdRef.current !== id
+        )
+          return
+        useGenerateStore
+          .getState()
+          .setSessionError(id, t('sessionDetail.restoreStateFailed'))
+      })
     return () => {
       disposed = true
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (!id) return
@@ -393,11 +498,21 @@ export function SessionDetailPage(): React.JSX.Element {
           pages: state.pages
         })
       })
-      .catch(() => {})
+      .catch(() => {
+        if (
+          disposed ||
+          requestEpoch !== styleSwitchStateEpochRef.current ||
+          sessionIdRef.current !== id
+        )
+          return
+        useGenerateStore
+          .getState()
+          .setSessionError(id, t('sessionDetail.restoreStateFailed'))
+      })
     return () => {
       disposed = true
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (!id) return
@@ -438,11 +553,21 @@ export function SessionDetailPage(): React.JSX.Element {
           })
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (
+          disposed ||
+          requestEpoch !== deckEditStateEpochRef.current ||
+          sessionIdRef.current !== id
+        )
+          return
+        useGenerateStore
+          .getState()
+          .setSessionError(id, t('sessionDetail.restoreStateFailed'))
+      })
     return () => {
       disposed = true
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (!id) return
@@ -471,11 +596,21 @@ export function SessionDetailPage(): React.JSX.Element {
           progress: state.progress
         })
       })
-      .catch(() => {})
+      .catch(() => {
+        if (
+          disposed ||
+          requestEpoch !== pageEditStateEpochRef.current ||
+          sessionIdRef.current !== id
+        )
+          return
+        useGenerateStore
+          .getState()
+          .setSessionError(id, t('sessionDetail.restoreStateFailed'))
+      })
     return () => {
       disposed = true
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     // Skip auto-select during addPage / retrySinglePage — selection managed explicitly
@@ -512,7 +647,7 @@ export function SessionDetailPage(): React.JSX.Element {
   }, [chatType, selectedPage?.id])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !currentSession) return
     if (chatType === 'page' && !selectedPage?.id) {
       void loadMessages({
         sessionId: id,
@@ -526,7 +661,7 @@ export function SessionDetailPage(): React.JSX.Element {
       chatType,
       pageId: chatType === 'page' ? selectedPage?.id : undefined
     })
-  }, [id, chatType, selectedPage?.id, loadMessages, setMessages])
+  }, [id, currentSession?.id, chatType, selectedPage?.id, loadMessages, setMessages])
 
   useEffect(() => {
     const pageId = selectedPage?.id
@@ -852,8 +987,12 @@ export function SessionDetailPage(): React.JSX.Element {
         } else if (isAddingPageRun) {
           const selectedPageId = useSessionDetailUiStore.getState().selectedPageId
           void loadSession(id)
-            .then(() => {
-              useGenerateStore.getState().setPages(useSessionStore.getState().currentGeneratedPages)
+            .then((loaded) => {
+              if (loaded) {
+                useGenerateStore
+                  .getState()
+                  .setPages(useSessionStore.getState().currentGeneratedPages)
+              }
             })
             .catch((error) => console.warn('[session-detail] reload added page failed', error))
             .finally(() => {
@@ -862,8 +1001,12 @@ export function SessionDetailPage(): React.JSX.Element {
             })
         } else if (isRetryingSinglePageRun) {
           void loadSession(id)
-            .then(() => {
-              useGenerateStore.getState().setPages(useSessionStore.getState().currentGeneratedPages)
+            .then((loaded) => {
+              if (loaded) {
+                useGenerateStore
+                  .getState()
+                  .setPages(useSessionStore.getState().currentGeneratedPages)
+              }
             })
             .catch((error) => console.warn('[session-detail] reload retried page failed', error))
             .finally(() => {
@@ -937,8 +1080,12 @@ export function SessionDetailPage(): React.JSX.Element {
         } else if (isAddingPageRun) {
           const selectedPageId = useSessionDetailUiStore.getState().selectedPageId
           void loadSession(id)
-            .then(() => {
-              useGenerateStore.getState().setPages(useSessionStore.getState().currentGeneratedPages)
+            .then((loaded) => {
+              if (loaded) {
+                useGenerateStore
+                  .getState()
+                  .setPages(useSessionStore.getState().currentGeneratedPages)
+              }
             })
             .catch((error) =>
               console.warn('[session-detail] reload failed added page failed', error)
@@ -949,8 +1096,12 @@ export function SessionDetailPage(): React.JSX.Element {
             })
         } else if (isRetryingSinglePageRun) {
           void loadSession(id)
-            .then(() => {
-              useGenerateStore.getState().setPages(useSessionStore.getState().currentGeneratedPages)
+            .then((loaded) => {
+              if (loaded) {
+                useGenerateStore
+                  .getState()
+                  .setPages(useSessionStore.getState().currentGeneratedPages)
+              }
             })
             .catch((error) =>
               console.warn('[session-detail] reload failed retried page failed', error)
@@ -1532,6 +1683,16 @@ export function SessionDetailPage(): React.JSX.Element {
     navigate('/sessions')
   }
 
+  const handleRetrySessionLoad = (): void => {
+    if (!id) return
+    resetRuntimeState()
+    setMessages([])
+    useGenerateStore.getState().reset()
+    resetForSessionChange()
+    setLoading(true)
+    void loadSession(id)
+  }
+
   const handleAddFromLibrary = (assetType: 'image' | 'video'): void => {
     setAssetPickerOpen(true, assetType)
   }
@@ -1563,8 +1724,65 @@ export function SessionDetailPage(): React.JSX.Element {
     onAddFormula: () => void handleAddFormulaElement()
   })
 
-  if (!id || !slideSize) {
-    return <div className="h-full bg-background" />
+  if (!id) {
+    return (
+      <SessionLoadState
+        kind="not-found"
+        title={t('sessionDetail.invalidSessionTitle')}
+        description={t('sessionDetail.invalidSessionDescription')}
+        backLabel={t('sessionDetail.backToSessions')}
+        onBack={() => navigate('/sessions')}
+      />
+    )
+  }
+
+  if (loading) {
+    return (
+      <SessionLoadState
+        kind="loading"
+        title={t('common.loading')}
+        description={t('sessionDetail.loadingDescription')}
+        backLabel={t('sessionDetail.backToSessions')}
+        onBack={handleBackToSessions}
+      />
+    )
+  }
+
+  if (!currentSession) {
+    const isNotFound = error === SESSION_NOT_FOUND_ERROR || !error
+    return (
+      <SessionLoadState
+        kind={isNotFound ? 'not-found' : 'error'}
+        title={
+          isNotFound
+            ? t('sessionDetail.invalidSessionTitle')
+            : t('sessionDetail.loadFailedTitle')
+        }
+        description={
+          isNotFound
+            ? t('sessionDetail.invalidSessionDescription')
+            : t('sessionDetail.loadFailedDescription')
+        }
+        retryLabel={t('sessionDetail.retrySessionLoad')}
+        backLabel={t('sessionDetail.backToSessions')}
+        onRetry={handleRetrySessionLoad}
+        onBack={handleBackToSessions}
+      />
+    )
+  }
+
+  if (!slideSize) {
+    return (
+      <SessionLoadState
+        kind="missing-size"
+        title={t('sessionDetail.missingSlideSizeTitle')}
+        description={t('sessionDetail.missingSlideSizeDescription')}
+        retryLabel={t('sessionDetail.retrySessionLoad')}
+        backLabel={t('sessionDetail.backToSessions')}
+        onRetry={handleRetrySessionLoad}
+        onBack={handleBackToSessions}
+      />
+    )
   }
 
   return (

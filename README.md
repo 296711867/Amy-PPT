@@ -64,7 +64,7 @@ pnpm test -- tests/unit/path/to/test.test.ts
 
 ## 更新发布
 
-Amy-PPT `1.0.0` 使用独立更新清单：
+Amy-PPT 使用独立更新清单。当前已发布版本为 `1.0.1`，`1.0.2` 安装包发布后再同步提升清单：
 
 ```text
 https://raw.githubusercontent.com/296711867/Amy-PPT/main/version.json
@@ -80,8 +80,8 @@ AMY_PPT_UPDATE_MANIFEST_URL=https://your-domain.example/version.json
 
 ```json
 {
-  "version": "1.0.1",
-  "downloadhome": "https://github.com/296711867/Amy-PPT/releases/tag/v1.0.1",
+  "version": "1.0.2",
+  "downloadhome": "https://github.com/296711867/Amy-PPT/releases/tag/v1.0.2",
   "changeLog": "本次更新内容"
 }
 ```

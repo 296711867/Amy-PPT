@@ -6,7 +6,11 @@ import log from 'electron-log/main.js'
 import { nanoid } from 'nanoid'
 import * as cheerio from 'cheerio'
 import type { IpcContext } from '../ipc/context'
-import { allowLocalAssetRoot } from '../io/local-asset-roots'
+import {
+  allowLocalAssetCompanionRoot,
+  allowLocalAssetRoot,
+  revokeLocalAssetRootsUnder
+} from '../io/local-asset-roots'
 import {
   clampDragValue,
   clampSizeValue,
@@ -492,6 +496,8 @@ export function registerHtmlEditorHandlers(ctx: IpcContext): void {
           createdAt: now
         }
       })
+      allowLocalAssetRoot(dir)
+      allowLocalAssetCompanionRoot(dir, path.dirname(sourcePath))
       rememberHtmlEditorDocumentHtml(docId, html)
       refreshHtmlEditorCoverThumbnail({ id: docId, htmlPath, designWidth })
       const result: HtmlEditorImportResult = {
@@ -506,6 +512,7 @@ export function registerHtmlEditorHandlers(ctx: IpcContext): void {
       return { cancelled: false, ...result }
     } catch (error) {
       if (workingDir) {
+        revokeLocalAssetRootsUnder(workingDir)
         await fs.promises.rm(workingDir, { recursive: true, force: true }).catch((cleanupError) => {
           log.warn('[html-editor:import] cleanup failed', {
             workingDir,
@@ -755,6 +762,8 @@ export function registerHtmlEditorHandlers(ctx: IpcContext): void {
     } catch (error) {
       throw new Error('HTML 文档文件不存在或无法读取', { cause: error })
     }
+    allowLocalAssetRoot(document.dir)
+    if (doc.sourcePath) allowLocalAssetCompanionRoot(document.dir, path.dirname(doc.sourcePath))
     const cached = htmlDocumentOpenCache.get(doc.id)
     let html =
       cached && cached.modifiedAtMs === file.mtimeMs && cached.size === file.size ? cached.html : ''
@@ -818,7 +827,9 @@ export function registerHtmlEditorHandlers(ctx: IpcContext): void {
     const docId = typeof r.docId === 'string' ? r.docId : ''
     if (!docId) return { ok: false }
     try {
+      const document = await resolveDocument(docId)
       await db.deleteHtmlEditDocument(docId)
+      revokeLocalAssetRootsUnder(document.dir)
       forgetHtmlEditorDocumentHtml(docId)
       return { ok: true }
     } catch (error) {

@@ -156,6 +156,33 @@ describe('runVisualDeckReview orchestration', () => {
     expect(details.filter((detail) => detail.includes('视觉自检已跳过'))).toHaveLength(1)
   })
 
+  it('does not report completion when no page screenshot is available', async () => {
+    fakeInvoke.mockResolvedValue({
+      content: JSON.stringify([{ pageNumber: 1, pageId: 'page-a', verdict: 'pass', issues: [] }])
+    })
+
+    const chunks = await runReview({ capturePageImage: async () => null })
+    const details = chunks.map((chunk) => chunk.payload.detail).filter(Boolean) as string[]
+
+    expect(details.join('\n')).toContain('视觉自检已跳过')
+    expect(details.join('\n')).not.toContain('视觉自检完成')
+    expect(fakeInvoke).not.toHaveBeenCalled()
+  })
+
+  it('reports an incomplete review when only part of the sampled deck is rendered', async () => {
+    fakeInvoke.mockResolvedValue({
+      content: JSON.stringify([{ pageNumber: 1, pageId: 'page-a', verdict: 'pass', issues: [] }])
+    })
+
+    const chunks = await runReview({
+      capturePageImage: async (page) => (page.pageId === 'page-a' ? 'aGk=' : null)
+    })
+    const details = chunks.map((chunk) => chunk.payload.detail).filter(Boolean) as string[]
+
+    expect(details.join('\n')).toContain('视觉自检未完成：仅获得 1/2 页评审结果')
+    expect(details.join('\n')).not.toContain('视觉自检完成')
+  })
+
   it('stays silent when disabled or aborted', async () => {
     const disabledChunks = await runReview({ isEnabled: async () => false })
     expect(disabledChunks).toHaveLength(0)

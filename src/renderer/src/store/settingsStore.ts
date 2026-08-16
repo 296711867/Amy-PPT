@@ -56,6 +56,7 @@ interface SettingsStore {
   deleteImageModelConfig: (id: string) => Promise<void>
   setVerificationMessage: (message: string | null) => void
   verifyApiKey: (
+    id: string | undefined,
     provider: string,
     apiKey: string,
     model: string,
@@ -64,7 +65,7 @@ interface SettingsStore {
     disableTemperature: boolean,
     thinkingParameterMode: ThinkingParameterMode,
     timeoutMs: number
-  ) => Promise<boolean>
+  ) => Promise<{ valid: boolean; thinkingParameterMode?: ThinkingParameterMode }>
   verifyImageModel: (provider: ImageModelProvider, modelConfig: string) => Promise<boolean>
   chooseStoragePath: () => Promise<string | null>
 }
@@ -105,7 +106,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           theme,
           layoutRules: normalizeLayoutRules(typedSettings.layoutRules)
         },
-        modelConfigs: Array.isArray(modelConfigs) ? modelConfigs : [],
+        // Keep credentials out of renderer state as well as out of the IPC list response.
+        modelConfigs: Array.isArray(modelConfigs)
+          ? modelConfigs.map((config) => ({
+              ...config,
+              apiKey: '',
+              hasApiKey:
+                typeof config.hasApiKey === 'boolean'
+                  ? config.hasApiKey
+                  : typeof config.apiKey === 'string' && config.apiKey.trim().length > 0
+            }))
+          : [],
         imageModelConfigs: Array.isArray(imageModelConfigs) ? imageModelConfigs : [],
         storagePathError: null,
         verificationMessage: null
@@ -250,6 +261,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setVerificationMessage: (message) => set({ verificationMessage: message }),
 
   verifyApiKey: async (
+    id,
     provider,
     apiKey,
     model,
@@ -260,7 +272,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     timeoutMs
   ) => {
     try {
-      const { valid, message } = await ipc.verifyApiKey({
+      const {
+        valid,
+        message,
+        thinkingParameterMode: verifiedThinkingParameterMode
+      } = await ipc.verifyApiKey({
+        id,
         provider,
         apiKey,
         model,
@@ -271,14 +288,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         timeoutMs
       })
       set({ verificationMessage: message || null })
-      return valid
+      return { valid, thinkingParameterMode: verifiedThinkingParameterMode }
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
           : fallbackMessage('发送验证请求失败。', 'Failed to send verification request.')
       set({ verificationMessage: message })
-      return false
+      return { valid: false }
     }
   },
 

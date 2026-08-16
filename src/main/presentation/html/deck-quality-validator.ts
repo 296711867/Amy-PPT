@@ -394,15 +394,31 @@ export async function inspectPresentationDeckQuality(
     })
   }
 
+  const renderValidationComplete =
+    args.pages.length > 0 && unavailablePages.length === 0 && pages.length === args.pages.length
+  const violations = renderValidationComplete
+    ? evaluateDeckQuality({
+        pages,
+        slideSize: args.slideSize,
+        designContract: args.designContract,
+        preserveTemplate: args.preserveTemplate
+      })
+    : []
+  if (unavailablePages.length > 0) {
+    const unavailablePageIds = unavailablePages.map((page) => page.pageId)
+    violations.push({
+      code: 'deck-render-validation-unavailable',
+      severity: 'warn',
+      pageIds: unavailablePageIds,
+      detail: `跨页质量校验未完成：${unavailablePageIds.length}/${args.pages.length} 页无法获得浏览器渲染结果${unavailablePageIds.length > 0 ? `（${formatPageList(unavailablePageIds)}）` : ''}`,
+      fix: '暂不把跨页检查视为通过；待浏览器渲染恢复后重新运行整套质量校验。静态有效页面仍可保留。'
+    })
+  }
+
   return {
-    available: pages.length > 0,
+    available: renderValidationComplete,
     pages,
-    violations: evaluateDeckQuality({
-      pages,
-      slideSize: args.slideSize,
-      designContract: args.designContract,
-      preserveTemplate: args.preserveTemplate
-    }),
+    violations,
     unavailablePages
   }
 }

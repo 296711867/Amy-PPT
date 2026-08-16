@@ -12,8 +12,6 @@ const sourceFileNameFor = (platformName, archName) => {
 
 const targetFileNameFor = (platformName) => (platformName === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
 
-const isRequiredFfmpegFor = (platformName) => platformName !== 'linux'
-
 exports.default = async function afterPack(context) {
   const platformName = context.electronPlatformName
   const archName = Arch[context.arch]
@@ -29,15 +27,11 @@ exports.default = async function afterPack(context) {
   try {
     await fs.access(sourcePath)
   } catch {
-    if (!isRequiredFfmpegFor(platformName)) {
-      console.warn(
-        `[afterPack] optional bundled ffmpeg missing for ${platformName}-${archName}: ${sourcePath}. ` +
-          'The package will be created without built-in MP4 export support.'
-      )
-      return
-    }
-
-    throw new Error(`Missing bundled ffmpeg for ${platformName}-${archName}: ${sourcePath}`)
+    console.warn(
+      `[afterPack] optional bundled ffmpeg missing for ${platformName}-${archName}: ${sourcePath}. ` +
+        'The package will be created without built-in MP4 export support.'
+    )
+    return
   }
 
   await fs.rm(targetDir, { recursive: true, force: true })

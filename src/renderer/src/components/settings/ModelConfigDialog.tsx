@@ -153,9 +153,7 @@ export function ModelConfigDialog({
                 onChange={(e) => onFormChange({ model: e.target.value })}
                 className="h-8"
               />
-              <p className="mt-1 text-[12px] text-muted-foreground/50">
-                {t('settings.modelHint')}
-              </p>
+              <p className="mt-1 text-[12px] text-muted-foreground/50">{t('settings.modelHint')}</p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">base_url</label>
@@ -193,9 +191,12 @@ export function ModelConfigDialog({
               onChange={(e) => onFormChange({ apiKey: e.target.value })}
               className="h-8"
             />
-            <p className="mt-1 text-[12px] text-muted-foreground/50">
-              {t('settings.verifyHint')}
-            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground/50">{t('settings.verifyHint')}</p>
+            {form.id && (
+              <p className="mt-1 text-[12px] text-muted-foreground/60">
+                {t('settings.apiKeyPreserveHint')}
+              </p>
+            )}
           </div>
 
           <div>
@@ -230,7 +231,7 @@ export function ModelConfigDialog({
             />
           </div>
 
-          {form.provider === 'openai' && (
+          {(form.provider === 'openai' || form.provider === 'zhipu') && (
             <div className="rounded-lg border border-[#e3d8c5] bg-[#fffdf8]/70 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <span className="min-w-0">
@@ -253,12 +254,8 @@ export function ModelConfigDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">
-                      {t('settings.thinkingParameterModeAuto')}
-                    </SelectItem>
-                    <SelectItem value="omit">
-                      {t('settings.thinkingParameterModeOmit')}
-                    </SelectItem>
+                    <SelectItem value="auto">{t('settings.thinkingParameterModeAuto')}</SelectItem>
+                    <SelectItem value="omit">{t('settings.thinkingParameterModeOmit')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
