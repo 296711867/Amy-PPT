@@ -335,6 +335,13 @@ describe('registerSettingsHandlers model temperature settings', () => {
     )
   })
 
+  const verifyChunkStream = (
+    chunks: unknown[] = [{ content: 'OK' }]
+  ): AsyncGenerator<unknown> =>
+    (async function* () {
+      for (const chunk of chunks) yield chunk
+    })()
+
   it('returns disableTemperature in the model config list', async () => {
     const { getHandler } = await registerWithDb({
       listModelConfigs: vi.fn(async () => [
@@ -618,7 +625,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
   it('verifies an existing stored API key by id without returning it', async () => {
     settingsHandlersState.decryptApiKeyMock.mockReturnValue('stored-secret')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => ({ content: 'OK' }))
+      stream: vi.fn(async () => verifyChunkStream())
     })
     const { getHandler } = await registerWithDb({
       listModelConfigs: vi.fn(async () => [
@@ -772,7 +779,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
 
   it('does not leak an API key through verification error logs', async () => {
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new Error('request failed apiKey=secret-key')
       })
     })
@@ -884,7 +891,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
   it('explains invalid Responses API payloads during model verification', async () => {
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new TypeError("Cannot read properties of undefined (reading 'map')")
       })
     })
@@ -907,13 +914,13 @@ describe('registerSettingsHandlers model temperature settings', () => {
   })
 
   it('retries mandatory-thinking models without the compatibility thinking parameter', async () => {
-    const invoke = vi
+    const stream = vi
       .fn()
       .mockRejectedValueOnce(
         new Error('400 该模型始终思考，不支持关闭思考；请使用 low、high 或 max。')
       )
-      .mockResolvedValueOnce({ content: 'OK' })
-    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+      .mockResolvedValueOnce(verifyChunkStream())
+    settingsHandlersState.resolveModelMock.mockReturnValue({ stream })
     const { getHandler } = await registerWithDb()
 
     const result = await getHandler('settings:verifyApiKey')?.(undefined, {
@@ -930,7 +937,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
       message: expect.stringContaining('请点击保存使其生效'),
       thinkingParameterMode: 'omit'
     })
-    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(stream).toHaveBeenCalledTimes(2)
     expect(settingsHandlersState.modelRuntimeControls).toEqual([
       expect.objectContaining({ thinkingParameterMode: 'auto' }),
       expect.objectContaining({ thinkingParameterMode: 'omit' })
@@ -938,11 +945,11 @@ describe('registerSettingsHandlers model temperature settings', () => {
   })
 
   it('returns the retry error when mandatory-thinking verification still fails', async () => {
-    const invoke = vi
+    const stream = vi
       .fn()
       .mockRejectedValueOnce(new Error('cannot disable reasoning; use low, high, or max'))
       .mockRejectedValueOnce(new Error('model is unavailable'))
-    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    settingsHandlersState.resolveModelMock.mockReturnValue({ stream })
     const { getHandler } = await registerWithDb()
 
     const result = await getHandler('settings:verifyApiKey')?.(undefined, {
@@ -955,15 +962,15 @@ describe('registerSettingsHandlers model temperature settings', () => {
     })
 
     expect(result).toEqual({ valid: false, message: 'model is unavailable' })
-    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(stream).toHaveBeenCalledTimes(2)
   })
 
   it('redacts credentials when the mandatory-thinking retry fails', async () => {
-    const invoke = vi
+    const stream = vi
       .fn()
       .mockRejectedValueOnce(new Error('mandatory reasoning cannot be disabled'))
       .mockRejectedValueOnce(new Error('retry failed apiKey=secret-key'))
-    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    settingsHandlersState.resolveModelMock.mockReturnValue({ stream })
     const { getHandler } = await registerWithDb()
 
     const result = await getHandler('settings:verifyApiKey')?.(undefined, {
@@ -982,10 +989,10 @@ describe('registerSettingsHandlers model temperature settings', () => {
   })
 
   it('does not retry mandatory-thinking errors when thinking is already omitted', async () => {
-    const invoke = vi.fn(async () => {
+    const stream = vi.fn(async () => {
       throw new Error('cannot disable reasoning; use low, high, or max')
     })
-    settingsHandlersState.resolveModelMock.mockReturnValue({ invoke })
+    settingsHandlersState.resolveModelMock.mockReturnValue({ stream })
     const { getHandler } = await registerWithDb()
 
     const result = await getHandler('settings:verifyApiKey')?.(undefined, {
@@ -1001,13 +1008,37 @@ describe('registerSettingsHandlers model temperature settings', () => {
       valid: false,
       message: 'cannot disable reasoning; use low, high, or max'
     })
-    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(stream).toHaveBeenCalledTimes(1)
+  })
+
+  it('verifies successfully on the first streamed chunk without draining the stream', async () => {
+    // 思考模型流式验证：第一个分片到达即成功，流被提前终止的噪音不算失败。
+    const stream = vi.fn(async () =>
+      (async function* () {
+        yield { content: 'O' }
+        throw new Error('teardown noise after first chunk')
+      })()
+    )
+    settingsHandlersState.resolveModelMock.mockReturnValue({ stream })
+    const { getHandler } = await registerWithDb()
+
+    const result = await getHandler('settings:verifyApiKey')?.(undefined, {
+      provider: 'zhipu',
+      model: 'glm-5.2',
+      apiKey: 'secret',
+      baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+      thinkingParameterMode: 'omit',
+      timeoutMs: 60000
+    })
+
+    expect(result).toEqual({ valid: true, message: '连接验证成功。' })
+    expect(stream).toHaveBeenCalledTimes(1)
   })
 
   it('explains unsupported thinking parameter errors during model verification', async () => {
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new Error('Unsupported parameter: thinking')
       })
     })
@@ -1033,7 +1064,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
   it('explains unrecognized thinking argument errors during model verification', async () => {
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new Error('Unrecognized request argument supplied: thinking')
       })
     })
@@ -1059,7 +1090,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
   it('explains thinking parameter errors for the Zhipu GLM provider', async () => {
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new Error('Unsupported parameter: thinking')
       })
     })
@@ -1085,7 +1116,7 @@ describe('registerSettingsHandlers model temperature settings', () => {
   it('explains older undefined map errors during Responses API verification', async () => {
     settingsHandlersState.localeMock.readAppLocale.mockResolvedValue('zh')
     settingsHandlersState.resolveModelMock.mockReturnValue({
-      invoke: vi.fn(async () => {
+      stream: vi.fn(async () => {
         throw new TypeError("Cannot read property 'map' of undefined")
       })
     })

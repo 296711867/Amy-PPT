@@ -446,9 +446,21 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
               ctx.modelRuntime
             )
         )
-        await client.invoke('Reply with OK.', {
+        // 流式验证：思考模型对简单问题也可能推理很久，等完整响应会白白触发
+        // 超时。收到第一个分片就证明连通与鉴权正常，立即结束。
+        const stream = await client.stream('Reply with OK.', {
           signal: AbortSignal.timeout(resolvedTimeoutMs)
         })
+        let receivedChunk = false
+        try {
+          for await (const _chunk of stream) {
+            receivedChunk = true
+            break
+          }
+        } catch (error) {
+          if (receivedChunk) return
+          throw error
+        }
       }
 
       try {

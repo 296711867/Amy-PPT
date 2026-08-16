@@ -578,7 +578,7 @@ export const en = {
     baseUrlHint: 'Enter a service URL compatible with the selected provider protocol.',
     baseUrlHintGoogle: 'Leave empty for official Google API. Fill only if using a proxy.',
     baseUrlHintZhipu:
-      'Defaults to the official Zhipu OpenAI-compatible endpoint. Override only for a self-hosted gateway.',
+      'Defaults to the official Zhipu OpenAI-compatible endpoint. GLM Coding Plan subscribers should use https://open.bigmodel.cn/api/coding/paas/v4 ; for the Anthropic protocol switch provider to Anthropic(Claude) with https://open.bigmodel.cn/api/anthropic .',
     maxTokensHint:
       'Max output tokens, default 4096. Generally no need to change. Adjust based on model limits.',
     disableTemperature: 'Disable temperature',

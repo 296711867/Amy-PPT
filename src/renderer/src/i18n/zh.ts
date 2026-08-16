@@ -555,7 +555,8 @@ export const zh = {
     imageProviderOfficialDocs: '官方文档',
     baseUrlHint: '请填写兼容 provider 协议的服务地址。',
     baseUrlHintGoogle: '使用 Google 官方 API 无需填写，使用代理时填写代理地址。',
-    baseUrlHintZhipu: '默认走智谱官方 OpenAI 兼容地址，一般无需修改；自建网关可填代理地址。',
+    baseUrlHintZhipu:
+      '默认走智谱官方 OpenAI 兼容地址，一般无需修改。GLM Coding Plan 套餐请改填 https://open.bigmodel.cn/api/coding/paas/v4 ；Anthropic 协议接入请把 provider 换成 Anthropic(Claude) 并填 https://open.bigmodel.cn/api/anthropic 。',
     maxTokensHint: '模型最大输出 token 数，默认 4096。一般无需修改，可按模型支持的上限调整。',
     disableTemperature: '关闭temperature',
     disableTemperatureHint:
