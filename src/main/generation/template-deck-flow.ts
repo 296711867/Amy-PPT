@@ -6,6 +6,7 @@ import { buildProjectIndexHtml, type DeckPageFile } from '../session/template-bu
 import { planDeckWithLLM, runDeepAgentDeckGeneration } from './agent-runner'
 import { isPlaceholderPageHtml, validatePersistedPageHtml } from '../presentation/html/html-utils'
 import { finalizeGenerationSuccess } from './finalization'
+import { runVisualDeckReview } from './visual-review'
 import { uiText } from './generation-utils'
 import type { DeckContext, EmitAssistantFn } from './types'
 import { resolveDeckContext } from './deck-flow'
@@ -726,6 +727,34 @@ export async function executeTemplateDeckGeneration(
       : `Template generation completed. It has ${fullDeckPageCount} pages for "${context.topic}".`
   )
   await emitAssistant(context, agentSummary.trim() || fallbackCompletionSummary)
+
+  // 渲染级视觉自检：非阻塞的信息性评审（内部全量容错，任何失败只降级提示）。
+  await runVisualDeckReview({
+    sessionId: context.sessionId,
+    runId: context.runId,
+    slideSize: context.slideSize,
+    pages: pageDescriptors.map((page) => ({
+      pageId: page.pageId,
+      pageNumber: page.pageNumber,
+      title: page.title,
+      htmlPath: page.htmlPath
+    })),
+    model: {
+      provider: context.provider,
+      apiKey: context.apiKey,
+      model: context.model,
+      baseUrl: context.providerBaseUrl,
+      maxTokens: context.maxTokens,
+      modelRuntime: context.modelRuntime,
+      timeoutMs: context.modelTimeouts.document
+    },
+    appLocale: context.appLocale,
+    isEnabled: async () =>
+      (await db.getSetting<string>('visual_review').catch(() => null)) !== 'off',
+    emit: (chunk) => emitDeckChunk(chunk),
+    signal: context.abortSignal
+  })
+
   await db.updateGenerationRunStatus(context.runId, 'completed', null)
   await finalizeGenerationSuccess(ctx, {
     context,
