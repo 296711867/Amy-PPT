@@ -323,6 +323,19 @@ export function SettingsPage(): React.JSX.Element {
     }
   }
 
+  const handlePageConcurrencyChange = async (value: PageConcurrencyPreference): Promise<void> => {
+    const next = normalizePageConcurrencyPreference(value)
+    setPageConcurrency(next)
+    setVerificationMessage(null)
+    await saveSettings({ pageConcurrency: next })
+    const saveError = useSettingsStore.getState().verificationMessage
+    if (saveError) {
+      error(t('settings.concurrencySaveFailed'), { description: saveError })
+      return
+    }
+    info(t('settings.concurrencySaved'))
+  }
+
   const handleTimeoutChange = (profile: ConfigurableModelTimeoutProfile, value: string): void => {
     setTimeoutSeconds((current) => ({
       ...current,
@@ -626,10 +639,7 @@ export function SettingsPage(): React.JSX.Element {
               setProxyUrl(value)
               setVerificationMessage(null)
             }}
-            onPageConcurrencyChange={(value) => {
-              setPageConcurrency(normalizePageConcurrencyPreference(value))
-              setVerificationMessage(null)
-            }}
+            onPageConcurrencyChange={(value) => void handlePageConcurrencyChange(value)}
             onSaveAdvanced={() => void handleSaveAdvanced()}
             onTimeoutChange={handleTimeoutChange}
           />

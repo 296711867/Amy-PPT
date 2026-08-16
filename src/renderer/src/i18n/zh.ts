@@ -602,7 +602,7 @@ export const zh = {
     saveSettings: '保存设置',
     saveModel: '保存模型设置',
     saveImageModel: '保存生图模型',
-    saveTimeouts: '保存超时设置',
+    saveTimeouts: '保存高级设置',
     saveFailed: '设置保存失败',
     saved: '设置已保存',
     savedDescription: '配置已写入本地',
@@ -632,7 +632,9 @@ export const zh = {
     concurrencySerial: '逐页生成（稳定）',
     concurrencyParallel: '双页并行（快速）',
     concurrencyHint:
-      '智谱 GLM 等限流严格的模型建议选择逐页生成；自动模式下遇到限流会先自动退避重试并降级为逐页。'
+      '智谱 GLM 等限流严格的模型建议选择逐页生成；自动模式下遇到限流会先自动退避重试并降级为逐页。切换后立即生效。',
+    concurrencySaved: '生成方式已更新',
+    concurrencySaveFailed: '生成方式保存失败'
   },
   styles: {
     eyebrow: 'Style Lab',

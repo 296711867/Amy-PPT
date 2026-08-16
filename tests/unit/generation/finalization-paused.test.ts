@@ -49,7 +49,7 @@ describe('finalizeGenerationFailure system pause', () => {
           pendingPageCount: 2,
           provider: 'openai-responses',
           model: 'gpt-5.6-sol',
-          failure: expect.objectContaining({ code: 'MODEL_RATE_LIMIT' })
+          failure: expect.objectContaining({ code: 'MODEL_QUOTA' })
         })
       })
     )

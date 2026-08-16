@@ -630,7 +630,7 @@ export const en = {
     saveSettings: 'Save settings',
     saveModel: 'Save model settings',
     saveImageModel: 'Save image model',
-    saveTimeouts: 'Save timeouts',
+    saveTimeouts: 'Save advanced settings',
     saveFailed: 'Failed to save settings',
     saved: 'Settings saved',
     savedDescription: 'Configuration has been written locally',
@@ -661,7 +661,9 @@ export const en = {
     concurrencySerial: 'One page at a time (stable)',
     concurrencyParallel: 'Two pages in parallel (fast)',
     concurrencyHint:
-      'Choose one page at a time for strictly rate-limited models such as Zhipu GLM. Auto mode retries with backoff and falls back to serial when rate limited.'
+      'Choose one page at a time for strictly rate-limited models such as Zhipu GLM. Auto mode retries with backoff and falls back to serial when rate limited. Takes effect immediately.',
+    concurrencySaved: 'Generation mode updated',
+    concurrencySaveFailed: 'Failed to save generation mode'
   },
   styles: {
     eyebrow: 'Style Lab',

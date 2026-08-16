@@ -1,6 +1,7 @@
 export type GenerationFailureCode =
   | 'MODEL_RESPONSE_FORMAT'
   | 'MODEL_AUTH'
+  | 'MODEL_QUOTA'
   | 'MODEL_RATE_LIMIT'
   | 'MODEL_TIMEOUT'
   | 'MODEL_CONNECTION'
@@ -66,6 +67,19 @@ export function classifyGenerationError(error: unknown): GenerationFailureInfo {
     retryable = false
     titleZh = '模型鉴权失败'
     detailZh = 'API Key、接口地址或访问权限无效，已暂停后续页面生成。'
+  } else if (
+    /余额不足|请充值|欠费|insufficient\s+balance|quota[^.\n]{0,40}(?:exhausted|exceeded|depleted)|exceeded\s+(?:your\s+|the\s+)?(?:current\s+)?quota|arrears/i.test(
+      normalized
+    )
+  ) {
+    // 429 billing errors (智谱“余额不足请充值”、OpenAI "quota exceeded") are not
+    // transient: retrying burns minutes for nothing. Fail fast with a recharge hint.
+    code = 'MODEL_QUOTA'
+    scope = 'system'
+    action = 'pause-run'
+    retryable = false
+    titleZh = '模型额度不足'
+    detailZh = '模型账户余额不足或配额已用尽，已停止生成。请充值或更换有额度的模型后重试。'
   } else if (/\b429\b|rate.?limit|too many requests|quota/i.test(normalized)) {
     code = 'MODEL_RATE_LIMIT'
     scope = 'system'

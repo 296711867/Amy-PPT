@@ -41,6 +41,35 @@ describe('classifyGenerationError', () => {
     })
   })
 
+  it('classifies billing errors as non-retryable quota failures even with a 429 prefix', () => {
+    const zhipuQuota = classifyGenerationError(new Error('429 余额不足或无可用资源，请充值。\n'))
+    const openaiQuota = classifyGenerationError(
+      new Error('429 You exceeded your current quota, please check your plan and billing details')
+    )
+    const dailyQuota = classifyGenerationError(
+      new Error('429 Daily usage quota exhausted for this platform')
+    )
+
+    for (const failure of [zhipuQuota, openaiQuota, dailyQuota]) {
+      expect(failure).toMatchObject({
+        code: 'MODEL_QUOTA',
+        scope: 'system',
+        action: 'pause-run',
+        retryable: false
+      })
+    }
+    expect(zhipuQuota.titleZh).toBe('模型额度不足')
+  })
+
+  it('still classifies plain rate limits as retryable system failures', () => {
+    expect(classifyGenerationError(new Error('429 Too many requests'))).toMatchObject({
+      code: 'MODEL_RATE_LIMIT',
+      scope: 'system',
+      action: 'pause-run',
+      retryable: true
+    })
+  })
+
   it('keeps HTML validation failures scoped to one page', () => {
     expect(classifyGenerationError(new Error('HTML 落盘校验失败：存在未闭合标签'))).toMatchObject({
       code: 'PAGE_WRITE',
