@@ -7,6 +7,11 @@ import { emitToolStatus } from './types'
 import { createPageWriteTools, getAgentNameFromToolConfig } from './page-writer'
 import { verifyPresentationPageFiles } from '../../presentation/html/page-writer-core'
 import { getIconCount, searchIcons } from '../../presentation/icons/icon-registry'
+import {
+  CHART_PATTERNS,
+  formatChartPatternDetail,
+  recallChartPatterns
+} from '@shared/chart-patterns'
 import { progressLabel } from '@shared/progress'
 import {
   INDEX_TRANSITION_TYPES,
@@ -142,7 +147,30 @@ export function createSessionBoundDeckTools(context: SessionDeckGenerationContex
     }
   )
 
-  if (isSinglePageTask) return [...pageWriteTools, searchIconsTool]
+  const searchChartPatternsTool = tool(
+    async ({ query, limit }) => {
+      const results = recallChartPatterns(query, limit ?? 3)
+      if (results.length === 0) {
+        return `未找到匹配 "${query}" 的图表模式（共 ${CHART_PATTERNS.length} 个）。换内容语义描述试（如 "time series" "占比" "漏斗" "目标达成"）。`
+      }
+      return `匹配 "${query}" 的图表模式（${results.length} 个，写 Chart.js 前先读 amy-ppt-chart 技能）：\n\n${results
+        .map((match) => formatChartPatternDetail(match.pattern))
+        .join('\n\n')}`
+    },
+    {
+      name: 'search_chart_patterns',
+      description:
+        '按内容语义召回图表模式（共 17 个：柱状/折线/环形占比/漏斗/散点/雷达/瀑布/柱线组合等）。给页面选图表类型时先调用，传内容描述（中英文均可，如 "季度营收对比" "conversion funnel" "目标 vs 实际"），返回最合适的 Chart.js 图表模式与配置骨架，避免选错图表类型。',
+      schema: z.object({
+        query: z.string().describe(
+          '内容语义描述，中英文均可，如 "time series" "占比构成" "漏斗转化" "两个变量相关性" "金额与增长率"'
+        ),
+        limit: z.number().optional().describe('返回上限，默认 3')
+      })
+    }
+  )
+
+  if (isSinglePageTask) return [...pageWriteTools, searchIconsTool, searchChartPatternsTool]
 
   return [
     tool(
@@ -436,6 +464,7 @@ export function createSessionBoundDeckTools(context: SessionDeckGenerationContex
         schema: z.object({})
       }
     ),
-    searchIconsTool
+    searchIconsTool,
+    searchChartPatternsTool
   ]
 }

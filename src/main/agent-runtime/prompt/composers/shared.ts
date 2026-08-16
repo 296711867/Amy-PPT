@@ -177,6 +177,7 @@ export const FRONTEND_CAPABILITIES = [
   '',
   'Charts:',
   `- Chart details are in the skill ${CHART_SKILL_NAME}. ${formatSkillUsageRequirement(CHART_SKILL_NAME)}`,
+  '- Before writing a chart, call the search_chart_patterns tool with a short content description (e.g. "conversion funnel", "季度营收对比") to recall the matching Chart.js pattern and config skeleton instead of guessing the chart type.',
   '- Wrap in document.addEventListener("DOMContentLoaded", function() { PPT.createChart(...) }). Do not use ppt-ready/ppt-rendered or other custom events.',
   '',
   'Diagrams:',

@@ -21,6 +21,7 @@ For deeper examples (chart frame height guide, category axis patterns, layout in
 
 Before writing chart HTML, answer these in order:
 
+0. **Pattern**: call the `search_chart_patterns` tool with a short content description (e.g. "conversion funnel", "季度营收对比", "target vs actual") and pick the top pattern's Chart.js type and config skeleton. The pattern library below is the offline fallback when the tool is unavailable.
 1. **Chart type**: bar, line, pie, doughnut, radar, polarArea, scatter, bubble?
 2. **Content slot**: how much vertical space remains for the chart zone after title, outer padding, gaps, notes, and reserve?
 3. **Support budget**: if metric cards, insight rails, legends, or footnotes share that zone, subtract their height first. Default to 0-2 support items around a main chart.
@@ -76,6 +77,26 @@ Column budget rule: columns share width, not height. If the page uses `grid-cols
 Do not pair a standard/tall chart with a two-row bottom card grid. If the slide has 4-6 additional facts, choose a density-appropriate structure such as in-chart annotations, one short evidence rail, a compact table, or a grouped list. A main chart usually gets 0-2 support items, not a full card set.
 
 Axis-heavy charts need extra space. For horizontal bars with 6+ categories, long labels, negative+positive ranges, or wide tick labels such as percentages, reserve 40-60px inside the chart options for the x-axis/tick area (`layout.padding.bottom`, tick padding, and a modest `maxTicksLimit`). If that would push support modules into a second row, redesign the support area as a side rail, annotation band, compact table, or in-chart callouts instead of shrinking the plot.
+
+## Chart pattern library (offline fallback for search_chart_patterns)
+
+- bar-compare (柱状对比, bar): 对比 2-8 个分类上的单一指标; avoid: 分类超过 8 个或时间序列 [tags: category comparison/对比/排名]
+- grouped-bar-compare (分组柱状, bar): 在相同分类上对比 2-3 个系列; avoid: 系列超过 3 个 [tags: two series compare/分组对比/前后对比]
+- stacked-bar-composition (堆叠构成, bar): 展示每个分类内部的构成; avoid: 需要精确角度读数 [tags: part to whole/构成/拆解]
+- hbar-ranking (横向排名, bar): 分类名较长或 8-15 个的排名; avoid: 少量短标签分类 [tags: long labels/排名/榜单]
+- line-trend (趋势折线, line): 一个指标 ≥4 个时间点的走势; avoid: 点太少或无顺序含义 [tags: time series/趋势/随时间/增长]
+- multi-line-trend (多线趋势, line): 对比 2-4 条同量纲趋势; avoid: 量纲不同或超过 4 条 [tags: compare trends/趋势对比]
+- area-trend (面积趋势, line): 强调累积量/总量（单系列）; avoid: 多系列互相遮挡 [tags: cumulative/累积/总量]
+- donut-share (环形占比, doughnut): 2-5 个部分的占比，中心放结论; avoid: 超过 6 部分或差异极小 [tags: proportion/占比/市场份额]
+- pie-share (饼图占比, pie): 仅 2-3 个部分的简单占比; avoid: 其余场景优先 donut [tags: simple proportion/两部分]
+- funnel-stages (漏斗阶段, bar): 3-6 个逐级递减的转化阶段; avoid: 阶段不单调递减 [tags: conversion/漏斗/转化/流失]
+- scatter-correlation (散点相关, scatter): 两个连续变量的关系（≥10 点）; avoid: 点数太少 [tags: correlation/相关性/分布]
+- bubble-three-var (气泡三变量, bubble): x、y、规模三变量 ≤20 对象; avoid: 需要精确读数 [tags: three variables/气泡]
+- radar-multidim (雷达多维, radar): 3-8 维度的 1-3 对象画像; avoid: 维度或对象过多 [tags: multi dimension/多维/能力图谱]
+- combo-bar-line (柱线组合, bar+line): 绝对量（柱）与比率/趋势（线）双轴; avoid: 无量纲差异 [tags: dual axis/金额和增长率/量和率]
+- bullet-target (目标达成, bar): 1-4 个指标的实际 vs 目标; avoid: 指标多且需精确对比 [tags: target vs actual/目标/达成率/kpi]
+- waterfall-bridge (瀑布桥接, bar): 拆解期初到期末的增减贡献（3-7 步）; avoid: 步骤超过 7 个 [tags: cumulative change/增减/贡献拆解]
+- sparkline-mini (迷你趋势, line): 指标卡内嵌无轴小趋势; avoid: 需要读具体数值 [tags: mini chart/迷你图/卡片内趋势]
 
 Only the `.ppt-chart-frame` owns chart size. The `<canvas>` uses `class="h-full w-full"` and must not have `width`, `height`, or inline `style` size attributes in generated HTML.
 
