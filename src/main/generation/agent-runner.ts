@@ -56,6 +56,10 @@ import {
 import { logAgentToolEvents } from '../utils/agent-tool-logger'
 import { normalizeAudienceMove, normalizeKeyPoints, normalizeOutlineText } from './outline-normalizer'
 import { classifyPageMethodSignal } from './method-signals'
+import {
+  MAX_RATE_LIMIT_RETRIES,
+  resolveRateLimitBackoff
+} from './rate-limit-backoff'
 import { buildLocalCompletedGenerationPageSummary } from './generation-summary'
 import { readSessionLayoutLibrary } from '../session/master-service'
 import { classifyGenerationError, type GenerationFailureInfo } from '@shared/generation-error'
@@ -1614,6 +1618,9 @@ export const runDeepAgentDeckGeneration = async (args: {
   // Tool validation already self-repairs inside ReAct. Keep outer reruns bounded.
   const MAX_PAGE_RETRIES = 2
   const RETRY_DELAY_BASE_MS = 1_000
+  // 限流是瞬态错误：页面级先长退避自动重试，耗尽重试额度才交给熔断器暂停整套生成。
+  // 共享冷却时间让并行 worker 错峰重试，避免双路同时撞 429。
+  let rateLimitCooldownUntil = 0
   // 方法信号门禁：同类错误在 2 次（跨页或跨尝试）后升级为方法级修正，
   // 注入后续所有页面的提示词，避免整套 deck 反复栽进同一个坑。
   const METHOD_SIGNAL_ESCALATE_THRESHOLD = 2
@@ -1643,7 +1650,9 @@ export const runDeepAgentDeckGeneration = async (args: {
     workerLabel: string
   ): Promise<string> => {
     let lastError: unknown = null
-    for (let attempt = 0; attempt <= MAX_PAGE_RETRIES; attempt += 1) {
+    let attempt = 0
+    let rateLimitAttempts = 0
+    while (attempt <= MAX_PAGE_RETRIES) {
       try {
         const retryContext =
           attempt > 0 && lastError
@@ -1659,6 +1668,44 @@ export const runDeepAgentDeckGeneration = async (args: {
         const reason = error instanceof Error ? error.message : String(error)
         registerMethodSignal(reason, page.pageId)
         const failure = classifyGenerationError(error)
+
+        if (failure.code === 'MODEL_RATE_LIMIT') {
+          const backoff = resolveRateLimitBackoff({
+            attemptsAlreadyUsed: rateLimitAttempts,
+            cooldownUntil: rateLimitCooldownUntil,
+            nowMs: Date.now(),
+            random: Math.random
+          })
+          if (backoff) {
+            rateLimitAttempts = backoff.attempt
+            rateLimitCooldownUntil = backoff.cooldownUntil
+            emitPageStatus({
+              pageId: page.pageId,
+              label: progressText(args.appLocale, 'retrying'),
+              detail: uiText(
+                args.appLocale,
+                `模型服务限流，${Math.round(backoff.waitMs / 1000)} 秒后自动重试（第 ${backoff.attempt}/${MAX_RATE_LIMIT_RETRIES} 次）`,
+                `Model service rate limited; retrying automatically in ${Math.round(
+                  backoff.waitMs / 1000
+                )}s (attempt ${backoff.attempt}/${MAX_RATE_LIMIT_RETRIES})`
+              ),
+              pageProgress: 8
+            })
+            log.warn('[deepagent] rate limit backoff scheduled', {
+              sessionId: args.sessionId,
+              styleId: args.styleId || '',
+              pageId: page.pageId,
+              worker: workerLabel,
+              rateLimitAttempt: backoff.attempt,
+              maxRateLimitRetries: MAX_RATE_LIMIT_RETRIES,
+              waitMs: backoff.waitMs,
+              reason
+            })
+            await sleep(backoff.waitMs, args.signal)
+            continue
+          }
+        }
+
         if (failure.scope === 'system') break
         if (!failure.retryable || attempt >= MAX_PAGE_RETRIES) break
         const retryAttempt = attempt + 1
@@ -1684,6 +1731,7 @@ export const runDeepAgentDeckGeneration = async (args: {
           lastErrorReason: reason,
           reason
         })
+        attempt = retryAttempt
         await sleep(retryDelayMs, args.signal)
       }
     }
