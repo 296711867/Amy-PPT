@@ -205,6 +205,11 @@ const isAssistantMessage = (record: ObjectRecord): boolean => {
     type === 'assistant' ||
     type === 'aimessage' ||
     type === 'aimessagechunk' ||
+    // OpenAI-compatible thinking streams (e.g. GLM reasoning chunks) may emit
+    // deltas without an explicit role; the converter then yields a generic
+    // ChatMessageChunk that is still assistant output. Explicit non-assistant
+    // roles surface as their own type and stay rejected below.
+    (type === 'generic' && constructorName === 'chatmessagechunk') ||
     constructorName === 'aimessage' ||
     constructorName === 'aimessagechunk' ||
     serializedId.includes('aimessage')

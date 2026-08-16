@@ -126,6 +126,41 @@ describe('TypedEventBus', () => {
     unregister()
   })
 
+  it('skips removeListener when dispose runs on an already destroyed webContents', () => {
+    // Real Electron throws "Object has been destroyed" for listener removal
+    // triggered from the destroyed event itself; dispose must stay safe there.
+    const bus = new TypedEventBus()
+    const bridge = new RuntimeEventBridge(bus)
+    const send = vi.fn()
+    let onDestroyed: (() => void) | undefined
+    let destroyed = false
+    const removeListener = vi.fn(() => {
+      throw new Error('Object has been destroyed')
+    })
+    bridge.registerWebContents({
+      subscriberId: 'window-1',
+      webContents: {
+        id: 1,
+        isDestroyed: () => destroyed,
+        send,
+        once: (_event, listener) => {
+          onDestroyed = listener
+        },
+        removeListener
+      },
+      translate: (event) => ({ channel: 'runtime:event', payload: event })
+    })
+
+    bus.emit(jobStarted())
+    expect(send).toHaveBeenCalledOnce()
+
+    destroyed = true
+    expect(() => onDestroyed?.()).not.toThrow()
+    bus.emit(jobStarted())
+    expect(send).toHaveBeenCalledOnce()
+    expect(removeListener).not.toHaveBeenCalled()
+  })
+
   it('does not let a replaced webContents destroy callback remove the new subscriber', () => {
     const bus = new TypedEventBus()
     const bridge = new RuntimeEventBridge(bus)

@@ -93,6 +93,32 @@ describe('thinking model response adapter', () => {
     ])
   })
 
+  it('accepts a role-less generic ChatMessageChunk from GLM thinking streams', () => {
+    // GLM thinking deltas may carry only reasoning_content without a role;
+    // the OpenAI converter then yields ChatMessageChunk with role undefined.
+    const response = new ChatMessageChunk({
+      content: '方案已更新',
+      additional_kwargs: { reasoning_content: '分析中' },
+      response_metadata: { model_provider: 'openai' }
+    } as never)
+
+    const normalized = normalizeThinkingModelResponse(response)
+
+    expect(normalized).toBeInstanceOf(AIMessage)
+    expect((normalized as AIMessage).content).toBe('方案已更新')
+    expect((normalized as AIMessage).additional_kwargs).toEqual({
+      reasoning_content: '分析中'
+    })
+  })
+
+  it('rejects generic chunks that carry an explicit non-assistant role', () => {
+    const response = new ChatMessageChunk({ role: 'tool', content: 'payload' })
+
+    expect(() => normalizeThinkingModelResponse(response)).toThrow(
+      /unsupported response object/
+    )
+  })
+
   it('filters tools and converts an assistant payload returned by the handler', async () => {
     const handler = vi.fn(async (request: { tools?: Array<{ name: string }> }) => {
       expect(request.tools?.map((tool) => tool.name)).toEqual(['allowed'])

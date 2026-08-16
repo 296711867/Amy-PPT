@@ -296,16 +296,21 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
       return { action: 'deny' }
     })
 
+    const guestWebContentsId = guestWebContents.id
     const cleanup = (): void => {
-      guestRootsByWebContentsId.delete(guestWebContents.id)
+      guestRootsByWebContentsId.delete(guestWebContentsId)
+      if (guestWebContents.isDestroyed()) return
       guestWebContents.removeListener('will-navigate', handleGuestNavigation)
       guestWebContents.removeListener('will-redirect', handleGuestNavigation)
     }
     guestWebContents.once('destroyed', cleanup)
   })
 
+  const mainWebContentsId = window.webContents.id
   window.webContents.once('destroyed', () => {
-    rendererRootsByWebContentsId.delete(window.webContents.id)
+    // webContents.id is a native getter that throws once destroyed, so the id
+    // must be captured while the contents are still alive.
+    rendererRootsByWebContentsId.delete(mainWebContentsId)
   })
 
   const loadHome = (): void => {

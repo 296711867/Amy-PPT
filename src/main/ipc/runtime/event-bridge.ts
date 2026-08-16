@@ -77,7 +77,9 @@ export class RuntimeEventBridge {
     const dispose = (): void => {
       if (disposed) return
       disposed = true
-      args.webContents.removeListener('destroyed', dispose)
+      if (!args.webContents.isDestroyed()) {
+        args.webContents.removeListener('destroyed', dispose)
+      }
       // Use the disposer returned by register() rather than unregister(id): a
       // subsequent registration may have reused this subscriberId for a newer
       // webContents. The registered disposer deliberately becomes a no-op in
