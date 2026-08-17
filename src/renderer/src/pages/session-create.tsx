@@ -61,11 +61,11 @@ const isSupportedImageFile = (file: File): boolean =>
 type AttachedReferenceFile = ParsedDocumentPlanResult['files'][number]
 
 const compactInputClass =
-  'h-10 border-[#d8ccb5]/70 bg-white/75 px-3 py-2 text-sm shadow-[inset_0_1px_2px_rgba(73,61,44,0.04)] placeholder:text-[#9aa18b]'
+  'h-10 border-[var(--ui-border-strong)]/70 bg-white/75 px-3 py-2 text-sm shadow-[inset_0_1px_2px_rgb(var(--ui-shadow-color)/0.04)] placeholder:text-muted-foreground'
 const settingsInputClass =
-  'h-8 border-[#d8ccb5]/70 bg-white/75 px-2.5 py-1.5 text-xs shadow-[inset_0_1px_2px_rgba(73,61,44,0.04)] placeholder:text-[#9aa18b]'
+  'h-8 border-[var(--ui-border-strong)]/70 bg-white/75 px-2.5 py-1.5 text-xs shadow-[inset_0_1px_2px_rgb(var(--ui-shadow-color)/0.04)] placeholder:text-muted-foreground'
 const settingsSelectTriggerClass =
-  'h-8 border-[#d8ccb5]/70 bg-white/75 px-2.5 py-1.5 text-xs shadow-[inset_0_1px_2px_rgba(73,61,44,0.04)]'
+  'h-8 border-[var(--ui-border-strong)]/70 bg-white/75 px-2.5 py-1.5 text-xs shadow-[inset_0_1px_2px_rgb(var(--ui-shadow-color)/0.04)]'
 const compactSelectContentClass = 'text-xs'
 const compactSelectItemClass = 'px-2.5 py-1.5 text-xs'
 const delay = (ms: number): Promise<void> =>
@@ -486,14 +486,14 @@ export function SessionCreatePage(): ReactElement {
 
   return (
     <div className="session-create-page mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 px-5 py-4 sm:px-6">
-      <div className="flex max-w-4xl flex-col items-start gap-1.5 border-b border-[#e0d8c8] px-1 pb-4">
-        <p className="rounded bg-[#d4e4c1]/78 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#3e4a32]">
+      <div className="flex max-w-4xl flex-col items-start gap-1.5 border-b border-border px-1 pb-4">
+        <p className="rounded bg-[var(--ui-action-soft)]/78 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground">
           {t('home.eyebrow')}
         </p>
-        <h1 className="organic-serif text-[32px] font-semibold leading-tight text-[#3e4a32]">
+        <h1 className="organic-serif text-[32px] font-semibold leading-tight text-foreground">
           {t('home.title')}
         </h1>
-        <p className="text-sm leading-6 text-[#5d6b4d]">{t('home.description')}</p>
+        <p className="text-sm leading-6 text-primary">{t('home.description')}</p>
       </div>
 
       <div>
@@ -506,7 +506,7 @@ export function SessionCreatePage(): ReactElement {
           onChange={(event) => void handleDocumentFilesSelected(event.target.files)}
         />
         {documentParseError && (
-          <div className="mb-4 flex items-start gap-2 rounded-xl bg-[#fff2ef] px-4 py-3 text-xs text-[#8a3d33]">
+          <div className="mb-4 flex items-start gap-2 rounded-xl bg-[var(--ui-danger-soft)] px-4 py-3 text-xs text-destructive">
             <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{documentParseError}</span>
           </div>
@@ -514,9 +514,9 @@ export function SessionCreatePage(): ReactElement {
 
         <Card
           data-session-create-workspace
-          className="session-create-workspace overflow-hidden rounded-2xl border border-[#ded8cb] shadow-[0_12px_28px_rgba(86,73,54,0.06)]"
+          className="session-create-workspace overflow-hidden rounded-2xl border border-border shadow-[0_12px_28px_rgb(var(--ui-shadow-color)/0.06)]"
         >
-          <CardContent className="grid p-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#3e4a32]">
+          <CardContent className="grid p-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)] [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-foreground">
             <main
               data-session-create-main
               className="flex min-w-0 flex-col gap-5 bg-transparent p-5 lg:p-6"
@@ -535,14 +535,14 @@ export function SessionCreatePage(): ReactElement {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="block font-medium">{t('home.brief')}</label>
-                  <div className="flex items-center gap-1 rounded-lg bg-[#fffdf8]/84 p-0.5">
+                  <div className="flex items-center gap-1 rounded-lg bg-[var(--ui-surface-elevated)]/84 p-0.5">
                     <button
                       type="button"
                       onClick={() => setBriefMode('edit')}
                       className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                         briefMode === 'edit'
-                          ? 'bg-[#8fbc8f] text-[#3e4a32]'
-                          : 'text-[#5d6b4d] hover:bg-[#d4e4c1]/70 hover:text-[#3e4a32]'
+                          ? 'bg-[var(--ui-focus)] text-foreground'
+                          : 'text-primary hover:bg-[var(--ui-action-soft)]/70 hover:text-foreground'
                       }`}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -553,8 +553,8 @@ export function SessionCreatePage(): ReactElement {
                       onClick={() => setBriefMode('preview')}
                       className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                         briefMode === 'preview'
-                          ? 'bg-[#8fbc8f] text-[#3e4a32]'
-                          : 'text-[#5d6b4d] hover:bg-[#d4e4c1]/70 hover:text-[#3e4a32]'
+                          ? 'bg-[var(--ui-focus)] text-foreground'
+                          : 'text-primary hover:bg-[var(--ui-action-soft)]/70 hover:text-foreground'
                       }`}
                     >
                       <Eye className="h-3.5 w-3.5" />
@@ -562,7 +562,7 @@ export function SessionCreatePage(): ReactElement {
                     </button>
                   </div>
                 </div>
-                <div className="overflow-hidden rounded-xl border border-[#e0d8c8] bg-[#fffdf8]/90">
+                <div className="overflow-hidden rounded-xl border border-border bg-[var(--ui-surface-elevated)]/90">
                   {briefMode === 'edit' ? (
                     <Textarea
                       placeholder={t('home.briefPlaceholder')}
@@ -636,8 +636,8 @@ export function SessionCreatePage(): ReactElement {
                       <span
                         className={`inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border px-2.5 text-[11px] ${
                           pendingImageReference
-                            ? 'border-[#e7a19a]/80 bg-[#fff1ef] text-[#9a3f35]'
-                            : 'border-[#c8d6ba] bg-[#fffdf8]/84 text-[#5d6b4d]'
+                            ? 'border-[var(--ui-danger)]/50 bg-[var(--ui-danger-soft)] text-destructive'
+                            : 'border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/84 text-primary'
                         }`}
                         title={
                           pendingImageReference
@@ -657,14 +657,14 @@ export function SessionCreatePage(): ReactElement {
                         </button>
                         {pendingImageReference ? (
                           <>
-                            <span className="shrink-0 text-[#b24d43]">
+                            <span className="shrink-0 text-destructive">
                               {t('home.imageReferenceNeedsParseShort')}
                             </span>
                             <button
                               type="button"
                               onClick={() => void handleParseImageReference(selectedModelConfigId)}
                               disabled={parsingDocument || submitting}
-                              className="ml-1 inline-flex h-4 shrink-0 items-center rounded-full bg-[#c84f45] px-1.5 text-[10px] font-medium text-white hover:bg-[#ad4239] disabled:cursor-not-allowed disabled:opacity-60"
+                              className="ml-1 inline-flex h-4 shrink-0 items-center rounded-full bg-destructive px-1.5 text-[10px] font-medium text-destructive-foreground hover:bg-[var(--ui-danger-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                               aria-label={t('home.parseImageReference')}
                             >
                               {parsingDocument
@@ -678,8 +678,8 @@ export function SessionCreatePage(): ReactElement {
                           onClick={handleRemoveReferenceFile}
                           className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${
                             pendingImageReference
-                              ? 'text-[#a04940] hover:bg-[#f2c2bd]'
-                              : 'text-[#657552] hover:bg-[#c8ddb2]'
+                              ? 'text-destructive hover:bg-[var(--ui-danger-soft)]'
+                              : 'text-primary hover:bg-[var(--ui-action-soft)]'
                           }`}
                           aria-label={t('home.removeReference')}
                         >
@@ -702,7 +702,7 @@ export function SessionCreatePage(): ReactElement {
                                   void handleChooseReferenceClick()
                                 }}
                                 disabled={parsingDocument}
-                                className="h-8 shrink-0 rounded-lg border border-[#e0d8c8] bg-[#fffdf8]/84 px-3 text-xs font-medium text-[#5d6b4d] shadow-none hover:bg-[#d4e4c1]/65 hover:text-[#3e4a32]"
+                                className="h-8 shrink-0 rounded-lg border border-border bg-[var(--ui-surface-elevated)]/84 px-3 text-xs font-medium text-primary shadow-none hover:bg-[var(--ui-action-soft)]/65 hover:text-foreground"
                               >
                                 {parsingDocument ? (
                                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -737,9 +737,9 @@ export function SessionCreatePage(): ReactElement {
                                 icon={Sparkles}
                                 tone="primary"
                                 dropdownAlign="end"
-                                className="box-border h-8 rounded-lg border-0 bg-[#8fbc8f] shadow-[0_6px_14px_rgba(113,134,95,0.15)]"
-                                mainClassName="h-full bg-transparent px-2.5 text-xs text-[#3e4a32] shadow-none hover:bg-white/10 hover:text-[#3e4a32] hover:shadow-none"
-                                triggerClassName="h-full w-8 px-0 text-[#3e4a32] hover:text-[#3e4a32]"
+                                className="box-border h-8 rounded-lg border-0 bg-[var(--ui-focus)] shadow-[0_6px_14px_rgb(var(--ui-shadow-color)/0.15)]"
+                                mainClassName="h-full bg-transparent px-2.5 text-xs text-foreground shadow-none hover:bg-white/10 hover:text-foreground hover:shadow-none"
+                                triggerClassName="h-full w-8 px-0 text-foreground hover:text-foreground"
                                 onRun={handleAnalyzeReference}
                               />
                             </span>
@@ -773,7 +773,7 @@ export function SessionCreatePage(): ReactElement {
 
             <aside
               data-session-create-settings
-              className="min-w-0 bg-transparent p-5 lg:border-l lg:border-[#ded8cb] lg:p-6"
+              className="min-w-0 bg-transparent p-5 lg:border-l lg:border-border lg:p-6"
             >
               <div className="space-y-6">
                 <section>
@@ -786,7 +786,7 @@ export function SessionCreatePage(): ReactElement {
                         options={styleOptions}
                         placeholder={t('home.stylePlaceholder')}
                         compact
-                        className="h-8 border-[#c8d6ba] bg-[#fffdf8]/90 px-2.5 py-1.5 text-xs shadow-none"
+                        className="h-8 border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/90 px-2.5 py-1.5 text-xs shadow-none"
                         dropdownAlign="end"
                         dropdownClassName="w-[min(700px,calc(100vw-3rem))]"
                       />
@@ -845,7 +845,7 @@ export function SessionCreatePage(): ReactElement {
                                     : preset.id === 'vertical-3-4'
                                       ? t('home.slideSizePortrait')
                                       : t('home.slideSizeXiaohongshu')}
-                            <span className="ml-2 text-[10px] text-[#8b927f]">
+                            <span className="ml-2 text-[10px] text-muted-foreground">
                               {preset.width}×{preset.height}
                             </span>
                           </SelectItem>
@@ -861,17 +861,17 @@ export function SessionCreatePage(): ReactElement {
                 </section>
 
                 <section>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[#d8ccb5]/70 bg-white/55 p-3">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--ui-border-strong)]/70 bg-white/55 p-3">
                     <Checkbox
                       checked={generateImagesWithAi}
                       onCheckedChange={(checked) => setGenerateImagesWithAi(checked === true)}
                       aria-label={t('home.generateImagesWithAi')}
                     />
                     <span className="min-w-0">
-                      <span className="block text-xs font-medium text-[#3e4a32]">
+                      <span className="block text-xs font-medium text-foreground">
                         {t('home.generateImagesWithAi')}
                       </span>
-                      <span className="mt-1 block text-[11px] leading-4 text-[#7f8a70]">
+                      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                         {t('home.generateImagesWithAiHint')}
                       </span>
                     </span>
@@ -879,17 +879,17 @@ export function SessionCreatePage(): ReactElement {
                 </section>
 
                 <section>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[#d8ccb5]/70 bg-white/55 p-3">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--ui-border-strong)]/70 bg-white/55 p-3">
                     <Checkbox
                       checked={generateDeckBackgrounds}
                       onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
                       aria-label={t('home.generateDeckBackgrounds')}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-medium text-[#3e4a32]">
+                      <span className="block text-xs font-medium text-foreground">
                         {t('home.generateDeckBackgrounds')}
                       </span>
-                      <span className="mt-1 block text-[11px] leading-4 text-[#7f8a70]">
+                      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                         {t('home.generateDeckBackgroundsHint')}
                       </span>
                       {generateDeckBackgrounds ? (
@@ -897,7 +897,7 @@ export function SessionCreatePage(): ReactElement {
                           className="mt-3 flex items-center gap-2"
                           onClick={(event) => event.preventDefault()}
                         >
-                          <span className="text-[11px] text-[#626d55]">
+                          <span className="text-[11px] text-muted-foreground">
                             {t('home.contentBackgroundCount')}
                           </span>
                           <Select
@@ -924,7 +924,7 @@ export function SessionCreatePage(): ReactElement {
                 <section>
                   <label className="mb-2 flex items-center gap-2">
                     <span>{t('home.animationPreferences')}</span>
-                    <span className="text-[10px] font-medium text-[#8b927f]">
+                    <span className="text-[10px] font-medium text-muted-foreground">
                       {t('common.optional')}
                     </span>
                   </label>
