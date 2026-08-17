@@ -23,7 +23,7 @@ describe('amy-ppt-diagram skill', () => {
 
     const skillMd = readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8')
     expect(skillMd).toContain(`name: ${DIAGRAM_SKILL_NAME}`)
-    expect(skillMd).toMatch(/^---\n[\s\S]*?description:/)
+    expect(skillMd).toMatch(/^---\r?\n[\s\S]*?description:/)
   })
 
   it('carries the core diagram rules adapted from the reference design system', () => {

@@ -40,8 +40,11 @@ const createdDirectories: string[] = []
 
 const createProjectDirectory = async (): Promise<string> => {
   const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ohmyppt-page-management-'))
-  createdDirectories.push(projectDir)
-  return projectDir
+  // CI Windows runners expose os.tmpdir() in 8.3 short form (RUNNER~1) while
+  // fs calls resolve to the long form; normalize so path containment holds.
+  const realDir = await fs.promises.realpath(projectDir)
+  createdDirectories.push(realDir)
+  return realDir
 }
 
 afterEach(async () => {

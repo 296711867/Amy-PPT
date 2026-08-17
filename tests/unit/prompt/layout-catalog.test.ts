@@ -248,7 +248,7 @@ describe('layout skill height calc — tell the canvas, let the model compute', 
 
   it('the preflight is a zone sketch + balance check, not a rigid template', () => {
     const skill = readProjectFile(`${layoutDir}/SKILL.md`)
-    const block = skill.match(/```text\n([\s\S]*?)```/)
+    const block = skill.match(/```text\r?\n([\s\S]*?)```/)
     expect(block, 'preflight block present').toBeDefined()
     const preflight = block![1]
     expect(preflight).toContain('pattern: trend-exhibit')

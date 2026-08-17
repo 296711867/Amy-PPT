@@ -387,7 +387,7 @@ describe('index.html deck playback mode', () => {
     )
     expect(source).toContain('var playbackMode = presentMode && !embedMode;')
     expect(source).toContain("url.searchParams.set('pptPlayback', playbackMode ? '1' : '0');")
-    expect(source).toContain('presentMode &&\n        indexTransitionType !== \'none\'')
+    expect(source).toMatch(/presentMode &&\r?\n\s+indexTransitionType !== 'none'/)
   })
 })
 

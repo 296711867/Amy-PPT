@@ -91,7 +91,11 @@ describe('Electron navigation security policy', () => {
   })
 
   it('binds only an allowed unbound local main frame to its registered project root', () => {
-    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-render-'))
+    // realpath: CI Windows runners hand out 8.3 short tmp paths (RUNNER~1)
+    // while the resolver returns long paths; normalize both sides.
+    const projectDir = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-render-'))
+    )
     const pagePath = path.join(projectDir, 'page.html')
     const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-outside-'))
     const outsidePath = path.join(outsideDir, 'page.html')

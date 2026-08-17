@@ -1,0 +1,19 @@
+# Force LF on checkout everywhere (including the Windows CI runner) so tests
+# that match source files with \n-sensitive regexes behave identically locally
+# and in CI. Binaries stay untouched.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp4 binary
+*.webm binary
+*.zip binary
+*.db binary
