@@ -145,9 +145,7 @@ describe('SessionCreatePage layout', () => {
     expect(main?.parentElement?.className).toContain('lg:grid-cols-')
     expect(main?.className).toContain('bg-transparent')
     expect(settings?.className).toContain('bg-transparent')
-    expect(main?.closest('[data-session-create-workspace]')?.className).toContain(
-      'border-[#ded8cb]'
-    )
+    expect(main?.closest('[data-session-create-workspace]')?.className).toContain('border-border')
 
     expect(main?.querySelector('input[placeholder="home.topicPlaceholder"]')).toBeTruthy()
     expect(main?.querySelector('textarea[placeholder="home.briefPlaceholder"]')).toBeTruthy()

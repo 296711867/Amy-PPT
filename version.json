@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.3",
   "downloadhome": "https://github.com/296711867/Amy-PPT/releases",
-  "changeLog": "Amy-PPT 1.0.1：三级字体系统与字体组合方案、PPT 背景图生成、GLM 稳定性修复；风格库精简为 44 个 PPT 导向风格，移除 web/IDE 审美风格。"
+  "changeLog": "Amy-PPT 1.0.3：GLM-5.2 思考模式兼容与关闭崩溃修复；限流自动退避重试、并发可配置（自动/逐页/并行）并支持限流自动降级；额度不足秒级失败提示；模型验证改流式防思考超时；max_tokens 上限提升至 64K 解决整页截断；对话创作页、快速创建页与会话工具栏接入五套主题。"
 }
