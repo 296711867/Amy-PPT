@@ -62,10 +62,10 @@ export function StyleSwitchJobBar({ sessionId }: { sessionId: string }): React.J
           : '风格切换已停止'
 
   return (
-    <div className="mx-3 mt-1 flex h-9 shrink-0 items-center gap-2 border border-[#cbd8bd] bg-[#f4f8ee] px-3 text-xs text-[#43523a]">
+    <div className="mx-3 mt-1 flex h-9 shrink-0 items-center gap-2 border border-[var(--ui-workspace-border)] bg-[var(--ui-selected)] px-3 text-xs text-foreground">
       {active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
       <span className="min-w-0 flex-1 truncate">{statusText}</span>
-      <span className="tabular-nums text-[#68775f]">
+      <span className="tabular-nums text-primary">
         {job.pages.filter((page) => page.status === 'completed').length}/{job.totalPages}
       </span>
       {active ? (
@@ -75,7 +75,7 @@ export function StyleSwitchJobBar({ sessionId }: { sessionId: string }): React.J
               type="button"
               onClick={() => void cancelStyleSwitch()}
               disabled={job.status === 'cancelling'}
-              className="inline-flex h-6 w-6 items-center justify-center text-[#73514b] hover:bg-[#f3dfd8] disabled:opacity-45"
+              className="inline-flex h-6 w-6 items-center justify-center text-destructive hover:bg-warning/15 disabled:opacity-45"
               aria-label="取消风格切换"
             >
               <X className="h-3.5 w-3.5" />
@@ -89,7 +89,7 @@ export function StyleSwitchJobBar({ sessionId }: { sessionId: string }): React.J
             <button
               type="button"
               onClick={() => void handleRetry()}
-              className="inline-flex h-6 w-6 items-center justify-center text-[#536943] hover:bg-[#dce9d0]"
+              className="inline-flex h-6 w-6 items-center justify-center text-primary hover:bg-[var(--ui-action-soft)]"
               aria-label="重试失败页面"
             >
               <RotateCcw className="h-3.5 w-3.5" />

@@ -104,15 +104,15 @@ export function AddPageDialog({ sessionId }: AddPageDialogProps): React.JSX.Elem
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-[520px] rounded-2xl bg-white p-6 shadow-2xl">
-        <h3 className="mb-3 text-base font-semibold text-[#2f3a2a]">
+        <h3 className="mb-3 text-base font-semibold text-foreground">
           {t('sessionDetail.addPage')}
         </h3>
-        <p className="mb-3 text-xs text-[#8a9a7b]">{t('sessionDetail.addPageHint')}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{t('sessionDetail.addPageHint')}</p>
         <textarea
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder={t('sessionDetail.addPageDescription')}
-          className="mb-4 h-40 w-full resize-none rounded-xl border border-[#d4e4c1]/60 bg-[#f8f6f0] px-4 py-3 text-sm leading-relaxed text-[#2f3a2a] placeholder:text-[#8a9a7b] focus:border-[#5d6b4d] focus:outline-none"
+          className="mb-4 h-40 w-full resize-none rounded-xl border border-[var(--ui-workspace-border)]/60 bg-[var(--ui-surface-elevated)] px-4 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           autoFocus
           onKeyDown={(event) => {
             if (
@@ -133,7 +133,7 @@ export function AddPageDialog({ sessionId }: AddPageDialogProps): React.JSX.Elem
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-[#5d6b4d] transition-colors hover:bg-[#f0ece3]"
+            className="cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-muted"
           >
             {t('sessionDetail.addPageCancel')}
           </button>

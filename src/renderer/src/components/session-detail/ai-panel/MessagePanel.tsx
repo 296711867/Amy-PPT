@@ -13,15 +13,15 @@ export function MessagePanel({ sessionId }: { sessionId: string }): React.JSX.El
 
   return (
     <div className={sessionDetailRightPanelContentClass}>
-      <div className="mx-2 mt-2 grid grid-cols-2 gap-1 rounded-[0.8rem] border border-[#ded2bd]/58 bg-[#fffaf1]/68 p-0.75 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
+      <div className="mx-2 mt-2 grid grid-cols-2 gap-1 rounded-[0.8rem] border border-[var(--ui-border-strong)]/58 bg-[var(--ui-surface-elevated)]/68 p-0.75 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
         <button
           type="button"
           onClick={() => setAiPanelMode('chat')}
           className={cn(
             'inline-flex h-7 items-center justify-center gap-1.5 rounded-[0.8rem] text-[11px] font-medium transition-colors',
             aiPanelMode === 'chat'
-              ? 'bg-[#dbe7ca] text-[#2f3b28] shadow-sm'
-              : 'text-[#6d604d] hover:bg-[#f4ebdc]'
+              ? 'bg-[var(--ui-action-soft)] text-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-muted'
           )}
         >
           <MessageCircle className="h-3.5 w-3.5" />
@@ -33,8 +33,8 @@ export function MessagePanel({ sessionId }: { sessionId: string }): React.JSX.El
           className={cn(
             'inline-flex h-7 items-center justify-center gap-1.5 rounded-[0.8rem] text-[11px] font-medium transition-colors',
             aiPanelMode === 'image'
-              ? 'bg-[#dbe7ca] text-[#2f3b28] shadow-sm'
-              : 'text-[#6d604d] hover:bg-[#f4ebdc]'
+              ? 'bg-[var(--ui-action-soft)] text-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-muted'
           )}
         >
           <Sparkles className="h-3.5 w-3.5" />

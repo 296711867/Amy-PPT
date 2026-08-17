@@ -156,18 +156,18 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="relative mx-2.5 mt-2.5 overflow-hidden rounded-[1.35rem] border border-[#e1d6c4]/72 bg-[#fffaf1]/78 px-3 pb-2.5 pt-3 shadow-[0_4px_12px_rgba(77,61,43,0.06)]">
+      <div className="relative mx-2.5 mt-2.5 overflow-hidden rounded-[1.35rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/78 px-3 pb-2.5 pt-3 shadow-[0_4px_12px_rgba(77,61,43,0.06)]">
         <div className="relative flex flex-col gap-2">
-          <h3 className="text-sm font-semibold tracking-[0.04em] text-[#34402c]">
+          <h3 className="text-sm font-semibold tracking-[0.04em] text-foreground">
             {t('sessionDetail.imageMode')}
           </h3>
-          <div className="flex items-center justify-between gap-2 text-xs text-[#6d604d]">
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
               {selectedPageExists && selectedPageNumber
                 ? t('sessionDetail.pageContext', { pageNumber: selectedPageNumber })
                 : t('sessionDetail.selectPageFirst')}
             </span>
-            <Sparkles className="h-4 w-4 text-[#6f8f64]" />
+            <Sparkles className="h-4 w-4 text-primary" />
           </div>
         </div>
       </div>
@@ -178,8 +178,8 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
         viewportClassName="px-2.5 py-2"
       >
         {imageMessages.length === 0 && !isGeneratingImage ? (
-          <div className="mt-24 flex min-h-full flex-col items-center justify-center gap-2 text-center text-sm text-[#7a6b56]">
-            <ImageIcon className="h-8 w-8 text-[#9ba88d]" />
+          <div className="mt-24 flex min-h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <ImageIcon className="h-8 w-8 text-muted-foreground" />
             <span>{t('sessionDetail.imageResultEmpty')}</span>
           </div>
         ) : (
@@ -196,8 +196,8 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                       'min-w-0 overflow-hidden rounded-[1.15rem] border px-3 py-2 shadow-[0_6px_14px_rgba(74,59,42,0.08)]',
                       isUser ? 'w-fit max-w-[238px]' : 'w-full max-w-[238px]',
                       isUser
-                        ? 'border-[#d6e3c8]/78 bg-[#fbfef6]/90 text-[#34402c]'
-                        : 'border-[#ded2bd]/78 bg-[#fffaf1]/88 text-[#3f372b]'
+                        ? 'border-[var(--ui-workspace-border)]/78 bg-[var(--ui-selected)]/90 text-foreground'
+                        : 'border-[var(--ui-border-strong)]/78 bg-[var(--ui-surface-elevated)]/88 text-foreground'
                     )}
                   >
                     {message.content && (
@@ -210,12 +210,12 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                         {message.assets.map((asset) => (
                           <div
                             key={asset.id}
-                            className="rounded-[0.9rem] border border-[#ded2bd]/72 bg-[#fffdf8]/82 p-1.5"
+                            className="rounded-[0.9rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/82 p-1.5"
                           >
                             {asset.absolutePath ? (
                               <button
                                 type="button"
-                                className="group relative flex h-[132px] w-full items-center justify-center overflow-hidden rounded-[0.7rem] bg-[#f6efe3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8aa878]"
+                                className="group relative flex h-[132px] w-full items-center justify-center overflow-hidden rounded-[0.7rem] bg-[var(--ui-surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 onClick={() => setPreviewAsset(asset)}
                                 aria-label={t('sessionDetail.imagePreviewOpen')}
                                 title={t('sessionDetail.imagePreviewOpen')}
@@ -230,7 +230,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                                 </span>
                               </button>
                             ) : (
-                              <div className="flex h-[132px] w-full items-center justify-center rounded-[0.7rem] border border-dashed border-[#ded2bd]/72 text-[11px] text-muted-foreground">
+                              <div className="flex h-[132px] w-full items-center justify-center rounded-[0.7rem] border border-dashed border-[var(--ui-border-strong)]/72 text-[11px] text-muted-foreground">
                                 {asset.fileName}
                               </div>
                             )}
@@ -253,7 +253,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 w-7 shrink-0 rounded-[7px] p-0 text-[#5d6b4d] hover:bg-[#dcebcf]/72 disabled:opacity-40"
+                                      className="h-7 w-7 shrink-0 rounded-[7px] p-0 text-primary hover:bg-[var(--ui-selected)]/72 disabled:opacity-40"
                                       disabled={!selectedPageExists}
                                       onClick={() => void addToCanvas(asset)}
                                       aria-label={t('sessionDetail.addImageToCanvas')}
@@ -273,7 +273,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 w-7 shrink-0 rounded-[7px] p-0 text-[#5d6b4d] hover:bg-[#dcebcf]/72 disabled:opacity-40"
+                                      className="h-7 w-7 shrink-0 rounded-[7px] p-0 text-primary hover:bg-[var(--ui-selected)]/72 disabled:opacity-40"
                                       disabled={!selectedPageExists}
                                       onClick={() => void setAsBackground(asset)}
                                       aria-label={t('sessionDetail.setImageAsBackground')}
@@ -292,7 +292,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      className="h-7 w-7 rounded-[7px] p-0 text-[#5d6b4d] hover:bg-[#f4ebdc]"
+                                      className="h-7 w-7 rounded-[7px] p-0 text-primary hover:bg-muted"
                                       onClick={() => void revealFile(asset.absolutePath)}
                                       aria-label={t('sessionDetail.revealFile')}
                                     >
@@ -315,8 +315,8 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
               )
             })}
             {isGeneratingImage && imageProgress && (
-              <div className="w-full max-w-[238px] rounded-[1.15rem] border border-[#ded2bd]/72 bg-[#fffaf1]/82 px-3 py-2 shadow-[0_6px_14px_rgba(74,59,42,0.08)]">
-                <p className="mb-2 text-sm text-[#655843]">
+              <div className="w-full max-w-[238px] rounded-[1.15rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/82 px-3 py-2 shadow-[0_6px_14px_rgba(74,59,42,0.08)]">
+                <p className="mb-2 text-sm text-muted-foreground">
                   {imageProgress.label || t('sessionDetail.imageGenerating')}
                 </p>
                 <Progress value={imageProgress.progress} />
@@ -327,14 +327,14 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
         )}
       </ScrollArea>
 
-      <div className="mx-2.5 mb-2.5 rounded-[1.4rem] border border-[#ded2bd]/72 bg-[#fffaf1]/84 px-2.5 pb-3 pt-2 shadow-[0_12px_24px_rgba(74,59,42,0.11)]">
+      <div className="mx-2.5 mb-2.5 rounded-[1.4rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/84 px-2.5 pb-3 pt-2 shadow-[0_12px_24px_rgba(74,59,42,0.11)]">
         <div className="mb-1.5 flex items-center justify-end gap-1.5">
           <Button
             type="button"
             size="sm"
             variant="secondary"
             disabled={imageControlsDisabled || !selectedPageExists}
-            className="h-6 rounded-full border border-[#8faf7d]/36 bg-[#dcebcf]/74 px-2.5 text-[11px] font-medium text-[#526942] shadow-none hover:bg-[#d2e4c3] disabled:opacity-45"
+            className="h-6 rounded-full border border-[var(--ui-workspace-border)]/36 bg-[var(--ui-selected)]/74 px-2.5 text-[11px] font-medium text-primary shadow-none hover:bg-[var(--ui-action-soft)] disabled:opacity-45"
             onClick={handleFillFromOutline}
           >
             {t('sessionDetail.imagePromptFromOutline')}
@@ -351,14 +351,14 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
             tone="subtle"
             size="sm"
             dropdownAlign="end"
-            className="h-6 rounded-full border-[#8faf7d]/36 bg-[#dcebcf]/74 shadow-none"
-            mainClassName="h-6 rounded-full px-2.5 text-[11px] font-medium text-[#526942] hover:bg-[#d2e4c3] hover:text-[#526942]"
-            triggerClassName="h-6 text-[#526942] hover:bg-[#d2e4c3] hover:text-[#526942]"
+            className="h-6 rounded-full border-[var(--ui-workspace-border)]/36 bg-[var(--ui-selected)]/74 shadow-none"
+            mainClassName="h-6 rounded-full px-2.5 text-[11px] font-medium text-primary hover:bg-[var(--ui-action-soft)] hover:text-primary"
+            triggerClassName="h-6 text-primary hover:bg-[var(--ui-action-soft)] hover:text-primary"
             onRun={handleGeneratePromptFromCurrentPage}
           />
         </div>
         {!hasImageModels && (
-          <p className="mb-1.5 rounded-lg border border-[#e3d6c2]/78 bg-[#fff6e7]/82 px-2.5 py-1.5 text-[11px] leading-4 text-[#8a5d2d]">
+          <p className="mb-1.5 rounded-lg border border-[var(--ui-border-strong)]/78 bg-warning/15 px-2.5 py-1.5 text-[11px] leading-4 text-warning">
             {t('sessionDetail.imageModelRequiredHint')}
           </p>
         )}
@@ -369,7 +369,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
             onChange={(event) => setImagePrompt(event.target.value)}
             disabled={imageControlsDisabled}
             rows={4}
-            className="min-h-[96px] resize-none rounded-[1.15rem] border border-[#ded2bd]/72 bg-[#fffdf8]/88 px-3 py-2 text-[13px] leading-5 text-[#3f4b35] shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[#9bb98a] focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="min-h-[96px] resize-none rounded-[1.15rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/88 px-3 py-2 text-[13px] leading-5 text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[var(--ui-focus)] focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
         <div className="mt-2 flex items-center justify-between gap-2">
@@ -380,7 +380,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                 variant="secondary"
                 size="sm"
                 disabled={imageControlsDisabled}
-                className="h-8 min-w-0 flex-1 justify-start rounded-full border border-[#ded2bd]/70 bg-[#fffdf8]/88 px-2.5 text-xs text-[#52614a]"
+                className="h-8 min-w-0 flex-1 justify-start rounded-full border border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-xs text-primary"
               >
                 <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
@@ -391,11 +391,11 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
             <PopoverContent
               side="top"
               align="start"
-              className="w-[268px] border-[#d8cfbc]/80 bg-[#fffdf8] p-3"
+              className="w-[268px] border-[var(--ui-border-strong)]/80 bg-[var(--ui-surface-elevated)] p-3"
             >
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs font-semibold text-[#34402c]">
+                  <p className="text-xs font-semibold text-foreground">
                     {t('sessionDetail.imageConfigTitle')}
                   </p>
                   <p className="mt-0.5 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-muted-foreground">
@@ -403,7 +403,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                   </p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-[#6d604d]">
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
                     {t('sessionDetail.imageModelPlaceholder')}
                   </label>
                   <Select
@@ -411,7 +411,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                     onValueChange={setSelectedImageModelConfigId}
                     disabled={imageControlsDisabled}
                   >
-                    <SelectTrigger className="h-8 w-full min-w-0 rounded-lg border-[#ded2bd]/70 bg-[#fffdf8]/82 px-3 py-1 text-xs text-[#3e4a32] shadow-none">
+                    <SelectTrigger className="h-8 w-full min-w-0 rounded-lg border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/82 px-3 py-1 text-xs text-foreground shadow-none">
                       <SelectValue placeholder={t('sessionDetail.imageModelPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -425,7 +425,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-[#6d604d]">
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
                       {t('sessionDetail.imageSizeLabel')}
                     </label>
                     <Select
@@ -433,7 +433,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                       onValueChange={setImageSize}
                       disabled={imageControlsDisabled}
                     >
-                      <SelectTrigger className="h-8 w-full rounded-lg border-[#ded2bd]/70 bg-[#fffdf8]/82 px-3 py-1 text-xs text-[#3e4a32] shadow-none">
+                      <SelectTrigger className="h-8 w-full rounded-lg border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/82 px-3 py-1 text-xs text-foreground shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -446,11 +446,11 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                     </Select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-[#6d604d]">
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
                       {t('sessionDetail.imageCountLabel')}
                     </label>
                     <Select value="1" disabled>
-                      <SelectTrigger className="h-8 w-full rounded-lg border-[#ded2bd]/70 bg-[#fffdf8]/82 px-3 py-1 text-xs text-[#3e4a32] shadow-none">
+                      <SelectTrigger className="h-8 w-full rounded-lg border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/82 px-3 py-1 text-xs text-foreground shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -487,7 +487,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
         </div>
       </div>
       <Dialog open={Boolean(previewAsset)} onOpenChange={(open) => !open && setPreviewAsset(null)}>
-        <DialogContent className="w-[min(96vw,1080px)] max-w-none gap-3 border-[#d8cfbc]/80 bg-[#171b14] p-3 text-[#fffaf1] shadow-[0_28px_90px_rgba(12,15,10,0.42)] sm:p-4">
+        <DialogContent className="w-[min(96vw,1080px)] max-w-none gap-3 border-[var(--ui-border-strong)]/80 bg-[#171b14] p-3 text-[#fffaf1] shadow-[0_28px_90px_rgba(12,15,10,0.42)] sm:p-4">
           <DialogHeader className="pr-10">
             <DialogTitle className="truncate text-sm text-[#fffaf1]">
               {previewAsset?.fileName || t('sessionDetail.imagePreviewTitle')}
@@ -510,7 +510,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="h-8 w-8 bg-[#fffaf1] p-0 text-[#34402c] hover:bg-[#efe5d5]"
+                      className="h-8 w-8 bg-[#fffaf1] p-0 text-[#2f3829] hover:bg-[#e8e0d0]"
                       disabled={!selectedPageExists}
                       onClick={() => void addToCanvas(previewAsset)}
                       aria-label={t('sessionDetail.addImageToCanvas')}
@@ -525,7 +525,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="h-8 w-8 bg-[#fffaf1] p-0 text-[#34402c] hover:bg-[#efe5d5]"
+                      className="h-8 w-8 bg-[#fffaf1] p-0 text-[#2f3829] hover:bg-[#e8e0d0]"
                       disabled={!selectedPageExists}
                       onClick={() => void setAsBackground(previewAsset)}
                       aria-label={t('sessionDetail.setImageAsBackground')}
@@ -538,7 +538,7 @@ export function ImageGenerationPanel({ sessionId }: { sessionId: string }): Reac
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-8 bg-[#fffaf1] px-2.5 text-xs text-[#34402c] hover:bg-[#efe5d5]"
+                  className="h-8 bg-[#fffaf1] px-2.5 text-xs text-[#2f3829] hover:bg-[#e8e0d0]"
                   onClick={() => void revealFile(previewAsset.absolutePath)}
                 >
                   <FolderOpen className="mr-1 h-3.5 w-3.5" />

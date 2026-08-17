@@ -61,8 +61,8 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
       | 'chartShowLegend'
       | 'chartRadarFill'
   ): React.JSX.Element => (
-    <label className="flex items-center justify-between gap-3 rounded-[9px] border border-[#d9cfbd]/72 bg-[#fffaf1]/82 px-2.5 py-2">
-      <span className="text-[11px] font-medium text-[#7a875f]">{label}</span>
+    <label className="flex items-center justify-between gap-3 rounded-[9px] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/82 px-2.5 py-2">
+      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
       <input
         type="checkbox"
         checked={Boolean(draft[field])}
@@ -72,7 +72,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
             [field]: event.target.checked
           })
         }
-        className="h-4 w-4 accent-[#7fa56f]"
+        className="h-4 w-4 accent-primary"
       />
     </label>
   )
@@ -94,7 +94,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
 
     return (
       <label className="block space-y-1.5">
-        <span className="text-[11px] font-medium text-[#7a875f]">{label}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
         <div className="flex items-center gap-2">
           <ColorPicker
             value={draft[field] || fallback}
@@ -105,7 +105,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
             value={draft[field]}
             onChange={(event) => updateDraft(event.target.value)}
             onBlur={(event) => updateDraft(event.target.value, true)}
-            className="h-8 rounded-full border border-[#ded2bd]/72 bg-[#fffdf8]/88 px-2.5 text-xs text-[#3f4b35] shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[#9bb98a] focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-8 rounded-full border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-xs text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[var(--ui-focus)] focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
       </label>
@@ -115,24 +115,24 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
   return (
     <InspectorSection
       title={t('sessionDetail.chartContent')}
-      icon={<ChartColumn className="h-3.5 w-3.5 text-[#7a875f]" />}
+      icon={<ChartColumn className="h-3.5 w-3.5 text-muted-foreground" />}
     >
       <div className="space-y-2.5">
         <div className="block space-y-1.5">
-          <span className="text-[11px] font-medium text-[#7a875f]">
+          <span className="text-[11px] font-medium text-muted-foreground">
             {t('sessionDetail.chartTitle')}
           </span>
           <Input
             value={draft.chartTitle}
             onChange={(event) => onDraftChange({ ...draft, chartTitle: event.target.value })}
             onBlur={(event) => commit({ ...draft, chartTitle: event.target.value })}
-            className="h-8 rounded-full border border-[#ded2bd]/72 bg-[#fffdf8]/88 px-2.5 text-xs text-[#3f4b35] shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[#9bb98a] focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-8 rounded-full border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-xs text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[var(--ui-focus)] focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
 
         <div className="block space-y-1.5">
           <span className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[#7a875f]">
+            <span className="text-[11px] font-medium text-muted-foreground">
               {t('sessionDetail.chartData')}
             </span>
             <Tooltip>
@@ -144,7 +144,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
                     disabled={isImportingData}
                     aria-label={t('sessionDetail.chartImportDataTooltip')}
                     title={t('sessionDetail.chartImportDataTooltip')}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#d9cfbd]/78 bg-[#fffdf8]/88 px-2.5 text-[11px] font-medium text-[#5d6b4d] transition-colors hover:border-[#9daf8a] hover:text-[#415235] disabled:cursor-not-allowed disabled:opacity-55"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--ui-border-strong)]/78 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-[11px] font-medium text-primary transition-colors hover:border-[var(--ui-focus)] hover:text-primary disabled:cursor-not-allowed disabled:opacity-55"
                   >
                     <Upload className="h-3.5 w-3.5" />
                     {t('sessionDetail.chartImportData')}
@@ -160,7 +160,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
             value={draft.chartDataJson}
             onChange={(event) => onDraftChange({ ...draft, chartDataJson: event.target.value })}
             onBlur={(event) => commit({ ...draft, chartDataJson: event.target.value })}
-            className="min-h-[138px] w-full resize-y rounded-[9px] border border-[#d9cfbd]/72 bg-[#fffaf1]/92 px-2.5 py-2 font-mono text-[11px] leading-5 text-[#34402c] outline-none transition-colors placeholder:text-[#b1a58f] focus:border-[#9daf8a]"
+            className="min-h-[138px] w-full resize-y rounded-[9px] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/92 px-2.5 py-2 font-mono text-[11px] leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ui-focus)]"
             placeholder={t('sessionDetail.chartDataPlaceholder')}
           />
         </div>
@@ -191,7 +191,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
             {renderToggleField(t('sessionDetail.chartShowLegend'), 'chartShowLegend')}
             {draft.chartType === 'doughnut' && (
               <label className="block space-y-1.5">
-                <span className="text-[11px] font-medium text-[#7a875f]">
+                <span className="text-[11px] font-medium text-muted-foreground">
                   {t('sessionDetail.chartDoughnutCutout')}
                 </span>
                 <Input
@@ -206,7 +206,7 @@ export function ChartInspector({ draft, onDraftChange }: ElementEditorProps): Re
                   onBlur={(event) =>
                     commit({ ...draft, chartDoughnutCutout: event.target.value })
                   }
-                  className="h-8 rounded-full border border-[#ded2bd]/72 bg-[#fffdf8]/88 px-2.5 text-xs text-[#3f4b35] shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[#9bb98a] focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-8 rounded-full border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-xs text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[var(--ui-focus)] focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </label>
             )}

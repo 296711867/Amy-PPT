@@ -15,13 +15,13 @@ export function LayoutInspector({ draft }: ElementEditorProps): React.JSX.Elemen
   return (
     <InspectorSection
       title={t('sessionDetail.adjustLayout')}
-      icon={<Move className="h-3.5 w-3.5 text-[#7a875f]" />}
+      icon={<Move className="h-3.5 w-3.5 text-muted-foreground" />}
     >
       <div className="grid grid-cols-4 gap-2">
         {LAYOUT_FIELDS.map(({ key, label }) => (
           <div key={key} className="space-y-1 text-center">
-            <span className="text-[11px] font-medium text-[#7a875f]">{label}</span>
-            <div className="flex h-8 items-center justify-center rounded-full border border-[#d7cbb7]/40 bg-[#f5efe4]/40 px-1.5 text-[11px] text-[#a0977e]/70">
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+            <div className="flex h-8 items-center justify-center rounded-full border border-[var(--ui-border-strong)]/40 bg-[var(--ui-surface-elevated)]/40 px-1.5 text-[11px] text-muted-foreground/70">
               {draft[key]}
             </div>
           </div>

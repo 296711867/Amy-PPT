@@ -61,7 +61,7 @@ function TemplatePagePreview({
           thumbnail
         />
       ) : (
-        <div className="flex h-full items-center justify-center text-xs text-[#8a806f]">
+        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
           P{page.pageNumber}
         </div>
       )}
@@ -303,25 +303,25 @@ export function MergeTemplatePagesDialog({
             <DialogDescription>{t('sessionDetail.mergeTemplateDescription')}</DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden rounded-2xl border border-[#d8cfbc]/75 bg-[#f8f4eb]">
-            <div className="flex min-h-0 flex-col border-r border-[#d8cfbc]/75 bg-[#f2ecdf]/75 p-3">
+          <div className="grid min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden rounded-2xl border border-[var(--ui-border-strong)]/75 bg-[var(--ui-surface-elevated)]">
+            <div className="flex min-h-0 flex-col border-r border-[var(--ui-border-strong)]/75 bg-muted/75 p-3">
               <div className="relative mb-3">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#829071]" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={t('sessionDetail.mergeTemplateSearchTemplates')}
-                  className="h-9 bg-[#fffaf1] pl-9"
+                  className="h-9 bg-[var(--ui-surface-elevated)] pl-9"
                   disabled={submitting}
                 />
               </div>
               <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-2">
                 {loadingTemplates ? (
-                  <div className="flex h-32 items-center justify-center text-[#7a875f]">
+                  <div className="flex h-32 items-center justify-center text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
                 ) : filteredTemplates.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#c9c0ae] px-3 py-8 text-center text-xs text-[#8a806f]">
+                  <div className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground">
                     {t('sessionDetail.mergeTemplateNoTemplates')}
                   </div>
                 ) : (
@@ -341,12 +341,12 @@ export function MergeTemplatePagesDialog({
                           onClick={() => void handleSelectTemplate(template)}
                           className={`flex w-full gap-2.5 rounded-xl border p-2 text-left transition-colors ${
                             selected
-                              ? 'border-[#8eaa70] bg-[#e8f1dd] shadow-sm'
-                              : 'border-[#ddd4c4] bg-[#fffaf1]/80 hover:bg-white'
+                              ? 'border-[var(--ui-focus)] bg-[var(--ui-selected)] shadow-sm'
+                              : 'border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/80 hover:bg-white'
                           } disabled:cursor-not-allowed disabled:opacity-55`}
                         >
                           <div
-                            className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-[#eee7d9]"
+                            className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted"
                             style={{ aspectRatio: `${slideSize.width}/${slideSize.height}` }}
                           >
                             {template.thumbnailPath ? (
@@ -356,29 +356,29 @@ export function MergeTemplatePagesDialog({
                                 className="h-full w-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-full items-center justify-center text-[#a39a86]">
+                              <div className="flex h-full items-center justify-center text-muted-foreground">
                                 <LayoutTemplate className="h-5 w-5" />
                               </div>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="truncate text-sm font-semibold text-[#3e4a32]">
+                              <span className="truncate text-sm font-semibold text-foreground">
                                 {template.title || t('sessionDetail.mergeTemplateUntitled')}
                               </span>
                               {template.isSource ? (
-                                <span className="shrink-0 rounded bg-[#5d6b4d] px-1 py-0.5 text-[9px] font-bold text-white">
+                                <span className="shrink-0 rounded bg-primary px-1 py-0.5 text-[9px] font-bold text-primary-foreground">
                                   {t('sessionDetail.mergeTemplateSourceBadge')}
                                 </span>
                               ) : null}
                             </div>
-                            <div className="mt-1 text-[11px] text-[#817766]">
+                            <div className="mt-1 text-[11px] text-muted-foreground">
                               {t('sessionDetail.mergeTemplatePageCount', {
                                 count: template.pageCount
                               })}
                             </div>
                             {template.disabledReason ? (
-                              <div className="mt-1 text-[10px] text-[#a1665c]">
+                              <div className="mt-1 text-[10px] text-destructive">
                                 {getDisabledReason(template.disabledReason)}
                               </div>
                             ) : null}
@@ -391,16 +391,16 @@ export function MergeTemplatePagesDialog({
               </ScrollArea>
             </div>
 
-            <div className="flex min-h-0 flex-col bg-[#fffaf1]/75 p-4">
+            <div className="flex min-h-0 flex-col bg-[var(--ui-surface-elevated)]/75 p-4">
               <div className="mb-3 flex min-h-9 items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-[#3e4a32]">
+                  <div className="truncate text-sm font-semibold text-foreground">
                     {selectedTemplate
                       ? selectedTemplate.title || t('sessionDetail.mergeTemplateUntitled')
                       : t('sessionDetail.mergeTemplateSelectTemplate')}
                   </div>
                   {selectedTemplate ? (
-                    <div className="mt-0.5 text-[11px] text-[#817766]">
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
                       {t('sessionDetail.mergeTemplateSelectedCount', {
                         count: selectedSourcePageIds.size,
                         max: selectablePageIds.length
@@ -409,7 +409,7 @@ export function MergeTemplatePagesDialog({
                   ) : null}
                 </div>
                 {selectedTemplate && sourcePages.length > 0 ? (
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#5d6b4d] hover:bg-[#e8e0d0]/70">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-[var(--ui-surface-inset)]/70">
                     <Checkbox
                       checked={allSelectablePagesSelected}
                       disabled={submitting || selectablePageIds.length === 0}
@@ -431,22 +431,22 @@ export function MergeTemplatePagesDialog({
                 onViewportScroll={schedulePreviewWindowUpdate}
               >
                 {loadingPages ? (
-                  <div className="flex h-full min-h-56 items-center justify-center text-[#7a875f]">
+                  <div className="flex h-full min-h-56 items-center justify-center text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
                 ) : loadError ? (
-                  <div className="flex h-full min-h-56 items-center justify-center rounded-xl border border-dashed border-[#d8b4aa] px-6 text-center text-sm text-[#a15f55]">
+                  <div className="flex h-full min-h-56 items-center justify-center rounded-xl border border-dashed border-[var(--ui-danger)]/40 px-6 text-center text-sm text-destructive">
                     {loadError}
                   </div>
                 ) : !selectedTemplate ? (
-                  <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[#d6cdbd] text-[#8a806f]">
-                    <LayoutTemplate className="mb-3 h-8 w-8 text-[#9eaa8e]" />
+                  <div className="flex h-full min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--ui-border-strong)] text-muted-foreground">
+                    <LayoutTemplate className="mb-3 h-8 w-8 text-muted-foreground" />
                     <span className="text-sm">
                       {t('sessionDetail.mergeTemplateSelectTemplateHint')}
                     </span>
                   </div>
                 ) : sourcePages.length === 0 ? (
-                  <div className="flex h-full min-h-56 items-center justify-center text-sm text-[#8a806f]">
+                  <div className="flex h-full min-h-56 items-center justify-center text-sm text-muted-foreground">
                     {t('sessionDetail.mergeTemplateNoPages')}
                   </div>
                 ) : (
@@ -468,8 +468,8 @@ export function MergeTemplatePagesDialog({
                           }}
                           className={`group relative overflow-hidden rounded-xl border p-2 text-left transition-all ${
                             selected
-                              ? 'border-[#7f9f67] bg-[#e9f2df] shadow-[0_8px_18px_rgba(93,107,77,0.14)]'
-                              : 'border-[#ddd4c4] bg-white hover:border-[#b8c7a5]'
+                              ? 'border-[var(--ui-focus)] bg-[var(--ui-selected)] shadow-[0_8px_18px_rgba(93,107,77,0.14)]'
+                              : 'border-[var(--ui-border-strong)] bg-white hover:border-[var(--ui-workspace-border)]'
                           } ${
                             !page.selectable || submitting
                               ? 'cursor-not-allowed opacity-55'
@@ -477,18 +477,18 @@ export function MergeTemplatePagesDialog({
                           }`}
                         >
                           <div
-                            className="relative w-full overflow-hidden rounded-lg bg-[#eee7d9]"
+                            className="relative w-full overflow-hidden rounded-lg bg-muted"
                             style={{ aspectRatio: `${slideSize.width}/${slideSize.height}` }}
                           >
                             <TemplatePagePreview
                               page={page}
                               renderPreview={previewPageIds.has(page.id)}
                             />
-                            <span className="absolute left-2 top-2 z-10 rounded-md bg-[#fffaf1]/92 px-1.5 py-0.5 text-[10px] font-semibold text-[#4f613f] shadow-sm">
+                            <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--ui-surface-elevated)]/92 px-1.5 py-0.5 text-[10px] font-semibold text-primary shadow-sm">
                               P{page.pageNumber}
                             </span>
                             <span
-                              className="absolute right-2 top-2 z-10 rounded bg-[#fffaf1]/92 p-1 shadow-sm"
+                              className="absolute right-2 top-2 z-10 rounded bg-[var(--ui-surface-elevated)]/92 p-1 shadow-sm"
                               onClick={(event) => event.stopPropagation()}
                               onKeyDown={(event) => event.stopPropagation()}
                             >
@@ -500,11 +500,11 @@ export function MergeTemplatePagesDialog({
                               />
                             </span>
                           </div>
-                          <div className="mt-2 line-clamp-2 min-h-8 text-xs font-medium leading-4 text-[#4a583f]">
+                          <div className="mt-2 line-clamp-2 min-h-8 text-xs font-medium leading-4 text-primary">
                             {page.title || t('sessionDetail.untitledPage')}
                           </div>
                           {page.disabledReason ? (
-                            <div className="mt-1 text-[10px] text-[#a1665c]">
+                            <div className="mt-1 text-[10px] text-destructive">
                               {getDisabledReason(page.disabledReason)}
                             </div>
                           ) : null}

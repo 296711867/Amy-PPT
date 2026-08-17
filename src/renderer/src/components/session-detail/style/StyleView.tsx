@@ -141,7 +141,7 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-[#8a9a7b]">
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         {t('sessionDetail.styleLoading')}
       </div>
@@ -152,8 +152,8 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
     <ScrollArea className="flex-1">
       <div className="p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-[#3e4a32]">{t('sessionDetail.styleTitle')}</h2>
-          <p className="mt-1 text-xs text-[#718064]">{t('sessionDetail.styleDescription')}</p>
+          <h2 className="text-lg font-semibold text-foreground">{t('sessionDetail.styleTitle')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('sessionDetail.styleDescription')}</p>
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {orderedStyles.map((style) => {
@@ -186,11 +186,11 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
                   }
                 }}
                 className={cn(
-                  'group overflow-hidden rounded-2xl border border-[#d8cfbc]/75 bg-white/70 text-left shadow-[0_4px_16px_rgba(93,107,77,0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(93,107,77,0.15)] aria-disabled:cursor-default aria-disabled:hover:translate-y-0',
+                  'group overflow-hidden rounded-2xl border border-[var(--ui-border-strong)]/75 bg-white/70 text-left shadow-[0_4px_16px_rgba(93,107,77,0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(93,107,77,0.15)] aria-disabled:cursor-default aria-disabled:hover:translate-y-0',
                   isStyleSwitching && 'pointer-events-none opacity-45 grayscale'
                 )}
               >
-                <div className="relative aspect-video overflow-hidden bg-[#f5f1e8]">
+                <div className="relative aspect-video overflow-hidden bg-background">
                   {style.thumbnailPath ? (
                     <img
                       src={stylePreviewUrl(style.thumbnailPath)}
@@ -210,7 +210,7 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
                       title={`${style.label} preview`}
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-[#8a9a7b]">
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
                       <Palette className="h-8 w-8" />
                     </div>
                   )}
@@ -220,12 +220,12 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
                     aria-hidden="true"
                     className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md border-2 shadow-[0_3px_10px_rgba(40,48,34,0.22)] transition-colors ${
                       isCurrent || isSwitching
-                        ? 'border-[#5d6b4d] bg-[#5d6b4d] text-white'
-                        : 'border-[#718064] bg-white/95 text-transparent'
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-white/95 text-transparent'
                     }`}
                   >
                     {isSwitching ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
                     ) : (
                       <Check className="h-4 w-4" strokeWidth={3} />
                     )}
@@ -234,17 +234,17 @@ export function StyleView({ sessionId }: { sessionId: string }): React.JSX.Eleme
                 <div className="p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#3e4a32]">{style.label}</p>
-                      <p className="mt-0.5 text-[10px] font-medium text-[#718064]">
+                      <p className="truncate text-sm font-semibold text-foreground">{style.label}</p>
+                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
                         {style.category} · {style.source || 'builtin'}
                       </p>
                     </div>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#6f6658]">
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
                     {style.description || style.id}
                   </p>
                   {style.styleCase && (
-                    <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[#8a7048]">
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-warning">
                       {style.styleCase}
                     </p>
                   )}

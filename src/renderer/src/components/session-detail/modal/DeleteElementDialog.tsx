@@ -29,7 +29,7 @@ export function DeleteElementDialog({
         <div className="flex justify-end gap-2">
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-[#c0392b] text-white hover:bg-[#a93226]"
+            className="bg-destructive text-destructive-foreground hover:bg-[var(--ui-danger-hover)]"
             onClick={onConfirm}
           >
             {t('common.delete')}

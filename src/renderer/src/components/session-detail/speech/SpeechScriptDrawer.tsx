@@ -142,24 +142,24 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
   return (
     <div className={sessionDetailRightPanelContentClass}>
       {/* Header card */}
-      <div className="relative mx-2 mt-2 overflow-hidden rounded-[0.85rem] border border-[#e1d6c4]/58 bg-[#fffaf1]/68 px-2.5 py-2 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
-        <div className="pointer-events-none absolute -right-8 -top-10 h-20 w-20 rounded-[30%_70%_70%_30%/30%_30%_70%_70%] bg-[#c7d9b4]/10" />
+      <div className="relative mx-2 mt-2 overflow-hidden rounded-[0.85rem] border border-[var(--ui-border-strong)]/58 bg-[var(--ui-surface-elevated)]/68 px-2.5 py-2 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
+        <div className="pointer-events-none absolute -right-8 -top-10 h-20 w-20 rounded-[30%_70%_70%_30%/30%_30%_70%_70%] bg-[var(--ui-action-soft)]/10" />
         <div className="relative flex items-center justify-between">
-          <h3 className="text-[12px] font-semibold tracking-[0.03em] text-[#34402c]">
+          <h3 className="text-[12px] font-semibold tracking-[0.03em] text-foreground">
             {t('sessionDetail.speechScriptDialogTitle')}
           </h3>
           <button
             type="button"
             aria-label={t('sessionDetail.closeSpeechDrawer')}
             onClick={close}
-            className="rounded-md p-0.5 text-[#9a8f80] transition-colors hover:bg-[#ebe4d6]/80 hover:text-[#3e4a32]"
+            className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
           >
             <X className="h-3 w-3" />
           </button>
         </div>
 
         {/* Scope tabs */}
-        <div className="mt-2 flex gap-0.5 rounded-lg bg-[#ede5d6]/52 p-0.5">
+        <div className="mt-2 flex gap-0.5 rounded-lg bg-muted/52 p-0.5">
           {(['all', 'single'] as SpeechScope[]).map((s) => (
             <button
               key={s}
@@ -168,8 +168,8 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
               className={cn(
                 'flex-1 rounded-[0.55rem] py-1 text-[11px] font-medium transition-all',
                 speechConfig.scope === s
-                  ? 'bg-[#fffaf1] text-[#3e4a32] shadow-[0_1px_3px_rgba(74,59,42,0.08)]'
-                  : 'text-[#9a8f80] hover:text-[#5a6b4a]'
+                  ? 'bg-[var(--ui-surface-elevated)] text-foreground shadow-[0_1px_3px_rgba(74,59,42,0.08)]'
+                  : 'text-muted-foreground hover:text-primary'
               )}
             >
               {s === 'all'
@@ -181,24 +181,24 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
       </div>
 
       {/* Scope description */}
-      <p className="shrink-0 px-2.5 pt-2 text-[10px] text-[#9a8f80]">
+      <p className="shrink-0 px-2.5 pt-2 text-[10px] text-muted-foreground">
         {speechConfig.scope === 'all'
           ? t('sessionDetail.speechScriptScopeAllDesc')
           : currentPageTitle || t('sessionDetail.speechScriptScopeSingleDesc')}
       </p>
 
       {/* Config card (fixed, no scroll) */}
-      <div className="mx-2 mt-1.5 shrink-0 overflow-hidden rounded-[0.8rem] border border-[#e1d6c4]/58 bg-[#fffaf1]/68 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
+      <div className="mx-2 mt-1.5 shrink-0 overflow-hidden rounded-[0.8rem] border border-[var(--ui-border-strong)]/58 bg-[var(--ui-surface-elevated)]/68 shadow-[0_2px_8px_rgba(77,61,43,0.05)]">
         {/* Style row */}
-        <div className="flex items-center gap-2 border-b border-[#ede5d6]/50 px-2.5 py-1.5">
-          <span className="shrink-0 text-[10px] font-semibold tracking-[0.05em] text-[#7a875f]">
+        <div className="flex items-center gap-2 border-b border-border/50 px-2.5 py-1.5">
+          <span className="shrink-0 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground">
             {t('sessionDetail.speechScriptStyle')}
           </span>
           <Select
             value={speechConfig.style}
             onValueChange={(v) => setSpeechConfig({ ...speechConfig, style: v as SpeechStyle })}
           >
-            <SelectTrigger className="h-7 flex-1 border-[#d8ccb5]/60 bg-[#fffdf8]/60 text-[11px]">
+            <SelectTrigger className="h-7 flex-1 border-[var(--ui-border-strong)]/60 bg-[var(--ui-surface-elevated)]/60 text-[11px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -216,9 +216,9 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
 
         {/* Custom style textarea */}
         {speechConfig.style === 'custom' && (
-          <div className="border-b border-[#ede5d6]/50 px-2.5 py-1.5">
+          <div className="border-b border-border/50 px-2.5 py-1.5">
             <textarea
-              className="w-full resize-none rounded-lg border border-[#d8ccb5]/80 bg-[#fffdf8]/88 px-2.5 py-1.5 text-[11px] text-[#3f4b35] placeholder:text-[#b0a898] focus:border-[#9bb98a] focus:outline-none"
+              className="w-full resize-none rounded-lg border border-[var(--ui-border-strong)]/80 bg-[var(--ui-surface-elevated)]/88 px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground focus:border-[var(--ui-focus)] focus:outline-none"
               rows={2}
               placeholder={t('sessionDetail.speechScriptStyleCustomPlaceholder')}
               value={speechConfig.customStyle ?? ''}
@@ -229,14 +229,14 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
 
         {/* Length row */}
         <div className="flex items-center gap-2 px-2.5 py-1.5">
-          <span className="shrink-0 text-[10px] font-semibold tracking-[0.05em] text-[#7a875f]">
+          <span className="shrink-0 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground">
             {t('sessionDetail.speechScriptLength')}
           </span>
           <Select
             value={speechConfig.length}
             onValueChange={(v) => setSpeechConfig({ ...speechConfig, length: v as SpeechLength })}
           >
-            <SelectTrigger className="h-7 flex-1 border-[#d8ccb5]/60 bg-[#fffdf8]/60 text-[11px]">
+            <SelectTrigger className="h-7 flex-1 border-[var(--ui-border-strong)]/60 bg-[var(--ui-surface-elevated)]/60 text-[11px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -248,7 +248,7 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
         </div>
 
         {/* Generate button */}
-        <div className="border-t border-[#ede5d6]/60 px-3 py-2.5">
+        <div className="border-t border-border/60 px-3 py-2.5">
           <ModelSplitButton
             modelAction={modelAction}
             label={t(
@@ -271,18 +271,18 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
       </div>
 
       {/* Divider */}
-      <div className="mx-3 my-2 shrink-0 border-t border-[#e1d6c4]/50" />
+      <div className="mx-3 my-2 shrink-0 border-t border-[var(--ui-border-strong)]/50" />
 
       {/* Result area (only this section scrolls) */}
       {isGenerating ? (
         <div className="flex flex-col items-center gap-2 py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-[#6f8159]" />
-          <p className="text-center text-xs text-[#7a6b56]">{generationLabel}</p>
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <p className="text-center text-xs text-muted-foreground">{generationLabel}</p>
         </div>
       ) : visibleScript ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 px-2.5 pb-3">
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.15rem] border border-[#e1d6c4]/72 bg-[#fffaf1]/78 px-3 py-3 shadow-[0_4px_12px_rgba(77,61,43,0.06)]">
-            <pre className="whitespace-pre-wrap font-sans text-[12px] leading-relaxed text-[#3f4b35]">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.15rem] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/78 px-3 py-3 shadow-[0_4px_12px_rgba(77,61,43,0.06)]">
+            <pre className="whitespace-pre-wrap font-sans text-[12px] leading-relaxed text-foreground">
               {visibleScript}
             </pre>
           </div>
@@ -308,7 +308,7 @@ export function SpeechScriptDrawer({ sessionId }: { sessionId: string }): React.
           </div>
         </div>
       ) : (
-        <p className="py-6 text-center text-[11px] text-[#b0a898]">
+        <p className="py-6 text-center text-[11px] text-muted-foreground">
           {t('sessionDetail.speechScriptEmptyHint')}
         </p>
       )}

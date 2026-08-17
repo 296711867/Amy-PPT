@@ -379,35 +379,35 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
         <button
           type="button"
           disabled={triggerDisabled}
-          className="inline-flex h-7 max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border border-[#d8ccb5]/70 bg-[#fffdf8]/88 px-2.5 text-[10px] font-bold leading-none text-[#314028] shadow-[inset_0_1px_2px_rgba(74,59,42,0.04)] transition-colors hover:bg-[#f3f7ed] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-7 max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-[10px] font-bold leading-none text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.04)] transition-colors hover:bg-[var(--ui-selected)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <TriggerIcon
             className={`h-3 w-3 shrink-0 ${isLoading || isSaving ? 'animate-spin' : ''}`}
           />
           <span className="shrink-0">{t('sessionDetail.elementAnimationLabel')}</span>
-          <span className="min-w-0 truncate text-[#6f8159]">
+          <span className="min-w-0 truncate text-primary">
             {selectedSelector ? currentLabel : t('sessionDetail.elementAnimationSelectTarget')}
           </span>
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[536px] max-w-[calc(100vw-2rem)] border-[#d8ccb5]/85 bg-[#fff9ef] p-2"
+        className="w-[536px] max-w-[calc(100vw-2rem)] border-[var(--ui-border-strong)]/85 bg-[var(--ui-surface-elevated)] p-2"
       >
         <style>{elementAnimationPreviewStyles}</style>
         {!selectedSelector ? (
-          <div className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#d8ccb5] bg-[#fffdf8]/72 text-center">
-            <MousePointer2 className="h-5 w-5 text-[#6f8159]" />
-            <p className="text-xs font-bold text-[#314028]">
+          <div className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/72 text-center">
+            <MousePointer2 className="h-5 w-5 text-primary" />
+            <p className="text-xs font-bold text-foreground">
               {t('sessionDetail.elementAnimationSelectTargetTitle')}
             </p>
-            <p className="text-[10px] text-[#7a806c]">
+            <p className="text-[10px] text-muted-foreground">
               {t('sessionDetail.elementAnimationSelectTargetHint')}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex items-center justify-end gap-1 rounded-lg bg-[#f2ecdf]/72 px-2 py-1.5">
+            <div className="flex items-center justify-end gap-1 rounded-lg bg-muted/72 px-2 py-1.5">
               {(['load', 'click'] as const).map((trigger) => (
                 <button
                   key={trigger}
@@ -415,8 +415,8 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                   disabled={disabledState || !animation}
                   className={`rounded-full px-2 py-1 text-[10px] font-bold ${
                     triggerBucket === trigger
-                      ? 'bg-[#5d6b4d] text-white'
-                      : 'bg-[#fffdf8] text-[#617253] hover:bg-[#e5eedb]'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-[var(--ui-surface-elevated)] text-primary hover:bg-[var(--ui-selected)]'
                   }`}
                   onClick={() => {
                     if (!animation || triggerBucket === trigger) return
@@ -434,7 +434,7 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
 
             {animation ? (
               <div className="flex flex-wrap items-center gap-1">
-                <span className="mr-1 text-[10px] font-bold text-[#6b765e]">
+                <span className="mr-1 text-[10px] font-bold text-primary">
                   {t('sessionDetail.elementAnimationDuration')}
                 </span>
                 {durationOptions.map((option) => (
@@ -444,8 +444,8 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                     disabled={disabledState}
                     className={`rounded-full px-2 py-1 text-[10px] font-bold ${
                       currentDuration === option.value
-                        ? 'bg-[#d9e8cb] text-[#314028]'
-                        : 'bg-[#fffdf8] text-[#69745e] hover:bg-[#edf4e6]'
+                        ? 'bg-[var(--ui-action-soft)] text-foreground'
+                        : 'bg-[var(--ui-surface-elevated)] text-primary hover:bg-[var(--ui-selected)]'
                     }`}
                     onClick={() => {
                       if (currentDuration === option.value) return
@@ -456,7 +456,7 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                   </button>
                 ))}
                 {customDuration ? (
-                  <span className="rounded-full bg-[#d9e8cb] px-2 py-1 text-[10px] font-bold text-[#314028]">
+                  <span className="rounded-full bg-[var(--ui-action-soft)] px-2 py-1 text-[10px] font-bold text-foreground">
                     {t('sessionDetail.elementAnimationDurationCustom', {
                       duration: currentDuration
                     })}
@@ -467,7 +467,7 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
 
             {animation && DIRECTIONAL_TYPES.has(animation.type) ? (
               <div className="flex flex-wrap items-center gap-1">
-                <span className="mr-1 text-[10px] font-bold text-[#6b765e]">
+                <span className="mr-1 text-[10px] font-bold text-primary">
                   {t('sessionDetail.elementAnimationDirection')}
                 </span>
                 {directionOptions.map((option) => (
@@ -477,8 +477,8 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                     disabled={disabledState}
                     className={`rounded-full px-2 py-1 text-[10px] font-bold ${
                       currentDirection === option.value
-                        ? 'bg-[#d9e8cb] text-[#314028]'
-                        : 'bg-[#fffdf8] text-[#69745e] hover:bg-[#edf4e6]'
+                        ? 'bg-[var(--ui-action-soft)] text-foreground'
+                        : 'bg-[var(--ui-surface-elevated)] text-primary hover:bg-[var(--ui-selected)]'
                     }`}
                     onClick={() => {
                       if (currentDirection === option.value) return
@@ -492,7 +492,7 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
             ) : null}
 
             {hasAnimation ? (
-              <p className="rounded-md bg-[#f6ece2] px-2 py-1 text-[10px] font-bold leading-snug text-[#8b6658]">
+              <p className="rounded-md bg-warning/15 px-2 py-1 text-[10px] font-bold leading-snug text-destructive">
                 {t('sessionDetail.elementAnimationClearFirstHint')}
               </p>
             ) : null}
@@ -505,8 +505,8 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                   disabled={typeLocked}
                   className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                     category === item
-                      ? 'bg-[#5d6b4d] text-white'
-                      : 'bg-[#efe8da] text-[#617253] hover:bg-[#e3ecd9]'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-primary hover:bg-[var(--ui-selected)]'
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                   onClick={() => setCategory(item)}
                 >
@@ -519,8 +519,8 @@ export function ElementAnimationPicker({ disabled = false }: { disabled?: boolea
                 data-selected={!animation}
                 className={`ml-auto rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                   hasAnimation
-                    ? 'bg-[#8b6658] text-white hover:bg-[#7a554a]'
-                    : 'bg-[#fffdf8] text-[#8b6658] hover:bg-[#f8e8df]'
+                    ? 'bg-destructive text-destructive-foreground hover:bg-[var(--ui-danger-hover)]'
+                    : 'bg-[var(--ui-surface-elevated)] text-destructive hover:bg-warning/15'
                 }`}
                 onClick={() => handleTypeChange(null)}
               >

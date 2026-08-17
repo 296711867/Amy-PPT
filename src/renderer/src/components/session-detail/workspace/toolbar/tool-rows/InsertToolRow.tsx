@@ -64,9 +64,9 @@ import { ToolRowShell } from './ToolRowShell'
 import type { ToolRowProps } from './types'
 
 const toolButtonClass =
-  'group inline-flex h-7 min-w-[78px] shrink-0 items-center justify-center gap-1 rounded-full bg-[#fffaf1]/92 px-2.5 text-[10px] font-bold leading-none text-[#2f3b28] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(47,59,40,0.09)] transition-colors hover:bg-white hover:text-[#1f2a1b] disabled:pointer-events-none disabled:opacity-40'
+  'group inline-flex h-7 min-w-[78px] shrink-0 items-center justify-center gap-1 rounded-full bg-[var(--ui-surface-elevated)]/92 px-2.5 text-[10px] font-bold leading-none text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(47,59,40,0.09)] transition-colors hover:bg-white hover:text-foreground disabled:pointer-events-none disabled:opacity-40'
 const iconWrapClass =
-  'inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[#d4e4c1]/78 text-[#3e4a32] group-hover:bg-[#8fbc8f]/42'
+  'inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--ui-action-soft)]/78 text-foreground group-hover:bg-[var(--ui-focus)]/42'
 const iconClass = 'h-2.5 w-2.5'
 const selectedToolButtonClass =
   'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-45'
@@ -405,12 +405,12 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
   const renderSelectedElementTools = (): React.JSX.Element | null => {
     if (!selection) return null
     return (
-      <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 shrink-0 items-center gap-0.5 rounded-full border border-[#ead29a]/70 bg-[#fff4d8]/92 px-0.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_4px_12px_rgba(167,116,34,0.1)] backdrop-blur">
+      <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 shrink-0 items-center gap-0.5 rounded-full border border-warning/40 bg-warning/15 px-0.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_4px_12px_rgba(167,116,34,0.1)] backdrop-blur">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              className={`${selectedToolButtonClass} bg-[#d8942f] text-white shadow-[0_4px_10px_rgba(168,105,23,0.2)] hover:bg-[#bd7621]`}
+              className={`${selectedToolButtonClass} bg-warning text-background shadow-[0_4px_10px_rgba(168,105,23,0.2)] hover:bg-warning`}
               onClick={() => actions?.onApplySelectedToAllPages()}
               disabled={disabled || isApplyingSyncElement}
               aria-label={t('sessionDetail.applyElementToAllPages')}
@@ -432,7 +432,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className={`${selectedToolButtonClass} text-[#6b765c] hover:bg-[#f9e7bd] hover:text-[#3e4a32]`}
+              className={`${selectedToolButtonClass} text-primary hover:bg-warning/15 hover:text-foreground`}
               onClick={() => actions?.onCopySelectedElement()}
               disabled={disabled || isApplyingSyncElement}
               aria-label={t('sessionDetail.copyElement')}
@@ -446,7 +446,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className={`${selectedToolButtonClass} text-[#9a5a50] hover:bg-[#f8dfd9] hover:text-[#7d342c]`}
+              className={`${selectedToolButtonClass} text-destructive hover:bg-warning/15 hover:text-[var(--ui-danger-hover)]`}
               onClick={() => setDeleteConfirmOpen(true)}
               disabled={disabled || isApplyingSyncElement}
               aria-label={t('sessionDetail.deleteElement')}
@@ -465,7 +465,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
             <div className="flex justify-end gap-2">
               <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-[#c0392b] text-white hover:bg-[#a93226]"
+                className="bg-destructive text-destructive-foreground hover:bg-[var(--ui-danger-hover)]"
                 onClick={() => actions?.onDeleteSelectedElement()}
               >
                 {t('common.delete')}
@@ -524,7 +524,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[280px] max-w-[calc(100vw-2rem)] border-[#d8ccb5]/85 bg-[#fff9ef] p-2"
+        className="w-[280px] max-w-[calc(100vw-2rem)] border-[var(--ui-border-strong)]/85 bg-[var(--ui-surface-elevated)] p-2"
       >
         <div className="grid grid-cols-3 gap-2">
           {CHART_TYPE_LIST.map((item) => {
@@ -533,13 +533,13 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
               <button
                 type="button"
                 key={item.type}
-                className="flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-lg border border-[#d8ccb5]/70 bg-white/70 px-2 py-2 text-[10px] font-bold text-[#3e4a32] transition-colors hover:border-[#8fbc8f] hover:bg-white"
+                className="flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-lg border border-[var(--ui-border-strong)]/70 bg-white/70 px-2 py-2 text-[10px] font-bold text-foreground transition-colors hover:border-[var(--ui-focus)] hover:bg-white"
                 onClick={() => {
                   actions?.onAddChart(item.type)
                   setChartOpen(false)
                 }}
               >
-                <Icon className="h-5 w-5 text-[#5d6b4d]" />
+                <Icon className="h-5 w-5 text-primary" />
                 <span>{t(item.labelKey as I18nKey)}</span>
               </button>
             )
@@ -591,7 +591,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[560px] max-w-[calc(100vw-2rem)] border-[#d8ccb5]/85 bg-[#fff9ef] p-2"
+        className="w-[560px] max-w-[calc(100vw-2rem)] border-[var(--ui-border-strong)]/85 bg-[var(--ui-surface-elevated)] p-2"
       >
         <style>{artTextPreviewStyles}</style>
         <div className="grid max-h-[420px] grid-cols-3 gap-2 overflow-y-auto pr-1">
@@ -653,14 +653,14 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[280px] max-w-[calc(100vw-2rem)] border-[#d8ccb5]/85 bg-[#fff9ef] p-2"
+        className="w-[280px] max-w-[calc(100vw-2rem)] border-[var(--ui-border-strong)]/85 bg-[var(--ui-surface-elevated)] p-2"
       >
         <div className="grid grid-cols-3 gap-2">
           {SHAPE_LIST.map((def) => (
             <button
               type="button"
               key={def.type}
-              className="flex min-h-[68px] flex-col items-center justify-center gap-1 rounded-lg border border-[#d8ccb5]/70 bg-white/70 px-2 py-2 text-[10px] font-bold text-[#3e4a32] transition-colors hover:border-[#8fbc8f] hover:bg-white"
+              className="flex min-h-[68px] flex-col items-center justify-center gap-1 rounded-lg border border-[var(--ui-border-strong)]/70 bg-white/70 px-2 py-2 text-[10px] font-bold text-foreground transition-colors hover:border-[var(--ui-focus)] hover:bg-white"
               onClick={() => {
                 actions?.onAddShape(def.type)
                 setShapeOpen(false)
@@ -692,7 +692,7 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
             type="button"
             key={icon.id}
             title={icon.label}
-            className="flex h-12 items-center justify-center rounded-lg border border-transparent text-[#3e4a32] transition-colors hover:border-[#8fbc8f] hover:bg-white"
+            className="flex h-12 items-center justify-center rounded-lg border border-transparent text-foreground transition-colors hover:border-[var(--ui-focus)] hover:bg-white"
             onClick={() => {
               actions?.onAddIcon(icon.id)
               setIconOpen(false)
@@ -727,17 +727,17 @@ export function InsertToolRow({ disabled }: ToolRowProps): React.JSX.Element {
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[390px] max-w-[calc(100vw-2rem)] border-[#d8ccb5]/85 bg-[#fff9ef] p-2"
+        className="w-[390px] max-w-[calc(100vw-2rem)] border-[var(--ui-border-strong)]/85 bg-[var(--ui-surface-elevated)] p-2"
       >
         <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
           <div>
-            <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-[#7a875f]">
+            <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               {t('editMode.iconSectionIcons')}
             </div>
             {renderIconGrid(strokeIcons)}
           </div>
           <div>
-            <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-[#7a875f]">
+            <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               {t('editMode.iconSectionNumbers')}
             </div>
             {renderIconGrid(badgeIcons)}

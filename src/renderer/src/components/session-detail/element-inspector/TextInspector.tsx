@@ -40,7 +40,7 @@ export function TextInspector({ draft, onDraftChange }: ElementEditorProps): Rea
     <>
       <InspectorSection
         title={t('sessionDetail.textContent')}
-        icon={<Type className="h-3.5 w-3.5 text-[#7a875f]" />}
+        icon={<Type className="h-3.5 w-3.5 text-muted-foreground" />}
       >
         <RichTextBox
           value={draft.html}
@@ -57,7 +57,7 @@ export function TextInspector({ draft, onDraftChange }: ElementEditorProps): Rea
           }
         />
         <div className="mt-3 space-y-1.5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a806b]">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {t('sessionDetail.textAlign')}
           </div>
           <ToggleGroup
@@ -68,7 +68,7 @@ export function TextInspector({ draft, onDraftChange }: ElementEditorProps): Rea
               onDraftChange({ ...draft, textAlign: value }, { commit: true, fields: ['textAlign'] })
             }}
             aria-label={t('sessionDetail.textAlign')}
-            className="inline-flex overflow-hidden rounded-[9px] border border-[#d9cfbd]/72 bg-[#fffaf1]/90 p-0.5 shadow-[inset_0_1px_2px_rgba(77,63,46,0.06)]"
+            className="inline-flex overflow-hidden rounded-[9px] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/90 p-0.5 shadow-[inset_0_1px_2px_rgba(77,63,46,0.06)]"
           >
             {TEXT_ALIGN_OPTIONS.map(({ value, icon: Icon }) => {
               const label = getAlignLabel(value)

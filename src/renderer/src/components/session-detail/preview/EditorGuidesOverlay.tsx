@@ -356,7 +356,7 @@ export function EditorGuidesOverlay({
       )}
 
       <div
-        className="absolute z-30 overflow-hidden border border-[#c9c0ae]/75 bg-[#eee8dc]/96 text-[8px] text-[#746d60] shadow-sm"
+        className="absolute z-30 overflow-hidden border border-border/75 bg-muted/96 text-[8px] text-muted-foreground shadow-sm"
         style={{
           left: canvasMetrics.left,
           top: canvasMetrics.top - RULER_GAP - RULER_SIZE,
@@ -372,7 +372,7 @@ export function EditorGuidesOverlay({
           return (
             <span
               key={value}
-              className="pointer-events-none absolute bottom-0 border-l border-[#8f8778]/70"
+              className="pointer-events-none absolute bottom-0 border-l border-[var(--ui-border-strong)]/70"
               style={{
                 left: value * canvasMetrics.scale,
                 height: major ? 10 : 5
@@ -387,7 +387,7 @@ export function EditorGuidesOverlay({
       </div>
 
       <div
-        className="absolute z-30 overflow-hidden border border-[#c9c0ae]/75 bg-[#eee8dc]/96 text-[8px] text-[#746d60] shadow-sm"
+        className="absolute z-30 overflow-hidden border border-border/75 bg-muted/96 text-[8px] text-muted-foreground shadow-sm"
         style={{
           left: canvasMetrics.left - RULER_GAP - RULER_SIZE,
           top: canvasMetrics.top,
@@ -403,7 +403,7 @@ export function EditorGuidesOverlay({
           return (
             <span
               key={value}
-              className="pointer-events-none absolute right-0 border-t border-[#8f8778]/70"
+              className="pointer-events-none absolute right-0 border-t border-[var(--ui-border-strong)]/70"
               style={{
                 top: value * canvasMetrics.scale,
                 width: major ? 10 : 5
@@ -434,10 +434,10 @@ export function EditorGuidesOverlay({
               type="button"
               aria-label={t('sessionDetail.editorClearGuides')}
               aria-disabled={!hasEditorGuides}
-              className={`flex h-full w-full items-center justify-center rounded-tl-md border border-[#c9c0ae]/75 transition-colors ${
+              className={`flex h-full w-full items-center justify-center rounded-tl-md border border-border/75 transition-colors ${
                 hasEditorGuides
-                  ? 'bg-[#e4ddcf] text-[#746d60] hover:bg-[#d9cfbd]'
-                  : 'cursor-not-allowed bg-[#e4ddcf]/70 text-[#a59b8c]'
+                  ? 'bg-[var(--ui-surface-inset)] text-muted-foreground hover:bg-[var(--ui-surface-inset)]'
+                  : 'cursor-not-allowed bg-[var(--ui-surface-inset)]/70 text-muted-foreground'
               }`}
               onClick={(event) => {
                 event.preventDefault()
@@ -492,7 +492,7 @@ export function EditorGuidesOverlay({
         <div
           className={`pointer-events-none absolute z-50 w-px shadow-[0_0_0_1px_rgba(255,77,141,0.16)] ${
             guideDrag.removeOnDrop
-              ? 'border-l border-dashed border-[#d75151] bg-transparent opacity-55'
+              ? 'border-l border-dashed border-destructive bg-transparent opacity-55'
               : 'bg-[#ff4d8d]'
           }`}
           style={{
@@ -506,7 +506,7 @@ export function EditorGuidesOverlay({
         <div
           className={`pointer-events-none absolute z-50 h-px shadow-[0_0_0_1px_rgba(255,77,141,0.16)] ${
             guideDrag.removeOnDrop
-              ? 'border-t border-dashed border-[#d75151] bg-transparent opacity-55'
+              ? 'border-t border-dashed border-destructive bg-transparent opacity-55'
               : 'bg-[#ff4d8d]'
           }`}
           style={{
@@ -517,14 +517,14 @@ export function EditorGuidesOverlay({
         />
       )}
 
-      <div className="absolute right-2 top-1 z-50 flex items-center gap-0.5 rounded-md border border-[#cfc5b4]/80 bg-[#fffaf1]/94 p-0.5 shadow-[0_5px_14px_rgba(88,72,54,0.12)] backdrop-blur-sm">
+      <div className="absolute right-2 top-1 z-50 flex items-center gap-0.5 rounded-md border border-border/80 bg-[var(--ui-surface-elevated)]/94 p-0.5 shadow-[0_5px_14px_rgba(88,72,54,0.12)] backdrop-blur-sm">
         <button
           type="button"
           aria-pressed={editorSnapEnabled}
           aria-label={t('sessionDetail.editorSnap')}
           title={t('sessionDetail.editorSnap')}
           className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-            editorSnapEnabled ? 'bg-[#dce8cf] text-[#4f613f]' : 'text-[#8b8376] hover:bg-[#eee7da]'
+            editorSnapEnabled ? 'bg-[var(--ui-action-soft)] text-primary' : 'text-muted-foreground hover:bg-muted'
           }`}
           onClick={() => setEditorSnapEnabled(!editorSnapEnabled)}
         >
@@ -536,7 +536,7 @@ export function EditorGuidesOverlay({
           aria-label={t('sessionDetail.editorGrid')}
           title={t('sessionDetail.editorGrid')}
           className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-            editorGridVisible ? 'bg-[#dce8cf] text-[#4f613f]' : 'text-[#8b8376] hover:bg-[#eee7da]'
+            editorGridVisible ? 'bg-[var(--ui-action-soft)] text-primary' : 'text-muted-foreground hover:bg-muted'
           }`}
           onClick={() => setEditorGridVisible(!editorGridVisible)}
         >

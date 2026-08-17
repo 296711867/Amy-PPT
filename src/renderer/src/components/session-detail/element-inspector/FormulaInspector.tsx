@@ -34,7 +34,7 @@ export function FormulaInspector({ draft, onDraftChange }: ElementEditorProps): 
   return (
     <InspectorSection
       title={t('sessionDetail.formulaContent')}
-      icon={<Sigma className="h-3.5 w-3.5 text-[#7a875f]" />}
+      icon={<Sigma className="h-3.5 w-3.5 text-muted-foreground" />}
     >
       <textarea
         value={draft.formulaLatex}
@@ -45,12 +45,12 @@ export function FormulaInspector({ draft, onDraftChange }: ElementEditorProps): 
             event.currentTarget.blur()
           }
         }}
-        className="min-h-[92px] w-full resize-y rounded-[9px] border border-[#d9cfbd]/72 bg-[#fffaf1]/92 px-2.5 py-2 font-mono text-[11px] leading-5 text-[#34402c] outline-none transition-colors placeholder:text-[#b1a58f] focus:border-[#9daf8a]"
+        className="min-h-[92px] w-full resize-y rounded-[9px] border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/92 px-2.5 py-2 font-mono text-[11px] leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ui-focus)]"
         placeholder="x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"
         spellCheck={false}
       />
 
-      <label className="mt-2 flex items-center gap-2 text-[11px] text-[#6f664f]">
+      <label className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
         <Checkbox
           checked={draft.formulaDisplayMode}
           onCheckedChange={(checked) =>
@@ -60,8 +60,8 @@ export function FormulaInspector({ draft, onDraftChange }: ElementEditorProps): 
         <span>{t('sessionDetail.formulaDisplayMode')}</span>
       </label>
 
-      <div className="mt-3 rounded-[9px] border border-[#e1d6c4]/70 bg-white/64 px-2.5 py-2">
-        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a806b]">
+      <div className="mt-3 rounded-[9px] border border-[var(--ui-border-strong)]/70 bg-white/64 px-2.5 py-2">
+        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {t('sessionDetail.formulaPreview')}
         </div>
         {rendered.html ? (
@@ -70,7 +70,7 @@ export function FormulaInspector({ draft, onDraftChange }: ElementEditorProps): 
             dangerouslySetInnerHTML={{ __html: rendered.html }}
           />
         ) : (
-          <p className="text-[11px] leading-5 text-[#a0977e]">
+          <p className="text-[11px] leading-5 text-muted-foreground">
             {rendered.error || t('sessionDetail.formulaPreviewEmpty')}
           </p>
         )}

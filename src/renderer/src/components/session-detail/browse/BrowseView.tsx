@@ -59,7 +59,7 @@ const BrowseCard = memo(function BrowseCard({
   if (!slideSize) {
     return (
       <div className="group overflow-hidden rounded-[4px] bg-white/60 shadow-[0_4px_16px_rgba(93,107,77,0.08)]">
-        <div className="relative flex h-[220px] w-full items-center justify-center overflow-hidden rounded-t-[4px] bg-[#f5f1e8]/88" />
+        <div className="relative flex h-[220px] w-full items-center justify-center overflow-hidden rounded-t-[4px] bg-background/88" />
       </div>
     )
   }
@@ -70,13 +70,13 @@ const BrowseCard = memo(function BrowseCard({
   return (
     <div className="group overflow-hidden rounded-[4px] bg-white/60 shadow-[0_4px_16px_rgba(93,107,77,0.08)] transition-shadow hover:shadow-[0_8px_24px_rgba(93,107,77,0.14)]">
       <div
-        className="relative flex h-[220px] w-full items-center justify-center overflow-hidden rounded-t-[4px] bg-[#f5f1e8]/88"
+        className="relative flex h-[220px] w-full items-center justify-center overflow-hidden rounded-t-[4px] bg-background/88"
         style={{ contain: 'paint' }}
       >
         <div className="relative max-h-full max-w-full overflow-hidden" style={thumbnailFitStyle}>
           {isGeneratingPlaceholder ? (
             <div
-              className="flex h-full w-full items-center justify-center bg-[#f8f4eb] text-[#5d6b4d]"
+              className="flex h-full w-full items-center justify-center bg-[var(--ui-surface-elevated)] text-primary"
               aria-live="polite"
             >
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -93,18 +93,18 @@ const BrowseCard = memo(function BrowseCard({
               thumbnail
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a9a7b]">
+            <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               P{page.pageNumber}
             </div>
           )}
         </div>
       </div>
       <div className="px-3 py-2.5">
-        <span className="inline-block rounded-full bg-[#d4e4c1]/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#5c6c47]">
+        <span className="inline-block rounded-full bg-[var(--ui-action-soft)]/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-primary">
           P{page.pageNumber}
         </span>
         <p
-          className="mt-1 text-[12px] font-medium leading-4 text-[#4c5d3d]"
+          className="mt-1 text-[12px] font-medium leading-4 text-primary"
           style={{
             display: '-webkit-box',
             WebkitLineClamp: 2,
@@ -204,7 +204,7 @@ function SortableBrowseCard({
           ref={setActivatorNodeRef}
           disabled={structureDisabled}
           onClick={(event) => event.stopPropagation()}
-          className={`inline-flex h-8 w-8 items-center justify-center rounded bg-white/90 p-1 text-[#5d6b4d] shadow-sm transition-colors hover:bg-[#f5f1e8] hover:text-[#3e4a32] disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`inline-flex h-8 w-8 items-center justify-center rounded bg-white/90 p-1 text-primary shadow-sm transition-colors hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 ${
             isDragging ? 'cursor-grabbing' : 'cursor-grab'
           }`}
           aria-label={dragHandleLabel}
@@ -224,7 +224,7 @@ function SortableBrowseCard({
                       type="button"
                       disabled={disabled || isExportingPptx}
                       onClick={(event) => event.stopPropagation()}
-                      className="rounded bg-white/90 p-1 text-[#5d6b4d] shadow-sm transition-colors hover:bg-[#f5f1e8] hover:text-[#3e4a32] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded bg-white/90 p-1 text-primary shadow-sm transition-colors hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label={exportLabel}
                     >
                       <Presentation className="h-3.5 w-3.5" />
@@ -240,11 +240,11 @@ function SortableBrowseCard({
                 onClick={(event) => event.stopPropagation()}
               >
                 <DropdownMenuItem onSelect={() => onExportPagePptx(page)}>
-                  <Presentation className="h-3.5 w-3.5 shrink-0 text-[#5f6b50]" />
+                  <Presentation className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <span className="whitespace-nowrap">{exportEditableLabel}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onExportPagePptx(page, { imageOnly: true })}>
-                  <ImageIcon className="h-3.5 w-3.5 shrink-0 text-[#7c6a4c]" />
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="whitespace-nowrap">{exportImageOnlyLabel}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -257,7 +257,7 @@ function SortableBrowseCard({
               event.stopPropagation()
               onRenamePage(page)
             }}
-            className="rounded bg-white/90 p-1 text-[#5d6b4d] shadow-sm transition-colors hover:bg-[#f5f1e8] hover:text-[#3e4a32] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded bg-white/90 p-1 text-primary shadow-sm transition-colors hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={renameLabel}
             title={renameLabel}
           >
@@ -270,7 +270,7 @@ function SortableBrowseCard({
               event.stopPropagation()
               onDuplicatePage(page)
             }}
-            className="rounded bg-white/90 p-1 text-[#5d6b4d] shadow-sm transition-colors hover:bg-[#f5f1e8] hover:text-[#3e4a32] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded bg-white/90 p-1 text-primary shadow-sm transition-colors hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={duplicateLabel}
             title={duplicateLabel}
           >
@@ -283,7 +283,7 @@ function SortableBrowseCard({
               event.stopPropagation()
               onDeletePage(page)
             }}
-            className="rounded bg-white/90 p-1 shadow-sm transition-colors hover:bg-[#f5f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded bg-white/90 p-1 shadow-sm transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={deleteLabel}
             title={deleteLabel}
           >
@@ -429,7 +429,7 @@ export function BrowseView(props: { sessionId: string }): React.JSX.Element {
   if (pages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-[#8a9a7b]">{t('sessionDetail.pagesEmpty')}</p>
+        <p className="text-sm text-muted-foreground">{t('sessionDetail.pagesEmpty')}</p>
       </div>
     )
   }

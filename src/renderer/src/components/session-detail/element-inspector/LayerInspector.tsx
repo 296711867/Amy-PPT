@@ -12,12 +12,12 @@ export function LayerInspector({ draft, onDraftChange }: ElementEditorProps): Re
   return (
     <InspectorSection
       title={t('sessionDetail.zIndex')}
-      icon={<Layers className="h-3.5 w-3.5 text-[#7a875f]" />}
+      icon={<Layers className="h-3.5 w-3.5 text-muted-foreground" />}
     >
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#d7cbb7]/40 bg-[#f5efe4]/40 text-[13px] font-medium text-[#59664b] transition-colors hover:bg-[#d4e4c1]/60"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border-strong)]/40 bg-[var(--ui-surface-elevated)]/40 text-[13px] font-medium text-primary transition-colors hover:bg-[var(--ui-action-soft)]/60"
           onClick={() => {
             const current = parseInt(draft.layoutZIndex || '0', 10) || 0
             onDraftChange(
@@ -41,11 +41,11 @@ export function LayerInspector({ draft, onDraftChange }: ElementEditorProps): Re
               { commit: true, fields: ['layoutZIndex'] }
             )
           }
-          className="h-8 flex-1 rounded-full border border-[#ded2bd]/72 bg-[#fffdf8]/88 px-2.5 text-center text-xs text-[#3f4b35] shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[#9bb98a] focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="h-8 flex-1 rounded-full border border-[var(--ui-border-strong)]/72 bg-[var(--ui-surface-elevated)]/88 px-2.5 text-center text-xs text-foreground shadow-[inset_0_1px_2px_rgba(74,59,42,0.05)] focus-visible:border-[var(--ui-focus)] focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         <button
           type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#d7cbb7]/40 bg-[#f5efe4]/40 text-[13px] font-medium text-[#59664b] transition-colors hover:bg-[#d4e4c1]/60"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--ui-border-strong)]/40 bg-[var(--ui-surface-elevated)]/40 text-[13px] font-medium text-primary transition-colors hover:bg-[var(--ui-action-soft)]/60"
           onClick={() => {
             const current = parseInt(draft.layoutZIndex || '0', 10) || 0
             onDraftChange(
@@ -58,7 +58,7 @@ export function LayerInspector({ draft, onDraftChange }: ElementEditorProps): Re
           +
         </button>
       </div>
-      <p className="mt-1.5 text-[10px] leading-4 text-[#8a806d]">
+      <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
         {t('sessionDetail.zIndexNegativeHint')}
       </p>
     </InspectorSection>
