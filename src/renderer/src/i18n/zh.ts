@@ -557,7 +557,8 @@ export const zh = {
     baseUrlHintGoogle: '使用 Google 官方 API 无需填写，使用代理时填写代理地址。',
     baseUrlHintZhipu:
       '默认走智谱官方 OpenAI 兼容地址，一般无需修改。GLM Coding Plan 套餐请改填 https://open.bigmodel.cn/api/coding/paas/v4 ；Anthropic 协议接入请把 provider 换成 Anthropic(Claude) 并填 https://open.bigmodel.cn/api/anthropic 。',
-    maxTokensHint: '模型最大输出 token 数，默认 4096。一般无需修改，可按模型支持的上限调整。',
+    maxTokensHint:
+      '模型最大输出 token 数，默认 4096。思考模型（GLM-5.x 等）推理与正文共享该预算，建议 32768 起步，过低会把整页截断并触发重试。',
     disableTemperature: '关闭temperature',
     disableTemperatureHint:
       '建议不要关闭! 仅当模型(比如：kimi2.6)明确不支持 temperature 参数时使用，关闭后可能影响生成效果。',

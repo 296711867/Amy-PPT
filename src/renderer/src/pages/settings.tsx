@@ -45,7 +45,7 @@ const createTimeoutSeconds = (
 const normalizeModelMaxTokens = (value: string): number => {
   const parsed = Number(value.trim())
   if (!Number.isFinite(parsed) || parsed <= 0) return 4096
-  return Math.max(256, Math.min(16384, Math.floor(parsed)))
+  return Math.max(256, Math.min(65536, Math.floor(parsed)))
 }
 
 const createModelVerificationSignature = (form: ModelForm): string =>

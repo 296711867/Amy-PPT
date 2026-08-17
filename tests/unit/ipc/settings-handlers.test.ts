@@ -822,6 +822,38 @@ describe('registerSettingsHandlers model temperature settings', () => {
     )
   })
 
+  it('allows large thinking-model token budgets up to 65536', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-1')
+    const { getHandler } = await registerWithDb({ upsertModelConfig })
+
+    const saveModelConfig = getHandler('settings:upsertModelConfig')
+    await saveModelConfig?.(undefined, {
+      name: 'GLM 5.2',
+      provider: 'zhipu',
+      model: 'glm-5.2',
+      apiKey: 'secret',
+      baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+      maxTokens: 32768
+    })
+    await saveModelConfig?.(undefined, {
+      name: 'Greedy',
+      provider: 'zhipu',
+      model: 'glm-5.2',
+      apiKey: 'secret',
+      baseUrl: '',
+      maxTokens: 100000
+    })
+
+    expect(upsertModelConfig).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ maxTokens: 32768 })
+    )
+    expect(upsertModelConfig).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ maxTokens: 65536 })
+    )
+  })
+
   it('accepts the OpenAI Responses provider when saving a model config', async () => {
     const upsertModelConfig = vi.fn(async () => 'model-1')
     const { getHandler } = await registerWithDb({ upsertModelConfig })

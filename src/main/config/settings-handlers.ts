@@ -42,7 +42,9 @@ const normalizeProvider = (provider: unknown): Provider =>
   VALID_PROVIDERS.includes(provider as Provider) ? (provider as Provider) : 'openai'
 const normalizeMaxTokens = (value: unknown): number => {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 4096
-  return Math.max(256, Math.min(16384, Math.floor(value)))
+  // 上限放大到 64K：思考模型（GLM-5.x 等）的推理与页面 HTML 共享输出预算，
+  // 16K 会把整页截断成废稿并触发昂贵的整页重试。
+  return Math.max(256, Math.min(65536, Math.floor(value)))
 }
 
 const isMandatoryThinkingError = (error: unknown): boolean => {

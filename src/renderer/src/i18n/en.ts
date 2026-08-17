@@ -580,7 +580,7 @@ export const en = {
     baseUrlHintZhipu:
       'Defaults to the official Zhipu OpenAI-compatible endpoint. GLM Coding Plan subscribers should use https://open.bigmodel.cn/api/coding/paas/v4 ; for the Anthropic protocol switch provider to Anthropic(Claude) with https://open.bigmodel.cn/api/anthropic .',
     maxTokensHint:
-      'Max output tokens, default 4096. Generally no need to change. Adjust based on model limits.',
+      'Max output tokens, default 4096. Thinking models (GLM-5.x etc.) share this budget between reasoning and content; start from 32768 or full pages get truncated and retried.',
     disableTemperature: 'Disable temperature',
     disableTemperatureHint:
       'Keeping temperature enabled is recommended. Disable it only when unsupported, as this may affect generation results.',
