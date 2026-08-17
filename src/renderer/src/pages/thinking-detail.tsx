@@ -355,19 +355,19 @@ export function ThinkingDetailPage(): ReactElement {
   })
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-[#f5f1e8] text-foreground">
-      <div className="relative z-50 shrink-0 border-b border-[#e0d8c8] bg-[#f5f1e8]/90 px-6 py-4 backdrop-blur">
+    <div className="relative flex h-full min-h-0 flex-col bg-background text-foreground">
+      <div className="relative z-50 shrink-0 border-b border-border bg-background/90 px-6 py-4 backdrop-blur">
         <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
               {t('thinking.eyebrow')}
             </p>
-            <h1 className="organic-serif mt-2 flex min-w-0 items-baseline gap-3 text-[32px] font-semibold leading-none text-[#3e4a32]">
+            <h1 className="organic-serif mt-2 flex min-w-0 items-baseline gap-3 text-[32px] font-semibold leading-none text-foreground">
               <span className="truncate">{t('thinking.title')}</span>
               {thinkingId && (
                 <button
                   type="button"
-                  className="min-w-0 rounded-full px-2 py-0.5 font-mono text-[11px] font-normal leading-none text-[#7a806c] transition-colors hover:bg-[#d4e4c1] hover:text-[#3e4a32]"
+                  className="min-w-0 rounded-full px-2 py-0.5 font-mono text-[11px] font-normal leading-none text-muted-foreground transition-colors hover:bg-[var(--ui-action-soft)] hover:text-foreground"
                   onClick={() => void handleRevealWorkspace()}
                   title={t('thinking.revealWorkspace')}
                 >
@@ -384,12 +384,12 @@ export function ThinkingDetailPage(): ReactElement {
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#d9cfbd] bg-[#fffdf8]/95 px-4 text-[13px] font-semibold text-[#3e4a32] shadow-[0_10px_22px_rgba(86,73,54,0.12)] transition-colors hover:bg-[#f5f1e8]"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/95 px-4 text-[13px] font-semibold text-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.12)] transition-colors hover:bg-background"
                 >
                   {historyLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#7a806c]" />
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : (
-                    <History className="h-4 w-4 text-[#5d6b4d]" />
+                    <History className="h-4 w-4 text-primary" />
                   )}
                   {t('thinking.historyTitle')}
                 </button>
@@ -397,18 +397,18 @@ export function ThinkingDetailPage(): ReactElement {
               <PopoverContent
                 align="end"
                 sideOffset={8}
-                className="z-[60] flex w-[320px] flex-col overflow-hidden rounded-[1.5rem] border border-[#e0d8c8] bg-[#fffdf8]/98 p-0 shadow-[0_22px_54px_rgba(86,73,54,0.22)] backdrop-blur"
+                className="z-[60] flex w-[320px] flex-col overflow-hidden rounded-[1.5rem] border border-border bg-[var(--ui-surface-elevated)]/98 p-0 shadow-[0_22px_54px_rgb(var(--ui-shadow-color)/0.22)] backdrop-blur"
                 style={{ height: 'min(420px, calc(100vh - 160px))' }}
               >
-                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#eee4d4] px-4 py-3">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <History className="h-4 w-4 shrink-0 text-[#5d6b4d]" />
-                    <h2 className="truncate text-[13px] font-semibold text-[#3e4a32]">
+                    <History className="h-4 w-4 shrink-0 text-primary" />
+                    <h2 className="truncate text-[13px] font-semibold text-foreground">
                       {t('thinking.historyTitle')}
                     </h2>
                   </div>
                   {historyLoading && (
-                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#7a806c]" />
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
                   )}
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
@@ -422,8 +422,8 @@ export function ThinkingDetailPage(): ReactElement {
                             key={item.thinkingId}
                             className={`group flex w-full items-start gap-1.5 rounded-[1.25rem] border p-2 transition-colors ${
                               active
-                                ? 'border-[#9eb88a] bg-[#d4e4c1] text-[#2f3b28]'
-                                : 'border-transparent bg-[#f5f1e8]/76 text-[#3e4a32] hover:border-[#d9cfbd] hover:bg-[#efe7d8]'
+                                ? 'border-[var(--ui-focus)] bg-[var(--ui-action-soft)] text-foreground'
+                                : 'border-transparent bg-background/76 text-foreground hover:border-[var(--ui-border-strong)] hover:bg-muted'
                             }`}
                           >
                             <button
@@ -433,15 +433,15 @@ export function ThinkingDetailPage(): ReactElement {
                                 setPendingSources([])
                                 void loadWorkspace(item.thinkingId)
                               }}
-                              className="min-w-0 flex-1 rounded-[1rem] p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fbc8f]"
+                              className="min-w-0 flex-1 rounded-[1rem] p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <div className="flex min-w-0 items-start gap-2.5">
-                                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#7a806c]" />
+                                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-[13px] font-semibold">
                                     {item.topic || t('thinking.untitledWorkspace')}
                                   </div>
-                                  <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-[#7a806c]">
+                                  <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                                     <Clock3 className="h-3 w-3 shrink-0" />
                                     <span className="truncate">
                                       {dateFormatter.format(item.updatedAt)}
@@ -449,7 +449,7 @@ export function ThinkingDetailPage(): ReactElement {
                                   </div>
                                 </div>
                               </div>
-                              <div className="mt-2 inline-flex rounded-full bg-[#fffdf8]/72 px-2 py-0.5 text-[10px] font-semibold text-[#5d6b4d]">
+                              <div className="mt-2 inline-flex rounded-full bg-[var(--ui-surface-elevated)]/72 px-2 py-0.5 text-[10px] font-semibold text-primary">
                                 {t(stageKeyByStage[item.stage])}
                               </div>
                             </button>
@@ -460,7 +460,7 @@ export function ThinkingDetailPage(): ReactElement {
                                 event.stopPropagation()
                                 setDeleteTarget(item)
                               }}
-                              className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9a6b58] opacity-75 transition-colors hover:bg-[#ead4c8] hover:text-[#7f3b2e] disabled:cursor-not-allowed disabled:opacity-35"
+                              className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-destructive opacity-75 transition-colors hover:bg-[var(--ui-danger-soft)] hover:text-[var(--ui-danger-hover)] disabled:cursor-not-allowed disabled:opacity-35"
                               title={t('thinking.deleteWorkspace')}
                             >
                               {deletingThinkingId === item.thinkingId ? (
@@ -475,10 +475,10 @@ export function ThinkingDetailPage(): ReactElement {
                     </div>
                   ) : (
                     <div className="flex h-full min-h-[180px] flex-col items-center justify-center px-4 text-center">
-                      <p className="text-[13px] font-semibold text-[#3e4a32]">
+                      <p className="text-[13px] font-semibold text-foreground">
                         {t('thinking.historyEmptyTitle')}
                       </p>
-                      <p className="mt-2 text-[12px] leading-relaxed text-[#7a806c]">
+                      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
                         {t('thinking.historyEmptyDescription')}
                       </p>
                     </div>
@@ -490,7 +490,7 @@ export function ThinkingDetailPage(): ReactElement {
               type="button"
               onClick={() => void handleCreateWorkspace()}
               disabled={creatingWorkspace}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#3e4a32] px-4 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(62,74,50,0.18)] transition-colors hover:bg-[#5d6b4d] disabled:cursor-not-allowed disabled:opacity-65"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.18)] transition-colors hover:bg-[var(--ui-action-hover)] disabled:cursor-not-allowed disabled:opacity-65"
             >
               {creatingWorkspace ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -508,7 +508,7 @@ export function ThinkingDetailPage(): ReactElement {
           showOutlinePanel ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'grid-cols-1'
         }`}
       >
-        <section className="min-h-0 overflow-hidden rounded-[2rem] border border-[#e0d8c8] bg-[#fffdf8] shadow-[0_14px_34px_rgba(86,73,54,0.12)]">
+        <section className="min-h-0 overflow-hidden rounded-[2rem] border border-border bg-[var(--ui-surface-elevated)] shadow-[0_14px_34px_rgb(var(--ui-shadow-color)/0.12)]">
           {thinkingId ? (
             <ThinkingChat
               thinkingId={thinkingId}
@@ -529,19 +529,19 @@ export function ThinkingDetailPage(): ReactElement {
             />
           ) : (
             <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-8 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[10%_90%_16%_84%/78%_22%_78%_22%] bg-[#d4e4c1] text-[#3e4a32]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[10%_90%_16%_84%/78%_22%_78%_22%] bg-[var(--ui-action-soft)] text-foreground">
                 {storageReady ? (
                   <History className="h-6 w-6" />
                 ) : (
                   <FolderSearch className="h-6 w-6" />
                 )}
               </div>
-              <h2 className="organic-serif mt-5 text-[28px] font-semibold leading-none text-[#3e4a32]">
+              <h2 className="organic-serif mt-5 text-[28px] font-semibold leading-none text-foreground">
                 {storageReady
                   ? t('thinking.emptyWorkspaceTitle')
                   : t('thinking.storageRequiredTitle')}
               </h2>
-              <p className="mt-3 max-w-md text-[13px] leading-relaxed text-[#5d6b4d]">
+              <p className="mt-3 max-w-md text-[13px] leading-relaxed text-primary">
                 {storageReady
                   ? t('thinking.emptyWorkspaceDescription')
                   : t('thinking.storageRequiredDescription')}
@@ -550,7 +550,7 @@ export function ThinkingDetailPage(): ReactElement {
                 type="button"
                 onClick={() => void handleCreateWorkspace()}
                 disabled={creatingWorkspace}
-                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#3e4a32] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(62,74,50,0.18)] transition-colors hover:bg-[#5d6b4d] disabled:cursor-not-allowed disabled:opacity-65"
+                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-[0_10px_22px_rgb(var(--ui-shadow-color)/0.18)] transition-colors hover:bg-[var(--ui-action-hover)] disabled:cursor-not-allowed disabled:opacity-65"
               >
                 {creatingWorkspace ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -563,7 +563,7 @@ export function ThinkingDetailPage(): ReactElement {
           )}
         </section>
         {showOutlinePanel && (
-          <aside className="min-h-0 overflow-hidden rounded-[2rem] border border-[#c8d6ba] bg-[#d4e4c1] shadow-[0_14px_34px_rgba(86,73,54,0.12)]">
+          <aside className="min-h-0 overflow-hidden rounded-[2rem] border border-[var(--ui-border-strong)] bg-[var(--ui-action-soft)] shadow-[0_14px_34px_rgb(var(--ui-shadow-color)/0.12)]">
             <ThinkingPageCards
               thinkingMd={thinkingMd}
               stage={stage}
@@ -604,7 +604,7 @@ export function ThinkingDetailPage(): ReactElement {
                 event.preventDefault()
                 void handleDeleteWorkspace()
               }}
-              className="bg-[#8f3f31] text-white hover:bg-[#743126] disabled:cursor-not-allowed disabled:opacity-65"
+              className="bg-destructive text-destructive-foreground hover:bg-[var(--ui-danger-hover)] disabled:cursor-not-allowed disabled:opacity-65"
             >
               {deletingThinkingId ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

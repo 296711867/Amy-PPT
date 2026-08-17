@@ -63,19 +63,19 @@ const isSupportedThinkingFile = (file: File): boolean => {
 }
 
 function StepIcon({ step }: { step: ThinkingActivity }): ReactElement {
-  if (step.status === 'completed') return <Check className="h-3 w-3 shrink-0 text-[#62834e]" />
+  if (step.status === 'completed') return <Check className="h-3 w-3 shrink-0 text-primary" />
   if (step.status === 'failed')
     return <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
   if (step.status === 'retrying')
-    return <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-[#9a6b34]" />
+    return <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" />
   const name = step.toolName
-  if (name === 'read_file') return <FolderOpen className="h-3 w-3 shrink-0 text-[#7a8fa6]" />
-  if (name === 'grep') return <FileSearch className="h-3 w-3 shrink-0 text-[#7a8fa6]" />
+  if (name === 'read_file') return <FolderOpen className="h-3 w-3 shrink-0 text-info" />
+  if (name === 'grep') return <FileSearch className="h-3 w-3 shrink-0 text-info" />
   if (name === 'update_thinking_document')
-    return <Pencil className="h-3 w-3 shrink-0 text-[#8b7a5a]" />
+    return <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
   if (name === 'update_context_document')
-    return <BookOpen className="h-3 w-3 shrink-0 text-[#6b8a6a]" />
-  return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[#7a8fa6]" />
+    return <BookOpen className="h-3 w-3 shrink-0 text-primary" />
+  return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-info" />
 }
 
 interface ThinkingChatProps {
@@ -104,18 +104,18 @@ function MessageMarkdown({
   role: ThinkingChatMessage['role']
 }): ReactElement {
   const isUser = role === 'user'
-  const mutedText = isUser ? 'text-white/85' : 'text-[#5f6658]'
-  const strongText = isUser ? 'text-white' : 'text-[#2f3329]'
-  const borderColor = isUser ? 'border-white/30' : 'border-[#d7ddcf]'
+  const mutedText = isUser ? 'text-primary-foreground/85' : 'text-muted-foreground'
+  const strongText = isUser ? 'text-primary-foreground' : 'text-foreground'
+  const borderColor = isUser ? 'border-white/30' : 'border-[var(--ui-border-strong)]'
   const listClass = isUser
-    ? 'mb-2 list-disc space-y-1 pl-5 text-[13px] leading-relaxed marker:text-white/70'
-    : 'mb-2 list-disc space-y-1 pl-5 text-[13px] leading-relaxed marker:text-[#8b967e]'
+    ? 'mb-2 list-disc space-y-1 pl-5 text-[13px] leading-relaxed marker:text-primary-foreground/70'
+    : 'mb-2 list-disc space-y-1 pl-5 text-[13px] leading-relaxed marker:text-muted-foreground'
   const orderedListClass = isUser
-    ? 'mb-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed marker:text-white/70'
-    : 'mb-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed marker:text-[#8b967e]'
+    ? 'mb-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed marker:text-primary-foreground/70'
+    : 'mb-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed marker:text-muted-foreground'
   const codeClass = isUser
-    ? 'rounded bg-white/15 px-1 py-0.5 font-mono text-[12px] text-white'
-    : 'rounded bg-[#edf0e7] px-1 py-0.5 font-mono text-[12px] text-[#2f3329]'
+    ? 'rounded bg-primary-foreground/15 px-1 py-0.5 font-mono text-[12px] text-primary-foreground'
+    : 'rounded bg-muted px-1 py-0.5 font-mono text-[12px] text-foreground'
 
   return (
     <div className="markdown-message [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
@@ -123,7 +123,7 @@ function MessageMarkdown({
         components={{
           p: ({ children }) => (
             <p
-              className={`mb-2 whitespace-pre-wrap text-[13px] leading-relaxed ${isUser ? 'text-white' : 'text-[#2f3329]'}`}
+              className={`mb-2 whitespace-pre-wrap text-[13px] leading-relaxed ${isUser ? 'text-primary-foreground' : 'text-foreground'}`}
             >
               {children}
             </p>
@@ -135,12 +135,12 @@ function MessageMarkdown({
           ul: ({ children }) => <ul className={listClass}>{children}</ul>,
           ol: ({ children }) => <ol className={orderedListClass}>{children}</ol>,
           li: ({ children }) => (
-            <li className={isUser ? 'text-white' : 'text-[#2f3329]'}>{children}</li>
+            <li className={isUser ? 'text-primary-foreground' : 'text-foreground'}>{children}</li>
           ),
           code: ({ children }) => <code className={codeClass}>{children}</code>,
           pre: ({ children }) => (
             <pre
-              className={`mb-2 overflow-x-auto rounded-md p-3 text-[12px] leading-relaxed ${isUser ? 'bg-black/15 text-white' : 'bg-[#edf0e7] text-[#2f3329]'}`}
+              className={`mb-2 overflow-x-auto rounded-md p-3 text-[12px] leading-relaxed ${isUser ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-foreground'}`}
             >
               {children}
             </pre>
@@ -160,7 +160,7 @@ function MessageMarkdown({
               className={
                 isUser
                   ? 'underline decoration-white/50 underline-offset-2'
-                  : 'text-[#466938] underline underline-offset-2'
+                  : 'text-primary underline underline-offset-2'
               }
             >
               {children}
@@ -342,7 +342,7 @@ export function ThinkingChat({
       <ScrollArea className="flex-1 px-5 py-5" viewportRef={scrollRef}>
         {sources.length > 0 && (
           <div className="mb-4 flex justify-end">
-            <div className="rounded-full bg-[#d4e4c1] px-3 py-1 text-[11px] font-semibold text-[#5d6b4d]">
+            <div className="rounded-full bg-[var(--ui-action-soft)] px-3 py-1 text-[11px] font-semibold text-primary">
               {t('thinking.sourceCount', { count: sources.length })}
             </div>
           </div>
@@ -355,7 +355,7 @@ export function ThinkingChat({
             >
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[5%_95%_10%_90%/85%_15%_85%_15%] ${
-                  msg.role === 'user' ? 'bg-[#5d6b4d] text-white' : 'bg-[#8fbc8f] text-white'
+                  msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-[var(--ui-focus)] text-primary-foreground'
                 }`}
               >
                 {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
@@ -363,8 +363,8 @@ export function ThinkingChat({
               <div
                 className={`max-w-[78%] rounded-[1.5rem] px-4 py-3 text-[13px] leading-relaxed shadow-sm ${
                   msg.role === 'user'
-                    ? 'bg-[#5d6b4d] text-white'
-                    : 'border border-[#e0d8c8] bg-[#f5f1e8] text-[#2f3329]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border bg-background text-foreground'
                 }`}
               >
                 <MessageMarkdown content={msg.content} role={msg.role} />
@@ -375,8 +375,8 @@ export function ThinkingChat({
                         key={att.id}
                         className={`inline-flex max-w-[200px] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${
                           msg.role === 'user'
-                            ? 'border border-white/20 bg-white/15 text-white/90'
-                            : 'border border-[#c8d6ba] bg-[#d4e4c1] text-[#4f6340]'
+                            ? 'border border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground/90'
+                            : 'border border-[var(--ui-border-strong)] bg-[var(--ui-action-soft)] text-primary'
                         }`}
                       >
                         {sourceIcon(att.kind)}
@@ -390,7 +390,7 @@ export function ThinkingChat({
           ))}
           {(loading || visibleThinkingSteps.length > 0) && (
             <div className="flex gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[5%_95%_10%_90%/85%_15%_85%_15%] bg-[#8fbc8f] text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[5%_95%_10%_90%/85%_15%_85%_15%] bg-[var(--ui-focus)] text-primary-foreground">
                 <Bot className="h-4 w-4" />
               </div>
               <div className="max-w-[78%] space-y-2">
@@ -399,7 +399,7 @@ export function ThinkingChat({
                   <button
                     type="button"
                     onClick={() => setThinkingExpanded(!thinkingExpanded)}
-                    className="flex w-[280px] max-w-full items-center gap-1.5 rounded-full border border-[#e0d8c8] bg-[#e8e0d0] px-3 py-2 text-left text-[11px] text-[#5d6b4d] transition-colors hover:bg-[#d4e4c1]"
+                    className="flex w-[280px] max-w-full items-center gap-1.5 rounded-full border border-border bg-[var(--ui-surface-inset)] px-3 py-2 text-left text-[11px] text-primary transition-colors hover:bg-[var(--ui-action-soft)]"
                   >
                     {thinkingExpanded ? (
                       <ChevronDown className="h-3 w-3 shrink-0" />
@@ -414,12 +414,12 @@ export function ThinkingChat({
                   </button>
                 )}
                 {thinkingExpanded && visibleThinkingSteps.length > 0 && (
-                  <div className="w-[280px] max-w-full rounded-[1.25rem] border border-[#e0d8c8] bg-[#f5f1e8]">
+                  <div className="w-[280px] max-w-full rounded-[1.25rem] border border-border bg-background">
                     <div className="space-y-1.5 px-3 py-2">
                       {visibleThinkingSteps.map((step, idx) => (
                         <div
                           key={`${step.toolName}-${step.summary}-${idx}`}
-                          className="flex items-start gap-1.5 text-[11px] leading-relaxed text-[#7a7060]"
+                          className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground"
                         >
                           <StepIcon step={step} />
                           <span className="min-w-0 flex-1 break-words">{step.summary}</span>
@@ -439,11 +439,11 @@ export function ThinkingChat({
                 )}
                 {/* Animated response text */}
                 {loading && animatingText ? (
-                  <div className="rounded-[1.5rem] border border-[#e0d8c8] bg-[#f5f1e8] px-4 py-3 text-[13px] leading-relaxed shadow-sm">
+                  <div className="rounded-[1.5rem] border border-border bg-background px-4 py-3 text-[13px] leading-relaxed shadow-sm">
                     <MessageMarkdown content={animatingText} role="assistant" />
                   </div>
                 ) : loading && visibleThinkingSteps.length === 0 ? (
-                  <div className="w-[180px] rounded-[1.5rem] border border-[#e0d8c8] bg-[#f5f1e8] px-4 py-3 text-[13px] text-[#5d6b4d] shadow-sm">
+                  <div className="w-[180px] rounded-[1.5rem] border border-border bg-background px-4 py-3 text-[13px] text-primary shadow-sm">
                     <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin align-[-2px]" />
                     {t('thinking.thinking')}
                   </div>
@@ -479,7 +479,7 @@ export function ThinkingChat({
                   <button
                     type="button"
                     onClick={onRetry}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--ui-action)] px-3 text-[11px] font-semibold text-white hover:bg-[var(--ui-action-hover)]"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--ui-action)] px-3 text-[11px] font-semibold text-primary-foreground hover:bg-[var(--ui-action-hover)]"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                     {t('thinking.retry')}
@@ -519,20 +519,20 @@ export function ThinkingChat({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-[#e0d8c8] bg-[#fffdf8] px-4 py-3">
-        <div className="rounded-xl border border-[#e0d8c8] bg-[#f5f1e8] px-2 py-2 shadow-sm focus-within:border-[#8fbc8f] focus-within:ring-2 focus-within:ring-[#d4e4c1]">
+      <div className="border-t border-border bg-[var(--ui-surface-elevated)] px-4 py-3">
+        <div className="rounded-xl border border-border bg-background px-2 py-2 shadow-sm focus-within:border-[var(--ui-focus)] focus-within:ring-2 focus-within:ring-[var(--ui-action-soft)]">
           {pendingSources.length > 0 && (
             <div className="flex max-h-16 flex-wrap gap-1.5 overflow-y-auto px-2 pb-1.5">
               {pendingSources.map((source) => (
                 <span
                   key={source.id}
-                  className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-[#b8cca5] bg-[#d4e4c1] px-2.5 py-1 text-[10px] font-medium text-[#4f6340]"
+                  className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-[var(--ui-border-strong)] bg-[var(--ui-action-soft)] px-2.5 py-1 text-[10px] font-medium text-primary"
                 >
                   {sourceIcon(source.kind)}
                   <span className="truncate">{source.name}</span>
                   <button
                     type="button"
-                    className="ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#b9cfa6] disabled:opacity-40"
+                    className="ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--ui-selected)] disabled:opacity-40"
                     onClick={() => void handleRemoveSource(source.id)}
                     disabled={loading || removingSourceId === source.id}
                     title={t('thinking.removeSource')}
@@ -555,7 +555,7 @@ export function ThinkingChat({
                     type="button"
                     onClick={handleAttachClick}
                     disabled={loading || uploading}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#5d6b4d] transition-colors hover:bg-[#d4e4c1] hover:text-[#3e4a32] disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-[var(--ui-action-soft)] hover:text-foreground disabled:opacity-40"
                   >
                     {uploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -573,7 +573,7 @@ export function ThinkingChat({
               </Tooltip>
             </TooltipProvider>
             <textarea
-              className="max-h-36 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[13px] leading-relaxed text-[#2f3329] placeholder:text-[#9a9b8c] focus:outline-none"
+              className="max-h-36 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
               placeholder={t('thinking.inputPlaceholder')}
               rows={2}
               value={input}
@@ -593,7 +593,7 @@ export function ThinkingChat({
                 type="button"
                 onClick={() => void handleSend()}
                 disabled={loading || Boolean(modelAction.activatingModelConfigId) || !input.trim()}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3e4a32] text-white transition-colors hover:bg-[#5d6b4d] disabled:opacity-40 disabled:hover:bg-[#3e4a32]"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-[var(--ui-action-hover)] disabled:opacity-40 disabled:hover:bg-primary"
               >
                 <Send className="h-4 w-4" />
               </button>
