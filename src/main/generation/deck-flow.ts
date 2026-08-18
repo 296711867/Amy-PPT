@@ -349,7 +349,7 @@ export async function executeDeckGeneration(
     maxTokens: context.maxTokens,
     modelControl: context.modelControl,
     signal: context.abortSignal,
-    onStatus: ({ state, current, total, role, whitespace }) =>
+    onStatus: ({ state, current, total, role, whitespace, detail }) =>
       emitDeckChunk({
         type: 'llm_status',
         payload: {
@@ -371,11 +371,18 @@ export async function executeDeckGeneration(
                     `正在生成第 ${current}/${total} 张背景图（${role || ''} · ${whitespace || ''}）`,
                     `Generating background ${current}/${total} (${role || ''} · ${whitespace || ''})`
                   )
-                : uiText(
-                    context.appLocale,
-                    `第 ${current}/${total} 张背景图已完成`,
-                    `Background ${current}/${total} completed`
-                  )
+                : state === 'failed'
+                  ? detail ||
+                    uiText(
+                      context.appLocale,
+                      '背景图生成失败，已跳过，演示生成将继续',
+                      'Background generation failed and was skipped; the deck will continue'
+                    )
+                  : uiText(
+                      context.appLocale,
+                      `第 ${current}/${total} 张背景图已完成`,
+                      `Background ${current}/${total} completed`
+                    )
         }
       })
   })

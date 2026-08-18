@@ -1,11 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assignDeckBackgroundAssets,
   isDeckBackgroundManifestCompatible,
+  prepareDeckBackgroundAssets,
   resolveDeckBackgroundAsset,
   validateAssignedDeckBackground
 } from '../../../src/main/generation/deck-backgrounds'
+import { rmWithRetry } from '../../helpers/rm-retry'
 import { normalizeDeckBackgroundPolicy } from '../../../src/shared/generation'
+
+vi.mock('electron-log/main.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}))
 
 const manifest = {
   version: 1 as const,
@@ -110,6 +119,68 @@ describe('deck background policy', () => {
         asset
       )
     ).toEqual(['背景图片层没有引用分配的路径 ./left.png'])
+  })
+
+  describe('prepareDeckBackgroundAssets fail-soft', () => {
+    const tempDirs: string[] = []
+  const basePrepareArgs = () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'amy-deck-bg-'))
+    tempDirs.push(projectDir)
+    return {
+      projectDir,
+      policy: { enabled: true, contentBackgroundCount: 1 },
+      pageCount: 3,
+      slideSize: { id: 'wide-16-9', label: '', width: 1600, height: 900 } as never,
+      topic: '测试主题',
+      stylePrompt: 'style',
+      provider: 'zhipu',
+      apiKey: 'key',
+      model: 'glm-5.2',
+      baseUrl: '',
+      maxTokens: 4096,
+      signal: new AbortController().signal
+    }
+  }
+
+  afterEach(async () => {
+    for (const dir of tempDirs.splice(0)) await rmWithRetry(dir)
+  })
+
+  it('skips backgrounds instead of failing the run when the image model config lacks a model', async () => {
+    const statuses: Array<{ state: string; detail?: string }> = []
+    const result = await prepareDeckBackgroundAssets({
+      ...basePrepareArgs(),
+      db: {
+        getActiveImageModelConfig: async () => ({
+          id: 'img-1',
+          name: 'Agnes 默认',
+          provider: 'agnes',
+          active: 1,
+          modelConfig: '{}'
+        })
+      },
+      decryptApiKey: (value: string) => value,
+      onStatus: (status) => statuses.push({ state: status.state, detail: status.detail })
+    })
+
+    expect(result).toBeNull()
+    expect(statuses).toEqual([
+      { state: 'failed', detail: expect.stringContaining('缺少 model 字段') }
+    ])
+  })
+
+  it('skips backgrounds when no image model is configured at all', async () => {
+    const statuses: Array<{ state: string }> = []
+    const result = await prepareDeckBackgroundAssets({
+      ...basePrepareArgs(),
+      db: { getActiveImageModelConfig: async () => undefined },
+      decryptApiKey: (value: string) => value,
+      onStatus: (status) => statuses.push({ state: status.state })
+    })
+
+    expect(result).toBeNull()
+    expect(statuses).toEqual([{ state: 'failed' }])
+  })
   })
 
   it('localizes validation messages for english sessions', () => {

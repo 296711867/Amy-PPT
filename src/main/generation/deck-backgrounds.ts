@@ -18,6 +18,7 @@ import {
 } from '../agent-runtime/model'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
+import { readString } from '../agent-runtime/provider/image/providers/utils'
 import { uiText, type AppLocale } from '../config/locale-utils'
 import type { GenerationModelControl } from './context'
 
@@ -300,11 +301,12 @@ export async function prepareDeckBackgroundAssets(args: {
   signal: AbortSignal
   modelControl?: GenerationModelControl
   onStatus?: (status: {
-    state: 'planning' | 'generating' | 'generated'
+    state: 'planning' | 'generating' | 'generated' | 'failed'
     current: number
     total: number
     role?: DeckBackgroundAsset['role']
     whitespace?: DeckBackgroundWhitespace
+    detail?: string
   }) => void
 }): Promise<DeckBackgroundManifest | null> {
   if (!args.policy.enabled) return null
@@ -321,9 +323,17 @@ export async function prepareDeckBackgroundAssets(args: {
     return existing
   }
 
+  // 背景图是增强项，绝不能因为它炸掉整套生成：
+  // 模型缺失、配置不完整、生成中途失败都降级为「跳过背景图」并回报原因。
+  const skipBackgrounds = (reason: string, logLevel: 'warn' | 'error' = 'warn'): null => {
+    log[logLevel]('[generate:deck-backgrounds] skipping background package', { reason })
+    args.onStatus?.({ state: 'failed', current: 0, total: 0, detail: reason })
+    return null
+  }
+
   const rawConfig = await args.db.getActiveImageModelConfig().catch(() => undefined)
   if (!rawConfig || !VALID_IMAGE_PROVIDERS.has(rawConfig.provider as ImageModelProvider)) {
-    throw new Error('已启用 PPT 背景图生成，但没有可用的生图模型。请先在设置中添加并启用生图模型。')
+    return skipBackgrounds('没有可用的生图模型，已跳过背景图（可在设置中配置生图模型）')
   }
   const config: ResolvedImageModelConfig = {
     id: rawConfig.id,
@@ -332,61 +342,76 @@ export async function prepareDeckBackgroundAssets(args: {
     active: rawConfig.active === 1,
     modelConfig: parseConfig(args.decryptApiKey(rawConfig.modelConfig || '{}'))
   }
+  const configuredModel = readString(config.modelConfig, 'model')
+  if (!configuredModel) {
+    return skipBackgrounds(
+      `生图模型「${rawConfig.name}」缺少 model 字段，已跳过背景图（请在设置中生图模型里填写 model）`
+    )
+  }
   const requested = buildRequestedPlan(args.pageCount, args.policy.contentBackgroundCount)
   args.onStatus?.({ state: 'planning', current: 0, total: requested.length })
-  const plan = await buildPromptPlan({ ...args, requested })
-  const adapter = resolveImageGenerationProvider(config.provider)
-  const backgroundsDir = path.join(args.projectDir, 'assets', 'backgrounds')
-  await fs.promises.mkdir(backgroundsDir, { recursive: true })
-  const assets: DeckBackgroundAsset[] = []
-  for (let index = 0; index < plan.length; index += 1) {
-    if (args.signal.aborted) throw args.signal.reason
-    const item = plan[index]
-    args.onStatus?.({
-      state: 'generating',
-      current: index + 1,
-      total: plan.length,
-      role: item.role,
-      whitespace: item.whitespace
+  try {
+    const plan = await buildPromptPlan({ ...args, requested })
+    const adapter = resolveImageGenerationProvider(config.provider)
+    const backgroundsDir = path.join(args.projectDir, 'assets', 'backgrounds')
+    await fs.promises.mkdir(backgroundsDir, { recursive: true })
+    const assets: DeckBackgroundAsset[] = []
+    for (let index = 0; index < plan.length; index += 1) {
+      if (args.signal.aborted) throw args.signal.reason
+      const item = plan[index]
+      args.onStatus?.({
+        state: 'generating',
+        current: index + 1,
+        total: plan.length,
+        role: item.role,
+        whitespace: item.whitespace
+      })
+      const [result] = await adapter.generate(config, {
+        prompt: item.prompt,
+        size: generationSizeForSlide(args.slideSize),
+        count: 1,
+        signal: args.signal
+      })
+      if (!result) throw new Error(`背景图 ${index + 1} 生成结果为空`)
+      const extension = /^\.[a-z0-9]{2,5}$/i.test(result.extension) ? result.extension : '.png'
+      const suffix = item.role === 'content' ? `-${item.whitespace}` : ''
+      const fileName = `${item.role}${suffix}${extension}`
+      await fs.promises.writeFile(path.join(backgroundsDir, fileName), result.bytes)
+      assets.push({
+        role: item.role,
+        whitespace: item.whitespace,
+        path: `./assets/backgrounds/${fileName}`,
+        prompt: item.prompt
+      })
+      args.onStatus?.({
+        state: 'generated',
+        current: index + 1,
+        total: plan.length,
+        role: item.role,
+        whitespace: item.whitespace
+      })
+    }
+    const manifest: DeckBackgroundManifest = {
+      version: 1,
+      slideSizeId: args.slideSize.id,
+      assets
+    }
+    await fs.promises.writeFile(
+      path.join(backgroundsDir, 'manifest.json'),
+      JSON.stringify(manifest, null, 2),
+      'utf-8'
+    )
+    log.info('[generate:deck-backgrounds] package generated', {
+      assetCount: assets.length,
+      manifestPath: MANIFEST_RELATIVE_PATH
     })
-    const [result] = await adapter.generate(config, {
-      prompt: item.prompt,
-      size: generationSizeForSlide(args.slideSize),
-      count: 1,
-      signal: args.signal
-    })
-    if (!result) throw new Error(`背景图 ${index + 1} 生成结果为空`)
-    const extension = /^\.[a-z0-9]{2,5}$/i.test(result.extension) ? result.extension : '.png'
-    const suffix = item.role === 'content' ? `-${item.whitespace}` : ''
-    const fileName = `${item.role}${suffix}${extension}`
-    await fs.promises.writeFile(path.join(backgroundsDir, fileName), result.bytes)
-    assets.push({
-      role: item.role,
-      whitespace: item.whitespace,
-      path: `./assets/backgrounds/${fileName}`,
-      prompt: item.prompt
-    })
-    args.onStatus?.({
-      state: 'generated',
-      current: index + 1,
-      total: plan.length,
-      role: item.role,
-      whitespace: item.whitespace
-    })
+    return manifest
+  } catch (error) {
+    if (args.signal.aborted || error === args.signal.reason) throw error
+    return skipBackgrounds(
+      `背景图生成失败，已跳过（${
+        error instanceof Error ? error.message : String(error)
+      }），演示生成将继续`
+    , 'error')
   }
-  const manifest: DeckBackgroundManifest = {
-    version: 1,
-    slideSizeId: args.slideSize.id,
-    assets
-  }
-  await fs.promises.writeFile(
-    path.join(backgroundsDir, 'manifest.json'),
-    JSON.stringify(manifest, null, 2),
-    'utf-8'
-  )
-  log.info('[generate:deck-backgrounds] package generated', {
-    assetCount: assets.length,
-    manifestPath: MANIFEST_RELATIVE_PATH
-  })
-  return manifest
 }

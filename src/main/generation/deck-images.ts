@@ -4,6 +4,7 @@ import log from 'electron-log/main.js'
 import type { ImageModelProvider } from '@shared/image-generation'
 import type { ImagePolicy, OutlineItem } from '@shared/generation'
 import { AMY_IMAGE_PLACEHOLDER_PATH } from '@shared/generation'
+import { readString } from '../agent-runtime/provider/image/providers/utils'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
 import {
@@ -129,6 +130,22 @@ export async function prepareDeckImageAssets(args: {
     provider: rawConfig.provider as ImageModelProvider,
     active: rawConfig.active === 1,
     modelConfig: parseConfig(args.decryptApiKey(rawConfig.modelConfig || '{}'))
+  }
+  // 预检：配置了 provider 但缺 model 的半成品配置直接走占位图，
+  // 避免每页每槽都撞一次适配器抛错。
+  const configuredImageModel = readString(modelConfig.modelConfig, 'model')
+  if (!configuredImageModel) {
+    log.warn('[generate:deck-images] active image model config incomplete; using placeholders', {
+      provider: modelConfig.provider
+    })
+    imagePages.forEach(({ index }) =>
+      args.onStatus?.({
+        pageNumber: index + 1,
+        state: 'placeholder',
+        detail: `生图模型「${rawConfig.name}」缺少 model 字段`
+      })
+    )
+    return fallback()
   }
   const adapter = resolveImageGenerationProvider(modelConfig.provider)
   const imagesDir = path.join(args.projectDir, 'images')
