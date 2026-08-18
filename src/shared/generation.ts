@@ -106,6 +106,12 @@ export const resolvePlannedVisualFormat = (
 
 export type ImagePolicy = 'placeholder' | 'ai'
 
+/**
+ * 图片占位符模式下，所有图片槽位统一指向的占位资源路径。
+ * 页面提示词通过识别该路径切换为「语义占位块」指令，而不是塞真实 <img>。
+ */
+export const AMY_IMAGE_PLACEHOLDER_PATH = './assets/amy-image-placeholder.png'
+
 export const normalizeImagePolicy = (value: unknown): ImagePolicy =>
   value === 'ai' ? 'ai' : 'placeholder'
 

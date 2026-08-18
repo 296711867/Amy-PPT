@@ -319,19 +319,41 @@ export function GenerationConfirmDialog({
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
-            <Checkbox
-              checked={generateImagesWithAi}
-              onCheckedChange={(checked) => setGenerateImagesWithAi(checked === true)}
-              aria-label={t('home.generateImagesWithAi')}
-            />
-            <span className="min-w-0">
-              <span className="block text-xs font-medium">{t('home.generateImagesWithAi')}</span>
-              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
-                {t('home.generateImagesWithAiHint')}
-              </span>
-            </span>
-          </label>
+          <div>
+            <p className="mb-2 text-xs font-medium">{t('home.imageModeLabel')}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setGenerateImagesWithAi(false)}
+                className={`rounded-md border p-3 text-left transition-colors ${
+                  !generateImagesWithAi
+                    ? 'border-primary bg-[var(--ui-action-soft)]/45'
+                    : 'border-border bg-muted/30 hover:border-[var(--ui-focus)]'
+                }`}
+              >
+                <span className="block text-xs font-medium">
+                  {t('home.imageModePlaceholder')}
+                </span>
+                <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                  {t('home.imageModePlaceholderHint')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerateImagesWithAi(true)}
+                className={`rounded-md border p-3 text-left transition-colors ${
+                  generateImagesWithAi
+                    ? 'border-primary bg-[var(--ui-action-soft)]/45'
+                    : 'border-border bg-muted/30 hover:border-[var(--ui-focus)]'
+                }`}
+              >
+                <span className="block text-xs font-medium">{t('home.imageModeAi')}</span>
+                <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                  {t('home.generateImagesWithAiHint')}
+                </span>
+              </button>
+            </div>
+          </div>
 
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
             <Checkbox

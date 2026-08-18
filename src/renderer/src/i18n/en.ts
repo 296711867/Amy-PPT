@@ -229,7 +229,12 @@ export const en = {
     animationPreferences: 'Animation preferences',
     generateImagesWithAi: 'Generate visuals with AI',
     generateImagesWithAiHint:
-      'Generate only for layouts that explicitly need an image; otherwise use a replaceable placeholder.',
+      'Generate only for layouts that explicitly need an image; requires an image model in Settings.',
+    imageModeLabel: 'Illustration mode',
+    imageModeAi: 'AI-generated visuals',
+    imageModePlaceholder: 'Image placeholders',
+    imageModePlaceholderHint:
+      'No image model needed. Image layouts get replaceable semantic placeholder blocks (subject notes + swap hint) you can replace manually or with AI later.',
     generateDeckBackgrounds: 'Generate PPT backgrounds',
     generateDeckBackgroundsHint:
       'Generate cover, reusable content, and ending backgrounds with composition-safe blank regions for slide text.',

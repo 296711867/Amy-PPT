@@ -57,6 +57,44 @@ describe('planned visual format in the single-page prompt', () => {
     expect(prompt).not.toContain('Planned visual format')
   })
 
+  it('switches image slots to semantic placeholder blocks in placeholder mode', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      imageAssetPaths: [
+        './assets/amy-image-placeholder.png',
+        './assets/amy-image-placeholder.png'
+      ]
+    })
+
+    expect(prompt).toContain('placeholder mode (2 planned slot(s)')
+    expect(prompt).toContain('data-role="image-placeholder"')
+    expect(prompt).toContain('语义描述')
+    expect(prompt).toContain('替换图片')
+    expect(prompt).not.toContain('Assigned image assets')
+    expect(prompt).not.toContain('<img src="./assets/amy-image-placeholder.png">')
+  })
+
+  it('keeps real <img> instructions for AI-generated image assets', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      imageAssetPaths: ['./images/page-2-slot-1.png']
+    })
+
+    expect(prompt).toContain('Assigned image assets (1 distinct slots)')
+    expect(prompt).toContain('<img src="./images/page-2-slot-1.png">')
+    expect(prompt).not.toContain('placeholder mode')
+  })
+
+  it('treats a single placeholder path the same as a full placeholder set', () => {
+    const prompt = buildSinglePageGenerationPrompt({
+      ...baseArgs,
+      imageAssetPath: './assets/amy-image-placeholder.png'
+    })
+
+    expect(prompt).toContain('placeholder mode (1 planned slot(s)')
+    expect(prompt).not.toContain('Assigned image asset:')
+  })
+
   it('surfaces the planned audience move as a module-level filter', () => {
     const prompt = buildSinglePageGenerationPrompt({
       ...baseArgs,

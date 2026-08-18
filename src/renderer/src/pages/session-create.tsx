@@ -861,21 +861,43 @@ export function SessionCreatePage(): ReactElement {
                 </section>
 
                 <section>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--ui-border-strong)]/70 bg-white/55 p-3">
-                    <Checkbox
-                      checked={generateImagesWithAi}
-                      onCheckedChange={(checked) => setGenerateImagesWithAi(checked === true)}
-                      aria-label={t('home.generateImagesWithAi')}
-                    />
-                    <span className="min-w-0">
+                  <label className="mb-2 block text-xs font-medium text-foreground">
+                    {t('home.imageModeLabel')}
+                  </label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setGenerateImagesWithAi(false)}
+                      className={`rounded-md border p-3 text-left transition-colors ${
+                        !generateImagesWithAi
+                          ? 'border-primary bg-[var(--ui-action-soft)]/45'
+                          : 'border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/60 hover:border-[var(--ui-focus)]'
+                      }`}
+                    >
                       <span className="block text-xs font-medium text-foreground">
-                        {t('home.generateImagesWithAi')}
+                        {t('home.imageModePlaceholder')}
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                        {t('home.imageModePlaceholderHint')}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGenerateImagesWithAi(true)}
+                      className={`rounded-md border p-3 text-left transition-colors ${
+                        generateImagesWithAi
+                          ? 'border-primary bg-[var(--ui-action-soft)]/45'
+                          : 'border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-elevated)]/60 hover:border-[var(--ui-focus)]'
+                      }`}
+                    >
+                      <span className="block text-xs font-medium text-foreground">
+                        {t('home.imageModeAi')}
                       </span>
                       <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                         {t('home.generateImagesWithAiHint')}
                       </span>
-                    </span>
-                  </label>
+                    </button>
+                  </div>
                 </section>
 
                 <section>

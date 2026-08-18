@@ -1,6 +1,6 @@
 import type { SessionDeckGenerationContext } from '../../agent/types'
 import { formatLayoutIntentPrompt } from '@shared/layout-intent'
-import { isSectionAgendaOutline, type VisualFormat } from '@shared/generation'
+import { AMY_IMAGE_PLACEHOLDER_PATH, isSectionAgendaOutline, type VisualFormat } from '@shared/generation'
 import {
   CHART_SKILL_NAME,
   DIAGRAM_SKILL_NAME,
@@ -169,6 +169,11 @@ export function buildSinglePageGenerationPrompt(args: {
   const hasSourceRange = /Source range:\s*lines\s+\d+\s*-\s*\d+/i.test(args.pageOutline || '')
   const canvasScenario = resolveCanvasScenario(args.slideSize)
   const requiredImageAspect = getUniversalLayoutImageAspect(args.layoutId)
+  const assignedImagePaths = args.imageAssetPaths?.length
+    ? args.imageAssetPaths
+    : args.imageAssetPath
+      ? [args.imageAssetPath]
+      : []
   const sourceRangeInstructions =
     !isSectionAgendaPage &&
     args.sourceDocumentPaths &&
@@ -231,7 +236,15 @@ export function buildSinglePageGenerationPrompt(args: {
     requiredImageAspect
       ? `- Image-frame geometry is fixed as ${requiredImageAspect}. Do not convert portrait rows into landscape grids or mixed feature collages. Preserve identical aspect-ratio CSS for equal image slots.`
       : '',
-    args.imageAssetPaths?.length
+    assignedImagePaths.length > 0 && assignedImagePaths.every((assetPath) => assetPath === AMY_IMAGE_PLACEHOLDER_PATH)
+      ? [
+          `Image slots for this slide run in placeholder mode (${assignedImagePaths.length} planned slot(s), hard requirement):`,
+          '- Render every planned image slot as a semantic placeholder block instead of a real photo.',
+          '- Each placeholder: a frame with the exact planned slot geometry and aspect ratio, marked data-role="image-placeholder".',
+          '- Inside each frame draw: a subtle themed surface (low-contrast fill or fine dashed border), a small image glyph, ONE line of 语义描述 describing the image this slot wants (subject / framing / mood, same language as the slide), and a short 「替换图片」 hint.',
+          '- Placeholders are replaceable containers for later real images: keep them inside the layout image-slot geometry. Do NOT use <img>, do NOT invent file paths, and do NOT fake a photo with CSS illustration.'
+        ].join('\n')
+      : args.imageAssetPaths?.length
       ? [
           `Assigned image assets (${args.imageAssetPaths.length} distinct slots):`,
           ...args.imageAssetPaths.map(

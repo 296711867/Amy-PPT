@@ -3,6 +3,7 @@ import path from 'path'
 import log from 'electron-log/main.js'
 import type { ImageModelProvider } from '@shared/image-generation'
 import type { ImagePolicy, OutlineItem } from '@shared/generation'
+import { AMY_IMAGE_PLACEHOLDER_PATH } from '@shared/generation'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
 import {
@@ -20,7 +21,7 @@ const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
   'seedream'
 ])
 
-const PLACEHOLDER_PATH = './assets/amy-image-placeholder.png'
+const PLACEHOLDER_PATH = AMY_IMAGE_PLACEHOLDER_PATH
 
 export const resolveDeckImageGenerationSize = (layoutId: unknown): string => {
   const aspect = getUniversalLayoutImageAspect(layoutId)

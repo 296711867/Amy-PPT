@@ -213,7 +213,12 @@ export const zh = {
     brief: '详细描述',
     animationPreferences: '动画偏好',
     generateImagesWithAi: '使用 AI 生成配图',
-    generateImagesWithAiHint: '仅为明确需要图片的版式生成配图；关闭时使用可替换的白膜占位图。',
+    generateImagesWithAiHint: '仅为明确需要图片的版式生成配图；需要在设置中配置生图模型。',
+    imageModeLabel: '插图方式',
+    imageModeAi: 'AI 生成配图',
+    imageModePlaceholder: '图片占位符',
+    imageModePlaceholderHint:
+      '不调用生图模型。需要图片的版式会生成带语义描述的可替换占位块（标注画面主题与替换提示），稍后可手动或用 AI 替换。',
     generateDeckBackgrounds: '生成 PPT 背景图',
     generateDeckBackgroundsHint:
       '由 AI 生成封面、内容页和结束页背景；内容背景按留白方向循环复用，并为标题与正文预留安全区。',
