@@ -7,6 +7,7 @@ import { AMY_IMAGE_PLACEHOLDER_PATH } from '@shared/generation'
 import { readString } from '../agent-runtime/provider/image/providers/utils'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
+import { resolveImageModelRuntimeConfig } from '../config/image-model-runtime-config'
 import {
   getUniversalLayoutImageAspect,
   getUniversalLayoutImageCount
@@ -31,11 +32,18 @@ export const resolveDeckImageGenerationSize = (layoutId: unknown): string => {
   return '16:9'
 }
 
-const hasCompleteGeneratedImageSet = (item: OutlineItem, imageCount: number): boolean =>
+const hasCompleteGeneratedImageSet = (
+  projectDir: string,
+  item: OutlineItem,
+  imageCount: number
+): boolean =>
   Array.isArray(item.imageAssetPaths) &&
   item.imageAssetPaths.length === imageCount &&
   item.imageAssetPaths.every(
-    (assetPath) => typeof assetPath === 'string' && assetPath !== PLACEHOLDER_PATH
+    (assetPath) =>
+      typeof assetPath === 'string' &&
+      assetPath !== PLACEHOLDER_PATH &&
+      fs.existsSync(path.resolve(projectDir, assetPath.replace(/^\.\//, '')))
   )
 
 const safeFilePart = (value: string): string =>
@@ -45,17 +53,6 @@ const safeFilePart = (value: string): string =>
     .replace(/[^a-z0-9\u3400-\u9fff]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'slide-image'
-
-const parseConfig = (value: string): Record<string, unknown> => {
-  try {
-    const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
-  }
-}
 
 export async function prepareDeckImageAssets(args: {
   db: {
@@ -74,6 +71,7 @@ export async function prepareDeckImageAssets(args: {
   projectDir: string
   imagePolicy: ImagePolicy
   outlineItems: OutlineItem[]
+  pageNumbers?: number[]
   signal: AbortSignal
   onStatus?: (status: {
     pageNumber: number
@@ -81,6 +79,7 @@ export async function prepareDeckImageAssets(args: {
     detail?: string
   }) => void
 }): Promise<OutlineItem[]> {
+  const resolvePageNumber = (index: number): number => args.pageNumbers?.[index] || index + 1
   const imagePages = args.outlineItems
     .map((item, index) => ({
       item,
@@ -88,12 +87,15 @@ export async function prepareDeckImageAssets(args: {
       imageCount: getUniversalLayoutImageCount(item.layoutId)
     }))
     .filter(
-      ({ item, imageCount }) => imageCount > 0 && !hasCompleteGeneratedImageSet(item, imageCount)
+      ({ item, imageCount }) =>
+        imageCount > 0 && !hasCompleteGeneratedImageSet(args.projectDir, item, imageCount)
     )
   if (imagePages.length === 0) return args.outlineItems
 
+  const incompletePageIndexes = new Set(imagePages.map(({ index }) => index))
   const fallback = (): OutlineItem[] =>
-    args.outlineItems.map((item) => {
+    args.outlineItems.map((item, index) => {
+      if (!incompletePageIndexes.has(index)) return item
       const imageCount = getUniversalLayoutImageCount(item.layoutId)
       if (imageCount === 0) return item
       const imageAssetPaths = Array.from({ length: imageCount }, () => PLACEHOLDER_PATH)
@@ -106,7 +108,7 @@ export async function prepareDeckImageAssets(args: {
     })
   if (args.imagePolicy !== 'ai') {
     imagePages.forEach(({ index }) =>
-      args.onStatus?.({ pageNumber: index + 1, state: 'placeholder' })
+      args.onStatus?.({ pageNumber: resolvePageNumber(index), state: 'placeholder' })
     )
     return fallback()
   }
@@ -116,7 +118,7 @@ export async function prepareDeckImageAssets(args: {
     log.warn('[generate:deck-images] no active image model; using placeholders')
     imagePages.forEach(({ index }) =>
       args.onStatus?.({
-        pageNumber: index + 1,
+        pageNumber: resolvePageNumber(index),
         state: 'placeholder',
         detail: 'No active image model'
       })
@@ -129,7 +131,10 @@ export async function prepareDeckImageAssets(args: {
     name: rawConfig.name,
     provider: rawConfig.provider as ImageModelProvider,
     active: rawConfig.active === 1,
-    modelConfig: parseConfig(args.decryptApiKey(rawConfig.modelConfig || '{}'))
+    modelConfig: resolveImageModelRuntimeConfig({
+      config: rawConfig,
+      decryptConfig: args.decryptApiKey
+    })
   }
   // 预检：配置了 provider 但缺 model 的半成品配置直接走占位图，
   // 避免每页每槽都撞一次适配器抛错。
@@ -140,7 +145,7 @@ export async function prepareDeckImageAssets(args: {
     })
     imagePages.forEach(({ index }) =>
       args.onStatus?.({
-        pageNumber: index + 1,
+        pageNumber: resolvePageNumber(index),
         state: 'placeholder',
         detail: `生图模型「${rawConfig.name}」缺少 model 字段`
       })
@@ -154,7 +159,8 @@ export async function prepareDeckImageAssets(args: {
 
   for (const { item, index, imageCount } of imagePages) {
     if (args.signal.aborted) throw args.signal.reason
-    args.onStatus?.({ pageNumber: index + 1, state: 'preparing' })
+    const pageNumber = resolvePageNumber(index)
+    args.onStatus?.({ pageNumber, state: 'preparing' })
     const imageAssetPaths: string[] = []
     let failureCount = 0
     const generationSize = resolveDeckImageGenerationSize(item.layoutId)
@@ -178,14 +184,14 @@ export async function prepareDeckImageAssets(args: {
         })
         if (!result) throw new Error('Image provider returned no result')
         const extension = /^\.[a-z0-9]{2,5}$/i.test(result.extension) ? result.extension : '.png'
-        const fileName = `deck-${index + 1}-slot-${slotIndex + 1}-${safeFilePart(item.title)}${extension}`
+        const fileName = `deck-${pageNumber}-slot-${slotIndex + 1}-${safeFilePart(item.title)}${extension}`
         await fs.promises.writeFile(path.join(imagesDir, fileName), result.bytes)
         imageAssetPaths.push(`./images/${fileName}`)
       } catch (error) {
         failureCount += 1
         imageAssetPaths.push(PLACEHOLDER_PATH)
         log.warn('[generate:deck-images] slot failed; using placeholder', {
-          pageNumber: index + 1,
+          pageNumber,
           slotNumber: slotIndex + 1,
           message: error instanceof Error ? error.message : String(error)
         })
@@ -198,14 +204,14 @@ export async function prepareDeckImageAssets(args: {
       imageAssetPaths
     }
     if (failureCount === 0) {
-      args.onStatus?.({ pageNumber: index + 1, state: 'generated' })
+      args.onStatus?.({ pageNumber, state: 'generated' })
       log.info('[generate:deck-images] generated', {
-        pageNumber: index + 1,
+        pageNumber,
         imageCount
       })
     } else {
       args.onStatus?.({
-        pageNumber: index + 1,
+        pageNumber,
         state: 'placeholder',
         detail: `${failureCount}/${imageCount} image slots fell back to placeholders`
       })

@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import type { PPTDatabase } from '../../db/database'
+import { allowLocalAssetRoot } from '../../io/local-asset-roots'
 
 export type SessionGenerationSnapshot = {
   session: Record<string, unknown> | null | undefined
@@ -114,7 +115,9 @@ export function createSessionProjectResolver(args: {
     const project = await db.getProject(sessionId)
     const rootPath = typeof project?.root_path === 'string' ? project.root_path.trim() : ''
     if (!rootPath) throw new Error(`Session ${sessionId} has no root_path`)
-    return path.resolve(rootPath)
+    const projectDir = path.resolve(rootPath)
+    allowLocalAssetRoot(projectDir)
+    return projectDir
   }
 
   const buildSessionGenerationSnapshot = async (

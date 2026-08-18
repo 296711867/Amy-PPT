@@ -6,6 +6,7 @@ import type { FinalizeContext, FinalizeGenerationArgs } from './types'
 import type { SessionPageRecord } from '../db/database'
 import { isCancellationMessage, normalizeRestoredSessionStatus } from './status-utils'
 import { classifyGenerationError } from '@shared/generation-error'
+import { mergeSessionMetadata } from './metadata-parser'
 
 const pageSlugId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)
 
@@ -74,12 +75,22 @@ export async function finalizeGenerationSuccess(
     sessionId: context.sessionId,
     generatedPages
   })
-  await db.updateSessionMetadata(context.sessionId, {
-    lastRunId: context.runId,
-    entryMode: 'multi_page',
-    indexPath,
-    projectId: context.projectId
-  })
+  const persistedSession = await db.getSession(context.sessionId)
+  const persistedSessionRecord = (persistedSession || {}) as unknown as Record<string, unknown>
+  await db.updateSessionMetadata(
+    context.sessionId,
+    mergeSessionMetadata(
+      String(
+        persistedSessionRecord.metadata ?? persistedSessionRecord.metadata_json ?? ''
+      ),
+      {
+        lastRunId: context.runId,
+        entryMode: 'multi_page',
+        indexPath,
+        projectId: context.projectId
+      }
+    )
+  )
   if (args.designContract) {
     await db.updateSessionDesignContract(context.sessionId, args.designContract)
   }

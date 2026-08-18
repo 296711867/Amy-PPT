@@ -31,6 +31,7 @@ import { retireActiveSessionPagesForReplacement } from './session-page-replaceme
 import { prepareDeckImageAssets } from './deck-images'
 import { assignDeckBackgroundAssets, prepareDeckBackgroundAssets } from './deck-backgrounds'
 import { diversifyUniversalLayoutSequence } from '@shared/universal-layouts'
+import { mergeSessionMetadata } from './metadata-parser'
 
 const pageSlugId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)
 
@@ -138,6 +139,16 @@ export async function executeDeckGeneration(
       pageGenerationTemperature: PAGE_GENERATION_TEMPERATURE
     }
   } = ctx
+  const buildSessionMetadata = (patch: Record<string, unknown>) =>
+    mergeSessionMetadata(
+      String(context.sessionRecord.metadata ?? context.sessionRecord.metadata_json ?? ''),
+      {
+        fontSelection: context.fontSelection,
+        imagePolicy: context.imagePolicy,
+        deckBackgroundPolicy: context.deckBackgroundPolicy,
+        ...patch
+      }
+    )
 
   if (!context.apiKey) {
     throw new Error(`当前 provider "${context.provider}" 缺少 API Key，请先到设置页配置。`)
@@ -527,12 +538,12 @@ export async function executeDeckGeneration(
     }
   >()
   const persistGenerationSnapshotMetadata = async (): Promise<void> => {
-    await db.updateSessionMetadata(context.sessionId, {
+    await db.updateSessionMetadata(context.sessionId, buildSessionMetadata({
       lastRunId: context.runId,
       entryMode: 'multi_page',
       indexPath,
       projectId: context.projectId
-    })
+    }))
   }
   const persistCompletedGeneratedPage = async (page: {
     pageNumber: number
@@ -724,12 +735,12 @@ export async function executeDeckGeneration(
       completedPageIdSet.size > 0 ? 'partial' : 'failed',
       pause.failure.technicalDetail
     )
-    await db.updateSessionMetadata(context.sessionId, {
+    await db.updateSessionMetadata(context.sessionId, buildSessionMetadata({
       lastRunId: context.runId,
       entryMode: 'multi_page',
       indexPath,
       projectId: context.projectId
-    })
+    }))
     await db.updateSessionDesignContract(context.sessionId, designContract)
     await db.updateProjectStatus(context.projectId, 'draft')
     emitDeckChunk({
@@ -1013,12 +1024,12 @@ export async function executeDeckGeneration(
       pageDescriptors.length > 0 ? 'partial' : 'failed',
       failedDetails
     )
-    await db.updateSessionMetadata(context.sessionId, {
+    await db.updateSessionMetadata(context.sessionId, buildSessionMetadata({
       lastRunId: context.runId,
       entryMode: 'multi_page',
       indexPath,
       projectId: context.projectId
-    })
+    }))
     await db.updateSessionDesignContract(context.sessionId, designContract)
     await db.updateProjectStatus(context.projectId, 'draft')
     emitDeckChunk({

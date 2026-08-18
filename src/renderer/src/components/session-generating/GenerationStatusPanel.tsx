@@ -29,7 +29,7 @@ export function GenerationStatusPanel({
   checkSettingsLabel,
   cancelLabel,
   isCancelling,
-  hasGeneratedPages,
+  hasRetryablePages,
   canEnterEditor,
   showEditorShortcut,
   modelAction,
@@ -61,7 +61,7 @@ export function GenerationStatusPanel({
   checkSettingsLabel?: string
   cancelLabel: string
   isCancelling?: boolean
-  hasGeneratedPages: boolean
+  hasRetryablePages: boolean
   canEnterEditor: boolean
   showEditorShortcut: boolean
   modelAction: ModelActionState
@@ -140,16 +140,16 @@ export function GenerationStatusPanel({
             <ModelSplitButton
               modelAction={modelAction}
               label={
-                isPaused
+                isPaused && hasRetryablePages
                   ? reconnectLabel || '重新连接并继续'
-                  : hasGeneratedPages
+                  : hasRetryablePages
                     ? continueRemainingLabel
                     : regenerateLabel
               }
               tone="subtle"
               size="sm"
               onRun={(modelConfigId) => {
-                if (hasGeneratedPages || status === 'paused' || status === 'failed') {
+                if (hasRetryablePages) {
                   onContinueRemaining(modelConfigId)
                 } else {
                   onRegenerate(modelConfigId)

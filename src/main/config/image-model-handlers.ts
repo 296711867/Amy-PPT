@@ -10,6 +10,10 @@ import {
   redactCredentialJson,
   stringifyJsonRecord
 } from './credential-redaction'
+import {
+  isBbtImageModelConfig,
+  resolveImageModelRuntimeConfig
+} from './image-model-runtime-config'
 
 const VALID_IMAGE_PROVIDERS = [
   'jimeng',
@@ -49,7 +53,11 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
       name: config.name,
       provider: resolveProvider(config.provider),
       active: config.active === 1,
-      modelConfig: redactCredentialJson(decryptApiKey(config.modelConfig || '{}')),
+      modelConfig: redactCredentialJson(
+        stringifyJsonRecord(
+          resolveImageModelRuntimeConfig({ config, decryptConfig: decryptApiKey })
+        )
+      ),
       createdAt: config.createdAt,
       updatedAt: config.updatedAt
     }))
@@ -74,7 +82,7 @@ export function registerImageModelHandlers(ctx: IpcContext): void {
     }
     if (id) {
       const existing = (await db.listImageModelConfigs()).find((config) => config.id === id)
-      if (existing) {
+      if (existing && !isBbtImageModelConfig(existing)) {
         const existingModelConfig = parseJsonRecord(decryptApiKey(existing.modelConfig || '{}'))
         if (
           existingModelConfig &&

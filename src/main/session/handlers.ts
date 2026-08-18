@@ -27,6 +27,10 @@ import {
 } from './index-transition'
 import { warmSessionFirstPageThumbnails } from './session-thumbnail'
 import { createSessionMasterIfMissing } from './master-service'
+import {
+  hasCompleteSessionPageCoverage,
+  recoverUsableSessionPages
+} from './page-status-recovery'
 
 const THINKING_ID_RE = /^[a-zA-Z0-9_-]{6,32}$/
 const THINKING_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
@@ -721,7 +725,7 @@ export function registerSessionHandlers(
       status?: string
       error?: string | null
     }> = []
-    const sessionPages = await db.listSessionPages(sessionId)
+    let sessionPages = await db.listSessionPages(sessionId)
     if (sessionPages.length === 0) {
       return {
         session: normalizeSession({
@@ -739,6 +743,42 @@ export function registerSessionHandlers(
     const projectDir = await resolveSessionProjectDir(sessionId)
     allowLocalAssetRoot(projectDir)
     await ensureSessionRuntimeCompatible(ctx, projectDir)
+    const [latestRun, latestJob] = await Promise.all([
+      db.getLatestGenerationRun(sessionId),
+      db.getLatestSessionJob(sessionId)
+    ])
+    const inMemoryRun = ctx.sessionRunStates.get(sessionId)
+    const hasActiveRun =
+      inMemoryRun?.status === 'queued' ||
+      inMemoryRun?.status === 'running' ||
+      latestJob?.status === 'pending' ||
+      latestJob?.status === 'active'
+    const recovered = hasActiveRun
+      ? { pages: sessionPages, recoveredPageIds: [] }
+      : await recoverUsableSessionPages({
+          db,
+          sessionId,
+          pages: sessionPages,
+          resolveHtmlPath: (page) =>
+            resolvePageHtmlPath(projectDir, page.file_slug, page.html_path)
+        })
+    sessionPages = recovered.pages
+    const expectedPageCount = Math.max(
+      Number(session.page_count) || 0,
+      Number(latestRun?.total_pages) || 0
+    )
+    const recoveredAllPages = hasCompleteSessionPageCoverage(
+      sessionPages,
+      expectedPageCount
+    )
+    if (recovered.recoveredPageIds.length > 0) {
+      log.info('[session:get] recovered usable interrupted pages', {
+        sessionId,
+        recoveredPageIds: recovered.recoveredPageIds,
+        recoveredAllPages
+      })
+      if (recoveredAllPages) await db.updateSessionStatus(sessionId, 'completed')
+    }
     const outlineBySessionPageId = await resolveOutlinesForPages(db, sessionId, sessionPages)
     if (!(await db.hasAnyOperationPageSnapshots(sessionId))) {
       await new GitHistoryService(db).ensureBaseline(sessionId, projectDir).catch((error) => {
@@ -777,6 +817,7 @@ export function registerSessionHandlers(
     return {
       session: normalizeSession({
         ...(session as unknown as Record<string, unknown>),
+        ...(recoveredAllPages ? { status: 'completed' } : {}),
         page_count: generatedPages.length,
         generated_count: completedCount,
         failed_count: failedCount

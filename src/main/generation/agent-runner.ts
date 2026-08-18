@@ -2051,11 +2051,17 @@ export const runDeepAgentDeckGeneration = async (args: {
         deckReport.available ? '整套一致性检查完成' : '整套一致性检查未完成'
       ),
       detail: !deckReport.available
-        ? uiText(
-            args.appLocale,
-            `跨页浏览器验收未完成，${incompleteRenderPages.length} 页已标记为失败，待渲染恢复后重试`,
-            `Cross-slide browser validation was incomplete; ${incompleteRenderPages.length} slides were marked failed for retry`
-          )
+        ? incompleteRenderPages.length > 0
+          ? uiText(
+              args.appLocale,
+              `跨页浏览器验收未完成，${incompleteRenderPages.length} 页已标记为失败，待渲染恢复后重试`,
+              `Cross-slide browser validation was incomplete; ${incompleteRenderPages.length} slides were marked failed for retry`
+            )
+          : uiText(
+              args.appLocale,
+              '跨页浏览器验收暂不可用，已保留通过落盘校验的页面并记录非阻断警告',
+              'Cross-slide browser validation was unavailable; statically valid slides were kept with a non-blocking advisory'
+            )
         : deckQualityWarnings.length > 0
           ? uiText(
               args.appLocale,

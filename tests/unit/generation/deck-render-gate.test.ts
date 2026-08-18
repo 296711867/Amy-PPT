@@ -23,4 +23,19 @@ describe('deck render completion gate', () => {
       { pageId: 'page-3', reason: 'master stylesheet failed' }
     ])
   })
+
+  it('does not retry statically valid pages when the local validation renderer is blocked', () => {
+    expect(
+      resolveIncompleteDeckRenderPages({
+        available: false,
+        unavailablePages: [
+          {
+            pageId: 'page-1',
+            reason: "ERR_BLOCKED_BY_CLIENT (-20) loading 'file:///project/page-1.html'"
+          },
+          { pageId: 'page-2', reason: 'rendered deck metrics missing' }
+        ]
+      })
+    ).toEqual([{ pageId: 'page-2', reason: 'rendered deck metrics missing' }])
+  })
 })

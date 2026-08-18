@@ -23,6 +23,9 @@ export interface SessionMetadata {
   importedAt?: number
   originalFileName?: string
   warnings?: string[]
+  fontSelection?: import('@shared/generation').FontSelection
+  imagePolicy?: import('@shared/generation').ImagePolicy
+  deckBackgroundPolicy?: import('@shared/generation').DeckBackgroundPolicy
 }
 
 export function parseSessionMetadata(raw: string | undefined | null): SessionMetadata {
@@ -33,6 +36,14 @@ export function parseSessionMetadata(raw: string | undefined | null): SessionMet
     return {}
   }
 }
+
+export const mergeSessionMetadata = (
+  raw: string | undefined | null,
+  patch: Record<string, unknown>
+): SessionMetadata => ({
+  ...parseSessionMetadata(raw),
+  ...patch
+})
 
 /**
  * Derive a stable pageNumber from pageId when it follows the `page-N` convention.

@@ -5,6 +5,10 @@ import { TypedEventBus } from '../../../src/main/agent-runtime'
 import { createRuntimeEmitters } from '../../../src/main/ipc/runtime/runtime-emitters'
 import { createSessionProjectResolver } from '../../../src/main/ipc/runtime/session-project'
 import { createSessionRunStateStore } from '../../../src/main/ipc/runtime/session-run-state'
+import {
+  isPathAllowedByDynamicRoot,
+  revokeLocalAssetRoot
+} from '../../../src/main/io/local-asset-roots'
 
 describe('IPC runtime capabilities', () => {
   it('keeps generation on its own narrow context instead of the IPC facade', () => {
@@ -162,5 +166,22 @@ describe('IPC runtime capabilities', () => {
       entryMode: 'multi_page',
       projectId: 'project-1'
     })
+  })
+
+  it('registers a resolved session project for hidden render validation', async () => {
+    const projectDir = fs.mkdtempSync(path.join(process.cwd(), '.tmp-session-project-'))
+    const db = {
+      getSession: async () => ({ id: 'session-render' }),
+      getProject: async () => ({ id: 'project-render', root_path: projectDir })
+    }
+
+    try {
+      const project = createSessionProjectResolver({ db: db as never })
+      await expect(project.resolveSessionProjectDir('session-render')).resolves.toBe(projectDir)
+      expect(isPathAllowedByDynamicRoot(path.join(projectDir, 'page-1.html'))).toBe(true)
+    } finally {
+      revokeLocalAssetRoot(projectDir)
+      fs.rmSync(projectDir, { recursive: true, force: true })
+    }
   })
 })

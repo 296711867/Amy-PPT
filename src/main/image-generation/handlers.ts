@@ -11,6 +11,7 @@ import type {
 import { resolveModelTimeoutMs } from '@shared/model-timeout'
 import type { IpcContext } from '../ipc/context'
 import { readAppLocale, uiText, type AppLocale } from '../config/locale-utils'
+import { resolveImageModelRuntimeConfig } from '../config/image-model-runtime-config'
 import {
   resolveGlobalModelTimeouts,
   resolveModelConfigForTask,
@@ -52,19 +53,6 @@ const resolveProvider = (provider: unknown): ImageModelProvider => {
   throw new Error('Unsupported image provider')
 }
 
-const readJsonObject = (value: unknown): Record<string, unknown> => {
-  const text = typeof value === 'string' ? value.trim() : ''
-  if (!text) return {}
-  try {
-    const parsed = JSON.parse(text)
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
-  }
-}
-
 const readConfigString = (config: ResolvedImageModelConfig, key: string): string => {
   const value = config.modelConfig[key]
   return typeof value === 'string' ? value.trim() : ''
@@ -87,7 +75,10 @@ const resolveImageModelConfig = async (
     name: raw.name,
     provider: resolveProvider(raw.provider),
     active: raw.active === 1,
-    modelConfig: readJsonObject(ctx.decryptApiKey(raw.modelConfig || '{}'))
+    modelConfig: resolveImageModelRuntimeConfig({
+      config: raw,
+      decryptConfig: ctx.decryptApiKey
+    })
   }
 }
 

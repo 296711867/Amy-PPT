@@ -59,6 +59,7 @@ async function registerWithDb(overrides: Partial<Record<string, unknown>> = {}) 
 
 describe('registerImageModelHandlers credential boundaries', () => {
   beforeEach(() => {
+    vi.unstubAllEnvs()
     imageHandlersState.handlers.clear()
     imageHandlersState.ipcMainMock.handle.mockClear()
     imageHandlersState.localeMock.readAppLocale.mockReset()
@@ -106,6 +107,36 @@ describe('registerImageModelHandlers credential boundaries', () => {
         modelConfig: '{\n  "model": "image-model",\n  "headers": {},\n  "httpOptions": {\n    "HeAdErS": {}\n  }\n}'
       })
     ])
+  })
+
+  it('lists the BBT environment profile even when its old ciphertext cannot be decrypted', async () => {
+    vi.stubEnv('BBT_IMAGE_API_KEY', 'environment-key')
+    imageHandlersState.decryptApiKeyMock.mockImplementation(() => {
+      throw new Error('old Windows user ciphertext is unavailable')
+    })
+    const { getHandler } = await registerWithDb({
+      listImageModelConfigs: vi.fn(async () => [
+        {
+          id: 'codex-bbt-image-model',
+          name: 'BBT · GPT Image 2',
+          provider: 'agnes',
+          active: 1,
+          modelConfig: 'enc:v1:old-user-ciphertext',
+          createdAt: 1,
+          updatedAt: 2
+        }
+      ])
+    })
+
+    const result = (await getHandler('imageModels:list')?.()) as Array<{
+      modelConfig: string
+    }>
+
+    expect(JSON.parse(result[0].modelConfig)).toEqual({
+      model: 'gpt-image-2',
+      baseUrl: 'http://192.168.177.54:3002/v1'
+    })
+    expect(imageHandlersState.decryptApiKeyMock).not.toHaveBeenCalled()
   })
 
   it('preserves omitted image credentials when editing an existing config', async () => {

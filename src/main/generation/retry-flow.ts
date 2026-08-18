@@ -27,9 +27,11 @@ import {
 } from './context'
 import { selectRetrySessionPages } from './retry-page-selection'
 import {
-  readDeckBackgroundManifest,
+  prepareDeckBackgroundAssets,
   resolveDeckBackgroundAsset
 } from './deck-backgrounds'
+import { prepareDeckImageAssets } from './deck-images'
+import { mergeSessionMetadata } from './metadata-parser'
 
 export async function resolveRetryContext(
   ctx: GenerationContext,
@@ -126,6 +128,16 @@ export async function executeRetryFailedPages(
       pageGenerationTemperature: PAGE_GENERATION_TEMPERATURE
     }
   } = ctx
+  const buildSessionMetadata = (patch: Record<string, unknown>) =>
+    mergeSessionMetadata(
+      String(context.sessionRecord.metadata ?? context.sessionRecord.metadata_json ?? ''),
+      {
+        fontSelection: context.fontSelection,
+        imagePolicy: context.imagePolicy,
+        deckBackgroundPolicy: context.deckBackgroundPolicy,
+        ...patch
+      }
+    )
 
   if (!context.apiKey) {
     throw new Error(`当前 provider "${context.provider}" 缺少 API Key，请先到设置页配置。`)
@@ -224,29 +236,125 @@ export async function executeRetryFailedPages(
       signal: context.abortSignal
     }))
 
-  const backgroundManifest = await readDeckBackgroundManifest(context.projectDir)
+  const backgroundManifest = await prepareDeckBackgroundAssets({
+    db,
+    decryptApiKey: ctx.credentials.decryptApiKey,
+    projectDir: context.projectDir,
+    policy: context.deckBackgroundPolicy,
+    pageCount: sessionPages.length,
+    slideSize: context.slideSize,
+    topic: context.topic,
+    stylePrompt: context.styleSkill.prompt,
+    provider: context.provider,
+    apiKey: context.apiKey,
+    model: context.model,
+    baseUrl: context.providerBaseUrl,
+    maxTokens: context.maxTokens,
+    modelControl: context.modelControl,
+    signal: context.abortSignal,
+    onStatus: ({ state, current, total, detail }) =>
+      emitRetryChunk({
+        type: 'llm_status',
+        payload: {
+          runId: context.runId,
+          stage: 'preflight',
+          label: uiText(context.appLocale, '补齐 PPT 背景图', 'Preparing missing backgrounds'),
+          progress: 6,
+          totalPages: sessionPages.length,
+          detail:
+            state === 'planning'
+              ? uiText(
+                  context.appLocale,
+                  `正在重新规划 ${total} 张缺失背景图`,
+                  `Planning ${total} missing backgrounds`
+                )
+              : state === 'generating'
+                ? uiText(
+                    context.appLocale,
+                    `正在生成第 ${current}/${total} 张背景图`,
+                    `Generating background ${current}/${total}`
+                  )
+                : detail ||
+                  uiText(
+                    context.appLocale,
+                    `第 ${current}/${total} 张背景图已完成`,
+                    `Background ${current}/${total} completed`
+                  )
+        }
+      })
+  })
+  const retryOutlineItems = await prepareDeckImageAssets({
+    db,
+    decryptApiKey: ctx.credentials.decryptApiKey,
+    projectDir: context.projectDir,
+    imagePolicy: context.imagePolicy,
+    outlineItems: retryRecords.map((page) => ({
+      title: page.title || page.page_id,
+      contentOutline: page.content_outline || '',
+      layoutIntent: page.layout_intent ? normalizeLayoutIntent(page.layout_intent) : undefined,
+      layoutId: normalizeUniversalLayoutId(page.layout_id),
+      imageAssetPath: page.image_asset_path || undefined,
+      imageAssetPaths: page.image_asset_paths.length ? page.image_asset_paths : undefined,
+      backgroundAsset: resolveDeckBackgroundAsset(
+        backgroundManifest,
+        page.page_number,
+        sessionPages.length
+      )
+    })),
+    pageNumbers: retryRecords.map((page) => page.page_number),
+    signal: context.abortSignal,
+    onStatus: ({ pageNumber, state, detail }) =>
+      emitRetryChunk({
+        type: 'llm_status',
+        payload: {
+          runId: context.runId,
+          stage: 'preflight',
+          label: uiText(context.appLocale, '补齐页面配图', 'Preparing missing slide visuals'),
+          progress: 7,
+          currentPage: pageNumber,
+          totalPages: sessionPages.length,
+          detail:
+            state === 'preparing'
+              ? uiText(
+                  context.appLocale,
+                  `正在为第 ${pageNumber} 页补生成配图`,
+                  `Generating a missing visual for slide ${pageNumber}`
+                )
+              : state === 'generated'
+                ? uiText(
+                    context.appLocale,
+                    `第 ${pageNumber} 页配图已补齐`,
+                    `Slide ${pageNumber} visual completed`
+                  )
+                : uiText(
+                    context.appLocale,
+                    `第 ${pageNumber} 页仍使用占位图${detail ? `：${detail}` : ''}`,
+                    `Slide ${pageNumber} still uses a placeholder${detail ? `: ${detail}` : ''}`
+                  )
+        }
+      })
+  })
 
-  const retryPages = retryRecords.map((page) => ({
-    pageNumber: page.page_number,
-    pageId: page.page_id,
-    title: page.title || page.page_id,
-    contentOutline: page.content_outline || '',
-    layoutIntent: page.layout_intent ? normalizeLayoutIntent(page.layout_intent) : undefined,
-    layoutId: normalizeUniversalLayoutId(page.layout_id),
-    imageAssetPath: page.image_asset_path || undefined,
-    imageAssetPaths: page.image_asset_paths.length ? page.image_asset_paths : undefined,
-    backgroundAsset: resolveDeckBackgroundAsset(
-      backgroundManifest,
-      page.page_number,
-      sessionPages.length
-    ),
-    htmlPath: resolvePageHtmlPath({
-      projectDir: context.projectDir,
-      fileSlug: page.page_id,
-      candidates: [page.html_path]
-    }),
-    retryCount: page.retry_count + 1
-  }))
+  const retryPages = retryRecords.map((page, index) => {
+    const outline = retryOutlineItems[index]
+    return {
+      pageNumber: page.page_number,
+      pageId: page.page_id,
+      title: outline.title,
+      contentOutline: outline.contentOutline,
+      layoutIntent: outline.layoutIntent,
+      layoutId: outline.layoutId,
+      imageAssetPath: outline.imageAssetPath,
+      imageAssetPaths: outline.imageAssetPaths,
+      backgroundAsset: outline.backgroundAsset,
+      htmlPath: resolvePageHtmlPath({
+        projectDir: context.projectDir,
+        fileSlug: page.page_id,
+        candidates: [page.html_path]
+      }),
+      retryCount: page.retry_count + 1
+    }
+  })
   const pageFileMap = Object.fromEntries(retryPages.map((page) => [page.pageId, page.htmlPath]))
   const pageNumbers = Object.fromEntries(retryPages.map((page) => [page.pageId, page.pageNumber]))
   const existingSessionPages = await db.listSessionPages(context.sessionId, {
@@ -535,12 +643,12 @@ export async function executeRetryFailedPages(
       totalCompletedPageCount > 0 ? 'partial' : 'failed',
       pause.failure.technicalDetail
     )
-    await db.updateSessionMetadata(context.sessionId, {
+    await db.updateSessionMetadata(context.sessionId, buildSessionMetadata({
       lastRunId: context.runId,
       entryMode: 'multi_page',
       indexPath,
       projectId: context.projectId
-    })
+    }))
     await db.updateSessionDesignContract(context.sessionId, designContract)
     await db.updateProjectStatus(context.projectId, 'draft')
     emitRetryChunk({
@@ -721,12 +829,12 @@ export async function executeRetryFailedPages(
     (a, b) => a.pageNumber - b.pageNumber
   )
 
-  await db.updateSessionMetadata(context.sessionId, {
+  await db.updateSessionMetadata(context.sessionId, buildSessionMetadata({
     lastRunId: context.runId,
     entryMode: 'multi_page',
     indexPath,
     projectId: context.projectId
-  })
+  }))
   await db.updateSessionDesignContract(context.sessionId, designContract)
   await db.updateProjectStatus(context.projectId, 'draft')
 

@@ -365,6 +365,7 @@ export function SessionGeneratingPage({
   const [previewPages, setPreviewPages] = useState<GenerationPreviewPage[]>(() =>
     buildPagePlaceholders(1, lang)
   )
+  const [hasRetryablePages, setHasRetryablePages] = useState(false)
   const [slideSize, setSlideSize] = useState<SlideSizePreset | null>(null)
   const [presentationTitle, setPresentationTitle] = useState<string>('')
   const [cancelPending, setCancelPending] = useState(false)
@@ -695,6 +696,7 @@ export function SessionGeneratingPage({
             setPresentationTitle(String(snapshot?.title || ''))
             setSlideSize(trySessionSlideSize(snapshot))
             setEditorGate(getEditorGate(snapshot))
+            setHasRetryablePages(generatedPages.length > 0)
             setPreviewPages(
               buildPreviewPagesFromGeneratedPages(
                 typeof snapshot?.page_count === 'number' ? snapshot.page_count : 0,
@@ -723,6 +725,7 @@ export function SessionGeneratingPage({
             setPresentationTitle(String(snapshot?.title || ''))
             setSlideSize(trySessionSlideSize(snapshot))
             setEditorGate(getEditorGate(snapshot))
+            setHasRetryablePages(generatedPages.length > 0)
             setPreviewPages(
               buildPreviewPagesFromGeneratedPages(
                 typeof snapshot?.page_count === 'number' ? snapshot.page_count : 0,
@@ -830,6 +833,7 @@ export function SessionGeneratingPage({
               setPresentationTitle(String(snapshot?.title || ''))
               setSlideSize(trySessionSlideSize(snapshot))
               setEditorGate(getEditorGate(snapshot))
+              setHasRetryablePages(generatedPages.length > 0)
               setPreviewPages(
                 buildPreviewPagesFromGeneratedPages(
                   typeof snapshot?.page_count === 'number' ? snapshot.page_count : 0,
@@ -849,9 +853,11 @@ export function SessionGeneratingPage({
         const snapshot = (session || {}) as GenerationSessionSnapshot
         const currentStatus = snapshot.status || 'active'
         const snapshotGate = getEditorGate(snapshot)
+        const fullyGenerated = isSessionFullyGenerated(snapshotGate)
         setPresentationTitle(String(snapshot.title || ''))
         setSlideSize(trySessionSlideSize(snapshot))
         setEditorGate(snapshotGate)
+        setHasRetryablePages(generatedPages.length > 0)
         if (typeof snapshot.page_count === 'number' && snapshot.page_count > 0) {
           setTotalPages(Math.floor(snapshot.page_count))
         }
@@ -868,6 +874,11 @@ export function SessionGeneratingPage({
           explicitRerun ||
           (state?.initialPrompt && state.initialPrompt.trim().length > 0)
         )
+
+        if (fullyGenerated && !state?.retry && !explicitRerun && !runState?.hasActiveRun) {
+          navigate(`/sessions/${id}`, { replace: true })
+          return
+        }
 
         if (runState) {
           const shouldHydrateFromSnapshot = !hasManualStartIntent || runState.hasActiveRun
@@ -952,8 +963,6 @@ export function SessionGeneratingPage({
           }
         }
 
-        const fullyGenerated = isSessionFullyGenerated(snapshotGate)
-
         if (fullyGenerated && !state?.retry && !explicitRerun) {
           navigate(`/sessions/${id}`, { replace: true })
           return
@@ -1024,7 +1033,6 @@ export function SessionGeneratingPage({
 
   const displayProgress = Math.max(0, Math.min(100, Math.round(progress)))
   const fullyGenerated = isSessionFullyGenerated(editorGate)
-  const hasGeneratedPages = editorGate.generatedCount > 0
   const canEnterEditor = getEditorGate(
     { page_count: editorGate.totalCount, generatedCount: editorGate.generatedCount },
     0.68
@@ -1047,7 +1055,7 @@ export function SessionGeneratingPage({
     (error && /部分页面生成失败|some pages failed|pages failed/i.test(error)
       ? t('generating.failedRetry')
       : error || t('generating.failedRetry'))
-  const canContinueRemaining = hasGeneratedPages && !fullyGenerated
+  const canContinueRemaining = hasRetryablePages && !fullyGenerated
   const displayedTotalPages = Math.max(totalPages, previewPages.length)
   const generationStages = [
     'preflight',
@@ -1178,7 +1186,7 @@ export function SessionGeneratingPage({
             checkSettingsLabel={friendlyText(lang, '检查模型设置', 'Check model settings')}
             cancelLabel={t('generating.cancelGeneration')}
             isCancelling={cancelPending}
-            hasGeneratedPages={canContinueRemaining}
+            hasRetryablePages={canContinueRemaining}
             canEnterEditor={canEnterEditor}
             showEditorShortcut={showProgressEditorShortcut}
             modelAction={modelAction}

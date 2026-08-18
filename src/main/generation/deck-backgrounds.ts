@@ -20,6 +20,7 @@ import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
 import { readString } from '../agent-runtime/provider/image/providers/utils'
 import { uiText, type AppLocale } from '../config/locale-utils'
+import { resolveImageModelRuntimeConfig } from '../config/image-model-runtime-config'
 import type { GenerationModelControl } from './context'
 
 const VALID_IMAGE_PROVIDERS = new Set<ImageModelProvider>([
@@ -39,17 +40,6 @@ const CONTENT_WHITESPACE: DeckBackgroundWhitespace[] = [
 ]
 
 const MANIFEST_RELATIVE_PATH = './assets/backgrounds/manifest.json'
-
-const parseConfig = (value: string): Record<string, unknown> => {
-  try {
-    const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
-  }
-}
 
 const generationSizeForSlide = (slideSize: SlideSizePreset): string => {
   const ratio = slideSize.width / slideSize.height
@@ -340,7 +330,10 @@ export async function prepareDeckBackgroundAssets(args: {
     name: rawConfig.name,
     provider: rawConfig.provider as ImageModelProvider,
     active: rawConfig.active === 1,
-    modelConfig: parseConfig(args.decryptApiKey(rawConfig.modelConfig || '{}'))
+    modelConfig: resolveImageModelRuntimeConfig({
+      config: rawConfig,
+      decryptConfig: args.decryptApiKey
+    })
   }
   const configuredModel = readString(config.modelConfig, 'model')
   if (!configuredModel) {

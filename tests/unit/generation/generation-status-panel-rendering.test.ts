@@ -21,14 +21,14 @@ async function renderPanel({
   isCancelling,
   onCancel,
   status = 'running',
-  hasGeneratedPages = false,
+  hasRetryablePages = false,
   onContinueRemaining = vi.fn(),
   onRegenerate = vi.fn()
 }: {
   isCancelling: boolean
   onCancel: () => void
   status?: 'running' | 'paused' | 'failed' | 'cancelled'
-  hasGeneratedPages?: boolean
+  hasRetryablePages?: boolean
   onContinueRemaining?: () => void
   onRegenerate?: () => void
 }): Promise<{ container: HTMLDivElement; unmount: () => Promise<void> }> {
@@ -64,7 +64,7 @@ async function renderPanel({
         reconnectLabel: '重新连接并继续',
         cancelLabel: '取消生成',
         isCancelling,
-        hasGeneratedPages,
+        hasRetryablePages,
         canEnterEditor: false,
         showEditorShortcut: false,
         modelAction: createModelAction(),
@@ -139,7 +139,8 @@ describe('GenerationStatusPanel', () => {
     const { container, unmount } = await renderPanel({
       isCancelling: false,
       onCancel: vi.fn(),
-      status: 'paused'
+      status: 'paused',
+      hasRetryablePages: true
     })
 
     try {
@@ -153,14 +154,14 @@ describe('GenerationStatusPanel', () => {
     }
   })
 
-  it('routes a failed generation retry through the partial retry callback', async () => {
+  it('regenerates a failed run when planning failed before session pages were created', async () => {
     const onContinueRemaining = vi.fn()
     const onRegenerate = vi.fn()
     const { container, unmount } = await renderPanel({
       isCancelling: false,
       onCancel: vi.fn(),
       status: 'failed',
-      hasGeneratedPages: false,
+      hasRetryablePages: false,
       onContinueRemaining,
       onRegenerate
     })
@@ -168,6 +169,35 @@ describe('GenerationStatusPanel', () => {
     try {
       const retryButton = Array.from(container.querySelectorAll('button')).find((button) =>
         button.textContent?.includes('Regenerate')
+      ) as HTMLButtonElement | undefined
+
+      expect(retryButton).toBeTruthy()
+      await act(async () => {
+        retryButton?.click()
+      })
+
+      expect(onContinueRemaining).not.toHaveBeenCalled()
+      expect(onRegenerate).toHaveBeenCalledWith('model-1')
+    } finally {
+      await unmount()
+    }
+  })
+
+  it('continues only the remaining pages when retryable session pages exist', async () => {
+    const onContinueRemaining = vi.fn()
+    const onRegenerate = vi.fn()
+    const { container, unmount } = await renderPanel({
+      isCancelling: false,
+      onCancel: vi.fn(),
+      status: 'failed',
+      hasRetryablePages: true,
+      onContinueRemaining,
+      onRegenerate
+    })
+
+    try {
+      const retryButton = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Continue')
       ) as HTMLButtonElement | undefined
 
       expect(retryButton).toBeTruthy()
