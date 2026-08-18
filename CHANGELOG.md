@@ -1,6 +1,15 @@
 # Amy-PPT Changelog
 
-## 1.0.2 (Unreleased)
+## 1.0.3 - 2026-08-18
+
+- Added GLM-5.2 reasoning-mode compatibility and fixed shutdown crashes.
+- Added automatic rate-limit backoff, configurable generation concurrency, and quota-aware failure reporting.
+- Switched model validation to streaming and raised the output-token ceiling to reduce truncated full-page generation.
+- Added an explicit image-placeholder mode with semantic replacement guidance.
+- Applied the five application themes to conversation creation, quick creation, and session workflows.
+- Added the reusable Windows GitHub release publishing script.
+
+## 1.0.2 (Not separately released; included in 1.0.3)
 
 - Restricted renderer IPC access to an explicit channel allowlist and hardened main-window and WebView navigation.
 - Kept stored text and image-model credentials in the main process and bound credential reuse to the original provider endpoint.

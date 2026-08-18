@@ -11,6 +11,8 @@
 
 Amy-PPT is an Electron desktop presentation workbench. Instead of asking a model to emit a collection of web pages in one pass, it runs a controlled workflow for planning, page generation, validated persistence, rollback, deck-level visual review, and narrative review.
 
+For the first-run workflow, see the [quick start guide](./QUICK_START.md) (Chinese).
+
 ![Amy-PPT home](docs/screenshots/amy-ppt-home.png)
 
 ## Highlights
@@ -46,7 +48,7 @@ pnpm test -- tests/unit/path/to/test.test.ts
 
 ## Updates
 
-Amy-PPT uses its own update manifest. The latest published version is 1.0.1; advance the manifest only after the 1.0.2 binaries are available:
+Amy-PPT uses its own update manifest. The current version is `1.0.3`:
 
 ```text
 https://raw.githubusercontent.com/296711867/Amy-PPT/main/version.json

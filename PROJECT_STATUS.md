@@ -3,14 +3,14 @@
 ## Current Release
 
 - Product: Amy-PPT
-- Development version: `1.0.2`
-- Published update manifest: `1.0.1`
+- Development version: `1.0.3`
+- Published update manifest: `1.0.3`
 - Repository: `https://github.com/296711867/Amy-PPT`
 - Stack: Electron 39, React 19, TypeScript, LangChain/Deep Agents, libSQL/Drizzle, Vitest
 
 ## Completed
 
-- Amy-PPT product identity, logo, application icons, README assets, and the `1.0.2` development version.
+- Amy-PPT product identity, logo, application icons, README assets, and the `1.0.3` release metadata.
 - Multiple UI themes with Warm Apricot Coral as the default.
 - Editable Layout Rules and expert Markdown layout configuration.
 - Universal layout catalog with 39 presentation compositions:
@@ -24,6 +24,7 @@
 - Electron IPC, navigation, WebView, and stored-credential security boundaries.
 - Staged export output with runtime compatibility refresh and failure cleanup.
 - CI checks for focused engineering health: node/web type checking and unit tests.
+- Quick-start documentation with current product screenshots and first-run guidance.
 
 ## Verification Policy
 
@@ -37,4 +38,5 @@
 - Collect real-deck evaluation results to tune layout routing and density budgets.
 - Expand image prompt planning from generic slot subjects to explicit per-slot visual briefs.
 - Supply licensed per-platform ffmpeg binaries when bundled MP4 export is required.
-- Prepare signed and notarized release artifacts, publish the `1.0.2` binaries, then atomically advance `version.json`.
+- Add Windows signing and macOS signing/notarization to the release process.
+- Add packaged-app installation, upgrade, native-module, and ffmpeg verification.

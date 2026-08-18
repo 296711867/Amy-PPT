@@ -19,8 +19,8 @@
 
 - `package.json` and `pnpm-lock.yaml`: package contract and reproducible dependency graph.
 - `electron-builder.yml`, `electron.vite.config.ts`, and TypeScript/PostCSS/Tailwind/Vitest configs: build and development configuration.
-- `README.md`, `README_EN.md`, `CHANGELOG.md`, `LICENSE`, and `NOTICE`: product documentation and legal attribution.
-- `version.json`: public update manifest for the latest published version (`1.0.1` until the `1.0.2` binaries are released).
+- `README.md`, `README_EN.md`, `QUICK_START.md`, `CHANGELOG.md`, `LICENSE`, and `NOTICE`: product documentation and legal attribution.
+- `version.json`: public update manifest for the current `1.0.3` release.
 
 ## Local-Only Outputs
 
@@ -28,7 +28,7 @@ The following are development or user-state artifacts and must not be committed:
 
 - `node_modules/`, `out/`, and `dist/`
 - `logs/` and root `*.log*` files
-- `*.db` local databases
+- `*.db` local databases and their `*.db-wal` / `*.db-shm` sidecars
 - TypeScript build-info files and ESLint caches
 
 These paths are covered by `.gitignore`. Database files can contain local sessions, provider settings, and other user data.

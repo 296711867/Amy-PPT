@@ -11,16 +11,15 @@ resources/ffmpeg/
 *.web.tsbuildinfo
 
 *.db
+*.db-wal
+*.db-shm
 
 *.tsbuildinfo
 
 logs
 
-docs/*.md
 docs/.DS_Store
-docs/design/*
 
-doc/*
 doc/*
 
 patch/*

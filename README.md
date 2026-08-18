@@ -11,6 +11,8 @@
 
 Amy-PPT 是一款 Electron 桌面端演示文稿工作台。它不是让模型一次性吐出一组网页，而是用受控 Agent 流程完成大纲规划、页面生成、写盘校验、失败回滚、跨页视觉检查和内容叙事检查。
 
+第一次使用请参阅 [快速使用指南](./QUICK_START.md)。
+
 ![Amy-PPT 首页](docs/screenshots/amy-ppt-home.png)
 
 ## 核心能力
@@ -64,7 +66,7 @@ pnpm test -- tests/unit/path/to/test.test.ts
 
 ## 更新发布
 
-Amy-PPT 使用独立更新清单。当前已发布版本为 `1.0.1`，`1.0.2` 安装包发布后再同步提升清单：
+Amy-PPT 使用独立更新清单。当前版本为 `1.0.3`：
 
 ```text
 https://raw.githubusercontent.com/296711867/Amy-PPT/main/version.json
@@ -80,8 +82,8 @@ AMY_PPT_UPDATE_MANIFEST_URL=https://your-domain.example/version.json
 
 ```json
 {
-  "version": "1.0.2",
-  "downloadhome": "https://github.com/296711867/Amy-PPT/releases/tag/v1.0.2",
+  "version": "1.0.3",
+  "downloadhome": "https://github.com/296711867/Amy-PPT/releases",
   "changeLog": "本次更新内容"
 }
 ```
