@@ -36,7 +36,14 @@ const readGlobalTimeouts = (
     ])
   ) as Record<ConfigurableModelTimeoutProfile, number>
 
-const VALID_PROVIDERS = ['anthropic', 'openai', 'openai-responses', 'google', 'zhipu'] as const
+const VALID_PROVIDERS = [
+  'anthropic',
+  'openai',
+  'openai-responses',
+  'google',
+  'zhipu',
+  'deepseek'
+] as const
 type Provider = (typeof VALID_PROVIDERS)[number]
 const normalizeProvider = (provider: unknown): Provider =>
   VALID_PROVIDERS.includes(provider as Provider) ? (provider as Provider) : 'openai'
@@ -472,7 +479,7 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       } catch (error) {
         if (
           resolvedThinkingParameterMode === 'auto' &&
-          (provider === 'openai' || provider === 'zhipu') &&
+          (provider === 'openai' || provider === 'zhipu' || provider === 'deepseek') &&
           requestedBaseUrl.length > 0 &&
           isMandatoryThinkingError(error)
         ) {

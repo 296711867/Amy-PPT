@@ -40,8 +40,9 @@ export function resolveModel(
   const resolvedMaxTokens = maxTokens && maxTokens > 0 ? maxTokens : 4096
   const useOpenAIResponsesApi = isOpenAIResponsesProvider(provider)
   const isZhipuProvider = provider === 'zhipu'
+  const isDeepSeekProvider = provider === 'deepseek'
   const openAIProtocol =
-    provider === 'openai' || isZhipuProvider
+    provider === 'openai' || isZhipuProvider || isDeepSeekProvider
       ? 'chat-completions'
       : useOpenAIResponsesApi
         ? 'responses'
@@ -100,6 +101,20 @@ export function resolveModel(
           // GLM-4.5/4.6 may otherwise consume the whole output budget as hidden
           // reasoning and leave message.content empty during JSON generation.
           // Keep the explicit "omit" setting available for older gateways.
+          thinkingParameterMode
+        }),
+        callbacks: [usageCallback]
+      })
+    case 'deepseek':
+      // DeepSeek 官方 OpenAI 兼容端点 https://api.deepseek.com，
+      // 模型 deepseek-v4-flash / deepseek-v4-pro；thinking 参数按用户设置透传。
+      return new ChatOpenAICompletions({
+        ...buildOpenAIModelOptions({
+          model: resolvedModel,
+          apiKey,
+          baseUrl: resolvedBaseUrl,
+          temperatureOptions,
+          maxTokens: resolvedMaxTokens,
           thinkingParameterMode
         }),
         callbacks: [usageCallback]

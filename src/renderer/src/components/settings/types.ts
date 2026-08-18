@@ -3,7 +3,13 @@ import type { ThinkingParameterMode } from '@shared/model-config.js'
 import type { I18nKey, TranslationParams } from '../../i18n'
 import type { ImageModelProvider } from '../../lib/ipc'
 
-export type ProviderId = 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu'
+export type ProviderId =
+  | 'anthropic'
+  | 'openai'
+  | 'openai-responses'
+  | 'google'
+  | 'zhipu'
+  | 'deepseek'
 
 export type SettingsTranslate = (key: I18nKey, params?: TranslationParams) => string
 

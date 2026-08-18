@@ -101,7 +101,8 @@ export function ModelConfigDialog({
                     value === 'anthropic' ||
                     value === 'google' ||
                     value === 'openai-responses' ||
-                    value === 'zhipu'
+                    value === 'zhipu' ||
+                    value === 'deepseek'
                       ? value
                       : 'openai'
                   const patch: Partial<ModelForm> = { provider: nextProvider }
@@ -112,6 +113,15 @@ export function ModelConfigDialog({
                     }
                     if (!form.model.trim()) {
                       patch.model = 'glm-4.6'
+                    }
+                  }
+                  if (nextProvider === 'deepseek') {
+                    // DeepSeek 官方 OpenAI 兼容端点（已有值则保留）
+                    if (!form.baseUrl.trim()) {
+                      patch.baseUrl = 'https://api.deepseek.com'
+                    }
+                    if (!form.model.trim()) {
+                      patch.model = 'deepseek-v4-pro'
                     }
                   }
                   onFormChange(patch)
@@ -130,6 +140,7 @@ export function ModelConfigDialog({
                   </SelectItem>
                   <SelectItem value="google">Google Gemini</SelectItem>
                   <SelectItem value="zhipu">{t('settings.providerZhipu')}</SelectItem>
+                  <SelectItem value="deepseek">DeepSeek</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -168,7 +179,9 @@ export function ModelConfigDialog({
                   ? t('settings.baseUrlHintGoogle')
                   : form.provider === 'zhipu'
                     ? t('settings.baseUrlHintZhipu')
-                    : t('settings.baseUrlHint')}
+                    : form.provider === 'deepseek'
+                      ? t('settings.baseUrlHintDeepSeek')
+                      : t('settings.baseUrlHint')}
               </p>
             </div>
           </div>
@@ -185,7 +198,9 @@ export function ModelConfigDialog({
                       ? 'Google'
                       : form.provider === 'zhipu'
                         ? '智谱 GLM'
-                        : 'Claude'
+                        : form.provider === 'deepseek'
+                          ? 'DeepSeek'
+                          : 'Claude'
               })}
               value={form.apiKey}
               onChange={(e) => onFormChange({ apiKey: e.target.value })}
@@ -231,7 +246,9 @@ export function ModelConfigDialog({
             />
           </div>
 
-          {(form.provider === 'openai' || form.provider === 'zhipu') && (
+          {(form.provider === 'openai' ||
+            form.provider === 'zhipu' ||
+            form.provider === 'deepseek') && (
             <div className="rounded-lg border border-[#e3d8c5] bg-[#fffdf8]/70 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <span className="min-w-0">

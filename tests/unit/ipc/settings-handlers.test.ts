@@ -903,6 +903,31 @@ describe('registerSettingsHandlers model temperature settings', () => {
     )
   })
 
+  it('accepts the DeepSeek provider when saving a model config', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-deepseek')
+    const { getHandler } = await registerWithDb({ upsertModelConfig })
+
+    const saveModelConfig = getHandler('settings:upsertModelConfig')
+    await saveModelConfig?.(undefined, {
+      name: 'DeepSeek V4',
+      provider: 'deepseek',
+      model: 'deepseek-v4-pro',
+      apiKey: 'secret',
+      baseUrl: 'https://api.deepseek.com',
+      maxTokens: 4096,
+      disableTemperature: false,
+      thinkingParameterMode: 'auto'
+    })
+
+    expect(upsertModelConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'deepseek',
+        model: 'deepseek-v4-pro',
+        baseUrl: 'https://api.deepseek.com'
+      })
+    )
+  })
+
   it('normalizes an unknown provider back to openai', async () => {
     const upsertModelConfig = vi.fn(async () => 'model-x')
     const { getHandler } = await registerWithDb({ upsertModelConfig })

@@ -206,6 +206,13 @@ export const en = {
     topicPlaceholder: 'Example: 2026 AI Agent product roadmap',
     style: 'Style',
     stylePlaceholder: 'Select style',
+    styleModePreset: 'Built-in style',
+    styleModeAi: 'AI custom',
+    aiStyleDescription: 'Style direction',
+    aiStyleDescriptionPlaceholder:
+      'Example: A restrained technology editorial look with generous whitespace, clear hierarchy, fine rules, and limited geometric accents. Do not reuse a fixed preset.',
+    aiThemeColors: 'Theme colors',
+    aiThemeColor: 'Color {index}',
     fontScheme: 'Font scheme',
     fontSchemeAuto: 'Auto match',
     fontSchemeAutoHint: 'AI will choose title and body fonts based on the topic and style.',
@@ -283,6 +290,8 @@ export const en = {
     validationStylesLoading: 'Styles are still loading. Please try again shortly.',
     validationStyle: 'Please select a style.',
     validationStyleMissing: 'The selected style no longer exists. Please choose again.',
+    validationAiStyleDescription: 'Please describe the AI custom style.',
+    validationAiThemeColors: 'Keep at least one valid theme color.',
     validationPageCount: 'Please enter page count ({min}-{max}).',
     validationPageCountNumber: 'Page count must be a number.',
     validationPageCountRange: 'Page count must be between {min} and {max}.',
@@ -558,6 +567,8 @@ export const en = {
     providerOpenAIChatCompletions: 'OpenAI / compatible Chat Completions',
     providerOpenAIResponses: 'OpenAI Responses',
     providerZhipu: 'Zhipu GLM',
+    baseUrlHintDeepSeek:
+      'Defaults to the official DeepSeek OpenAI-compatible endpoint https://api.deepseek.com ; use deepseek-v4-pro or deepseek-v4-flash as the model. The thinking parameter can be set below.',
     modelHint: 'Any compatible model name for this provider is accepted.',
     imageModelConfigLabel: 'Model config',
     apiKeyPreserveHint:
