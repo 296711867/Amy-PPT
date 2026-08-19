@@ -30,7 +30,7 @@ import {
   type SessionPageEditPlan,
   type SelectedElementRuntimeContext
 } from '@shared/generation'
-import { resolveModel } from '../agent-runtime/model'
+import { resolveModel, scopeModelRuntimeToSession } from '../agent-runtime/model'
 import { runWithModelTemperatureControl } from '../agent-runtime/model'
 import { resolveModelTimeoutMs } from '@shared/model-timeout'
 import { resolveGlobalModelTimeouts, resolveModelConfigForTask } from '../config/model-config-utils'
@@ -224,7 +224,7 @@ export async function assessPageEdit(
       activeModel.baseUrl,
       0.2,
       activeModel.maxTokens,
-      ctx.modelRuntime
+      scopeModelRuntimeToSession(ctx.modelRuntime, input.sessionId)
     )
   )
   const assessmentRecorder = createSessionPageEditAssessmentTool()

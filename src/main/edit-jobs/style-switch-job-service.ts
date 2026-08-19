@@ -267,7 +267,7 @@ export class StyleSwitchJobService {
         model: context.model,
         baseUrl: context.providerBaseUrl,
         maxTokens: context.maxTokens,
-        modelRuntime: this.ctx.modelRuntime,
+        modelRuntime: context.modelRuntime,
         modelTimeoutMs: context.modelTimeouts.design,
         temperature: this.ctx.DESIGN_CONTRACT_TEMPERATURE,
         styleId: context.styleId,

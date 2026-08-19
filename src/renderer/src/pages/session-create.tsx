@@ -29,6 +29,11 @@ import {
   type FontSelection,
   type ParsedDocumentPlanResult
 } from '@shared/generation'
+import {
+  buildSessionStyleSelection,
+  DEFAULT_AI_THEME_COLORS,
+  normalizeAiStyleDescription
+} from '@renderer/lib/ai-style-selection'
 import { useT } from '../i18n'
 import ReactMarkdown from 'react-markdown'
 import { isSupportedImageMimeType } from '@shared/image-mime'
@@ -107,8 +112,14 @@ export function SessionCreatePage(): ReactElement {
   const [slideSizeId, setSlideSizeId] = useState<SlideSizePresetId>(DEFAULT_SLIDE_SIZE_ID)
   const [generateImagesWithAi, setGenerateImagesWithAi] = useState(false)
   const [generateDeckBackgrounds, setGenerateDeckBackgrounds] = useState(false)
+  const [generateCoverBackground, setGenerateCoverBackground] = useState(true)
+  const [generateContentBackgrounds, setGenerateContentBackgrounds] = useState(true)
+  const [generateEndingBackground, setGenerateEndingBackground] = useState(true)
   const [contentBackgroundCount, setContentBackgroundCount] = useState<'1' | '2' | '3'>('1')
+  const [styleMode, setStyleMode] = useState<'preset' | 'ai'>('preset')
   const [selectedStyleId, setSelectedStyleId] = useState('')
+  const [aiStyleDescription, setAiStyleDescription] = useState('')
+  const [aiThemeColors, setAiThemeColors] = useState<string[]>([...DEFAULT_AI_THEME_COLORS])
   const [fontSelection, setFontSelection] = useState<FontSelection>({ mode: 'auto' })
   const [styleOptions, setStyleOptions] = useState<
     Array<{
@@ -141,10 +152,23 @@ export function SessionCreatePage(): ReactElement {
     const topicText = topic.trim()
     if (!topicText) return t('home.validationTopic')
 
-    if (!styleOptions.length) return t('home.validationStylesLoading')
-    if (!selectedStyleId) return t('home.validationStyle')
-    const selectedStyle = styleOptions.find((option) => option.id === selectedStyleId)
-    if (!selectedStyle) return t('home.validationStyleMissing')
+    if (styleMode === 'preset') {
+      if (!styleOptions.length) return t('home.validationStylesLoading')
+      if (!selectedStyleId) return t('home.validationStyle')
+      const selectedStyle = styleOptions.find((option) => option.id === selectedStyleId)
+      if (!selectedStyle) return t('home.validationStyleMissing')
+    } else if (!normalizeAiStyleDescription(aiStyleDescription)) {
+      return t('home.validationAiStyleDescription')
+    } else if (
+      !buildSessionStyleSelection({
+        mode: 'ai',
+        styleId: '',
+        description: aiStyleDescription,
+        themeColors: aiThemeColors
+      })
+    ) {
+      return t('home.validationAiThemeColors')
+    }
 
     const pageCountText = pageCount.trim()
     if (!pageCountText)
@@ -173,7 +197,18 @@ export function SessionCreatePage(): ReactElement {
     const topicText = topic.trim()
     const pageCountText = pageCount.trim()
     const briefText = brief.trim()
-    if (!topicText || !selectedStyleId || !selectedModelConfigId || !briefText) return false
+    const hasStyle =
+      styleMode === 'preset'
+        ? Boolean(selectedStyleId)
+        : Boolean(
+            buildSessionStyleSelection({
+              mode: 'ai',
+              styleId: '',
+              description: aiStyleDescription,
+              themeColors: aiThemeColors
+            })
+          )
+    if (!topicText || !hasStyle || !selectedModelConfigId || !briefText) return false
     if (!/^\d+$/.test(pageCountText)) return false
     const n = Number.parseInt(pageCountText, 10)
     return n >= MIN_PAGE_COUNT && n <= MAX_PAGE_COUNT
@@ -244,7 +279,14 @@ export function SessionCreatePage(): ReactElement {
       warning(t('home.completeInfoTitle'), { description: validationError })
       return
     }
-    const selectedStyle = styleOptions.find((option) => option.id === selectedStyleId)!
+    const selectedStyle = styleOptions.find((option) => option.id === selectedStyleId)
+    const styleSelection = buildSessionStyleSelection({
+      mode: styleMode,
+      styleId: selectedStyleId,
+      description: aiStyleDescription,
+      themeColors: aiThemeColors
+    })
+    if (!styleSelection) return
     const topicText = topic.trim()
     const briefText = brief.trim()
     const safePageCount = Number.parseInt(pageCount.trim(), 10)
@@ -253,7 +295,10 @@ export function SessionCreatePage(): ReactElement {
       buildNeutralInitialPrompt({
         topic: topicText || 'Untitled topic',
         pageCount: safePageCount,
-        styleLabel: selectedStyle.label
+        styleLabel:
+          styleSelection.mode === 'preset'
+            ? selectedStyle?.label || styleSelection.styleId
+            : 'AI-generated session style'
       })
 
     setSubmitting(true)
@@ -262,7 +307,7 @@ export function SessionCreatePage(): ReactElement {
       if (!resolvedModelConfigId) return
       const sessionId = await createSession({
         topic: topicText,
-        styleId: selectedStyleId,
+        styleSelection,
         modelConfigId: resolvedModelConfigId,
         pageCount: safePageCount,
         slideSizeId,
@@ -272,6 +317,9 @@ export function SessionCreatePage(): ReactElement {
         imagePolicy: generateImagesWithAi ? 'ai' : 'placeholder',
         deckBackgroundPolicy: {
           enabled: generateDeckBackgrounds,
+          coverEnabled: generateCoverBackground,
+          contentEnabled: generateContentBackgrounds,
+          endingEnabled: generateEndingBackground,
           contentBackgroundCount: Number(contentBackgroundCount) as 1 | 2 | 3
         }
       })
@@ -780,16 +828,82 @@ export function SessionCreatePage(): ReactElement {
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_88px] lg:grid-cols-[minmax(0,1fr)_82px]">
                     <div>
                       <label className="mb-2 block">{t('home.style')}</label>
-                      <StyleSelect
-                        value={selectedStyleId}
-                        onChange={setSelectedStyleId}
-                        options={styleOptions}
-                        placeholder={t('home.stylePlaceholder')}
-                        compact
-                        className="h-8 border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/90 px-2.5 py-1.5 text-xs shadow-none"
-                        dropdownAlign="end"
-                        dropdownClassName="w-[min(700px,calc(100vw-3rem))]"
-                      />
+                      <div
+                        role="radiogroup"
+                        aria-label={t('home.style')}
+                        className="mb-2 grid grid-cols-2 gap-1 rounded-lg border border-[var(--ui-border-strong)]/70 bg-[var(--ui-surface-inset)]/70 p-1"
+                      >
+                        {(['preset', 'ai'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={styleMode === mode}
+                            onClick={() => setStyleMode(mode)}
+                            className={`h-7 rounded-md px-2 text-[11px] font-medium transition-colors ${
+                              styleMode === mode
+                                ? 'bg-[var(--ui-surface-solid)] text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:bg-[var(--ui-hover)] hover:text-foreground'
+                            }`}
+                          >
+                            {mode === 'preset' ? t('home.styleModePreset') : t('home.styleModeAi')}
+                          </button>
+                        ))}
+                      </div>
+
+                      {styleMode === 'preset' ? (
+                        <StyleSelect
+                          value={selectedStyleId}
+                          onChange={setSelectedStyleId}
+                          options={styleOptions}
+                          placeholder={t('home.stylePlaceholder')}
+                          compact
+                          className="h-8 border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)]/90 px-2.5 py-1.5 text-xs shadow-none"
+                          dropdownAlign="end"
+                          dropdownClassName="w-[min(700px,calc(100vw-3rem))]"
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={aiStyleDescription}
+                            onChange={(event) => setAiStyleDescription(event.target.value)}
+                            maxLength={2000}
+                            rows={3}
+                            placeholder={t('home.aiStyleDescriptionPlaceholder')}
+                            aria-label={t('home.aiStyleDescription')}
+                            className="soft-input min-h-[76px] w-full resize-y rounded-lg px-2.5 py-2 text-xs leading-5 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                          <div>
+                            <span className="mb-1.5 block text-[11px] font-medium">
+                              {t('home.aiThemeColors')}
+                            </span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {aiThemeColors.map((color, index) => (
+                                <label
+                                  key={index}
+                                  className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-[var(--ui-surface-solid)]/70 px-1.5 py-1"
+                                >
+                                  <input
+                                    type="color"
+                                    value={color}
+                                    aria-label={t('home.aiThemeColor', { index: index + 1 })}
+                                    data-ai-theme-color={index}
+                                    onChange={(event) => {
+                                      const next = [...aiThemeColors]
+                                      next[index] = event.target.value
+                                      setAiThemeColors(next)
+                                    }}
+                                    className="h-6 w-7 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+                                  />
+                                  <span className="truncate font-mono text-[10px] text-muted-foreground">
+                                    {color.toUpperCase()}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -900,8 +1014,8 @@ export function SessionCreatePage(): ReactElement {
                   </div>
                 </section>
 
-                <section>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--ui-border-strong)]/70 bg-white/55 p-3">
+                <section className="rounded-md border border-[var(--ui-border-strong)]/70 bg-white/55 p-3">
+                  <label className="flex cursor-pointer items-start gap-3">
                     <Checkbox
                       checked={generateDeckBackgrounds}
                       onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
@@ -914,13 +1028,45 @@ export function SessionCreatePage(): ReactElement {
                       <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                         {t('home.generateDeckBackgroundsHint')}
                       </span>
-                      {generateDeckBackgrounds ? (
-                        <span
-                          className="mt-3 flex items-center gap-2"
-                          onClick={(event) => event.preventDefault()}
-                        >
+                    </span>
+                  </label>
+                  {generateDeckBackgrounds ? (
+                    <div className="mt-3 border-t border-border pt-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                          <Checkbox
+                            checked={generateCoverBackground}
+                            onCheckedChange={(checked) =>
+                              setGenerateCoverBackground(checked === true)
+                            }
+                          />
+                          <span className="min-w-0 leading-4">{t('home.coverBackground')}</span>
+                        </label>
+                        <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                          <Checkbox
+                            checked={generateContentBackgrounds}
+                            onCheckedChange={(checked) =>
+                              setGenerateContentBackgrounds(checked === true)
+                            }
+                          />
+                          <span className="min-w-0 leading-4">
+                            {t('home.contentPageBackground')}
+                          </span>
+                        </label>
+                        <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                          <Checkbox
+                            checked={generateEndingBackground}
+                            onCheckedChange={(checked) =>
+                              setGenerateEndingBackground(checked === true)
+                            }
+                          />
+                          <span className="min-w-0 leading-4">{t('home.endingBackground')}</span>
+                        </label>
+                      </div>
+                      {generateContentBackgrounds ? (
+                        <div className="mt-3 flex items-center gap-2">
                           <span className="text-[11px] text-muted-foreground">
-                            {t('home.contentBackgroundCount')}
+                            {t('home.contentBackgroundVariants')}
                           </span>
                           <Select
                             value={contentBackgroundCount}
@@ -932,15 +1078,17 @@ export function SessionCreatePage(): ReactElement {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1">1</SelectItem>
-                              <SelectItem value="2">2</SelectItem>
-                              <SelectItem value="3">3</SelectItem>
+                              {(['1', '2', '3'] as const).map((count) => (
+                                <SelectItem key={count} value={count}>
+                                  {t('home.contentBackgroundVariantOption', { count })}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
-                        </span>
+                        </div>
                       ) : null}
-                    </span>
-                  </label>
+                    </div>
+                  ) : null}
                 </section>
 
                 <section>

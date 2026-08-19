@@ -27,10 +27,9 @@ import {
 } from './index-transition'
 import { warmSessionFirstPageThumbnails } from './session-thumbnail'
 import { createSessionMasterIfMissing } from './master-service'
-import {
-  hasCompleteSessionPageCoverage,
-  recoverUsableSessionPages
-} from './page-status-recovery'
+import { buildAiSessionStyleSnapshot, normalizeAiStyleSelection } from './ai-style'
+import { hasCompleteSessionPageCoverage, recoverUsableSessionPages } from './page-status-recovery'
+import { scopeModelRuntimeToSession } from '../agent-runtime/model'
 
 const THINKING_ID_RE = /^[a-zA-Z0-9_-]{6,32}$/
 const THINKING_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
@@ -97,7 +96,11 @@ export const cleanupPendingSessionDeletionDirs = async (storagePath: string): Pr
     }
     const candidate = path.join(storageRoot, entry.name)
     const realCandidate = await fs.promises.realpath(candidate).catch(() => '')
-    if (!realCandidate || !isPathInside(realCandidate, storageRoot) || realCandidate === storageRoot) {
+    if (
+      !realCandidate ||
+      !isPathInside(realCandidate, storageRoot) ||
+      realCandidate === storageRoot
+    ) {
       continue
     }
     const markerPath = path.join(realCandidate, DELETE_COMMITTED_MARKER)
@@ -110,7 +113,10 @@ export const cleanupPendingSessionDeletionDirs = async (storagePath: string): Pr
 }
 
 const toSafeAssetName = (value: string): string =>
-  value.replace(/[\\/:"*?<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'image'
+  value
+    .replace(/[\\/:"*?<>|]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'image'
 
 const detectThinkingWorkspaceDir = (storageRoot: string, referencePath: string): string | null => {
   if (path.basename(referencePath) !== 'thinking.md') return null
@@ -124,7 +130,9 @@ const detectThinkingWorkspaceDir = (storageRoot: string, referencePath: string):
 const copyThinkingAssetsToSession = async (
   thinkingDir: string,
   projectDir: string
-): Promise<Array<{ fileName: string; sourcePath: string; targetPath: string; publicPath: string }>> => {
+): Promise<
+  Array<{ fileName: string; sourcePath: string; targetPath: string; publicPath: string }>
+> => {
   const assetsDir = path.join(thinkingDir, 'assets')
   if (!fs.existsSync(assetsDir)) return []
   const imagesDir = path.join(projectDir, 'images')
@@ -132,7 +140,12 @@ const copyThinkingAssetsToSession = async (
   allowLocalAssetRoot(imagesDir)
 
   const entries = await fs.promises.readdir(assetsDir, { withFileTypes: true })
-  const copied: Array<{ fileName: string; sourcePath: string; targetPath: string; publicPath: string }> = []
+  const copied: Array<{
+    fileName: string
+    sourcePath: string
+    targetPath: string
+    publicPath: string
+  }> = []
   for (const entry of entries) {
     if (!entry.isFile()) continue
     const ext = path.extname(entry.name).toLowerCase()
@@ -153,7 +166,12 @@ const copyThinkingAssetsToSession = async (
 
 const rewriteThinkingSourceForSession = (
   content: string,
-  copiedAssets: Array<{ fileName: string; sourcePath: string; targetPath: string; publicPath: string }>
+  copiedAssets: Array<{
+    fileName: string
+    sourcePath: string
+    targetPath: string
+    publicPath: string
+  }>
 ): string => {
   let rewritten = content
   for (const asset of copiedAssets) {
@@ -219,7 +237,11 @@ const rewriteThinkingWorkspaceArchivePaths = async (
       }
       if (!entry.isFile() || !isRewriteableThinkingArchiveFile(filePath)) return
       const content = await fs.promises.readFile(filePath, 'utf-8')
-      const rewritten = rewriteThinkingWorkspaceArchiveContent(content, thinkingDir, archivedThinkingDir)
+      const rewritten = rewriteThinkingWorkspaceArchiveContent(
+        content,
+        thinkingDir,
+        archivedThinkingDir
+      )
       if (rewritten !== content) {
         await fs.promises.writeFile(filePath, rewritten, 'utf-8')
       }
@@ -227,7 +249,10 @@ const rewriteThinkingWorkspaceArchivePaths = async (
   )
 }
 
-const copyThinkingWorkspaceToSession = async (thinkingDir: string, projectDir: string): Promise<void> => {
+const copyThinkingWorkspaceToSession = async (
+  thinkingDir: string,
+  projectDir: string
+): Promise<void> => {
   const targetDir = path.join(projectDir, 'thinking')
   if (fs.existsSync(targetDir)) {
     await fs.promises.rm(targetDir, { recursive: true, force: true })
@@ -277,7 +302,11 @@ const createThinkingReferenceDocument = async (args: {
       const sourcePath = path.join(sourcesDir, entry.name)
       const content = await fs.promises.readFile(sourcePath, 'utf-8')
       sourceSections.push(
-        [`## Source: ${entry.name}`, '', rewriteThinkingSourceForSession(content, copiedAssets)].join('\n')
+        [
+          `## Source: ${entry.name}`,
+          '',
+          rewriteThinkingSourceForSession(content, copiedAssets)
+        ].join('\n')
       )
     }
   }
@@ -362,7 +391,8 @@ export function registerSessionHandlers(
   }
 
   ipcMain.handle('session:getIndexTransition', async (_event, payload: unknown) => {
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
+    const record =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
     const sessionId =
       typeof record.sessionId === 'string' && record.sessionId.trim().length > 0
         ? record.sessionId.trim()
@@ -376,7 +406,8 @@ export function registerSessionHandlers(
   })
 
   ipcMain.handle('session:setIndexTransition', async (_event, payload: unknown) => {
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
+    const record =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
     const sessionId =
       typeof record.sessionId === 'string' && record.sessionId.trim().length > 0
         ? record.sessionId.trim()
@@ -426,8 +457,30 @@ export function registerSessionHandlers(
   })
 
   ipcMain.handle('session:create', async (_event, payload) => {
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
-    const { topic, styleId } = record
+    const record =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
+    const selectionRecord =
+      record.styleSelection &&
+      typeof record.styleSelection === 'object' &&
+      !Array.isArray(record.styleSelection)
+        ? (record.styleSelection as Record<string, unknown>)
+        : null
+    const aiStyleSelection = normalizeAiStyleSelection(
+      selectionRecord?.mode === 'ai'
+        ? selectionRecord
+        : record.styleMode === 'ai'
+          ? {
+              mode: 'ai',
+              description: record.styleDescription,
+              themeColors: record.themeColors
+            }
+          : null
+    )
+    const requestedAiMode = selectionRecord?.mode === 'ai' || record.styleMode === 'ai'
+    const { topic } = record
+    const requestedStyleId =
+      (typeof record.styleId === 'string' ? record.styleId : undefined) ||
+      (typeof selectionRecord?.styleId === 'string' ? selectionRecord.styleId : undefined)
     const pageCount = normalizeRequestedPageCount(record.pageCount)
     const slideSize = requireSlideSizePreset(record.slideSizeId)
     const fontSelection = normalizeFontSelection(record.fontSelection)
@@ -447,8 +500,17 @@ export function registerSessionHandlers(
     const { provider, model } = activeModel
     const baseUrl = activeModel.baseUrl
     const normalizedTopic = typeof topic === 'string' && topic.trim() ? topic.trim() : 'Untitled'
-    const normalizedStyleId = typeof styleId === 'string' ? styleId.trim() : ''
-    if (!normalizedStyleId) {
+    const normalizedStyleId = typeof requestedStyleId === 'string' ? requestedStyleId.trim() : ''
+    if (requestedAiMode && !aiStyleSelection) {
+      throw new Error(
+        uiText(
+          locale,
+          '创建会话失败：AI 自定义风格描述不能为空。',
+          'Failed to create session: an AI style description is required.'
+        )
+      )
+    }
+    if (!aiStyleSelection && !normalizedStyleId) {
       throw new Error(
         uiText(
           locale,
@@ -457,7 +519,7 @@ export function registerSessionHandlers(
         )
       )
     }
-    if (!hasStyleSkill(normalizedStyleId)) {
+    if (!aiStyleSelection && !hasStyleSkill(normalizedStyleId)) {
       throw new Error(
         uiText(
           locale,
@@ -530,12 +592,28 @@ export function registerSessionHandlers(
       }
       const sessionReferenceDocumentPath = await copyReferenceDocumentToSession()
 
-      const styleDetail = getStyleDetail(normalizedStyleId)
+      const customStyleSnapshot = aiStyleSelection
+        ? buildAiSessionStyleSnapshot({
+            sessionId,
+            selection: aiStyleSelection,
+            topic: normalizedTopic,
+            sourcePlan,
+            referenceDocumentPath: sessionReferenceDocumentPath
+          })
+        : undefined
+      const effectiveStyleId = customStyleSnapshot?.styleId || normalizedStyleId
+      const styleDetail = customStyleSnapshot
+        ? {
+            styleKey: customStyleSnapshot.styleKey,
+            label: customStyleSnapshot.styleNameZh || customStyleSnapshot.styleName
+          }
+        : getStyleDetail(normalizedStyleId)
       log.info('[session:create] style selected', {
         sessionId,
-        styleId: normalizedStyleId,
+        styleId: effectiveStyleId,
         styleKey: styleDetail.styleKey,
-        styleLabel: styleDetail.label
+        styleLabel: styleDetail.label,
+        mode: customStyleSnapshot ? 'ai' : 'preset'
       })
 
       try {
@@ -543,7 +621,8 @@ export function registerSessionHandlers(
           id: sessionId,
           title: `PPT: ${normalizedTopic}`,
           topic: normalizedTopic,
-          styleId: normalizedStyleId,
+          styleId: effectiveStyleId,
+          styleSnapshot: customStyleSnapshot,
           pageCount,
           slideSizeId: slideSize.id,
           slideWidth: slideSize.width,
@@ -573,7 +652,7 @@ export function registerSessionHandlers(
         model,
         baseUrl,
         projectDir,
-        modelRuntime: ctx.modelRuntime
+        modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, sessionId)
       })
       if (sourcePlan && sessionReferenceDocumentPath) {
         const sourcePlanItems = isThinkingSource
@@ -593,6 +672,7 @@ export function registerSessionHandlers(
         })
       }
       await db.updateSessionMetadata(sessionId, {
+        ...(aiStyleSelection ? { styleSelection: aiStyleSelection } : {}),
         fontSelection,
         imagePolicy,
         deckBackgroundPolicy,
@@ -759,18 +839,14 @@ export function registerSessionHandlers(
           db,
           sessionId,
           pages: sessionPages,
-          resolveHtmlPath: (page) =>
-            resolvePageHtmlPath(projectDir, page.file_slug, page.html_path)
+          resolveHtmlPath: (page) => resolvePageHtmlPath(projectDir, page.file_slug, page.html_path)
         })
     sessionPages = recovered.pages
     const expectedPageCount = Math.max(
       Number(session.page_count) || 0,
       Number(latestRun?.total_pages) || 0
     )
-    const recoveredAllPages = hasCompleteSessionPageCoverage(
-      sessionPages,
-      expectedPageCount
-    )
+    const recoveredAllPages = hasCompleteSessionPageCoverage(sessionPages, expectedPageCount)
     if (recovered.recoveredPageIds.length > 0) {
       log.info('[session:get] recovered usable interrupted pages', {
         sessionId,
@@ -905,7 +981,12 @@ export function registerSessionHandlers(
         }
         return { success: true }
       } catch (error) {
-        if (!dbCommitted && stagedProjectDir && originalProjectDir && fs.existsSync(stagedProjectDir)) {
+        if (
+          !dbCommitted &&
+          stagedProjectDir &&
+          originalProjectDir &&
+          fs.existsSync(stagedProjectDir)
+        ) {
           try {
             await fs.promises.rename(stagedProjectDir, originalProjectDir)
           } catch (restoreError) {

@@ -14,6 +14,7 @@ export interface ModelUsageEntry extends ExtractedModelUsage {
   provider: string
   model: string
   modelConfigId?: string
+  sessionId?: string
 }
 
 /** Application-provided persistence capability. Runtime never imports a database implementation. */
@@ -23,7 +24,16 @@ export interface ModelUsageRecorder {
 
 export interface ModelRuntimeConfig {
   recorder: ModelUsageRecorder | null
+  sessionId?: string
 }
+
+export const scopeModelRuntimeToSession = (
+  runtime: ModelRuntimeConfig,
+  sessionId: string
+): ModelRuntimeConfig => ({
+  ...runtime,
+  sessionId: sessionId.trim() || undefined
+})
 
 type UnknownRecord = Record<string, unknown>
 
@@ -120,6 +130,7 @@ export class ModelUsageCallbackHandler extends BaseCallbackHandler {
       provider: string
       model: string
       modelConfigId?: string
+      sessionId?: string
     },
     private readonly recorder: ModelUsageRecorder | null
   ) {

@@ -8,7 +8,7 @@ import { resolveModelTimeoutMs } from '@shared/model-timeout'
 import type { SpeechLength, SpeechStyle } from '@shared/speech'
 import type { IpcContext } from '../ipc/context'
 import { resolveGlobalModelTimeouts, resolveModelConfigForTask } from '../config/model-config-utils'
-import { extractModelText, resolveModel } from '../agent-runtime/model'
+import { extractModelText, resolveModel, scopeModelRuntimeToSession } from '../agent-runtime/model'
 import { readAppLocale, uiText } from '../config/locale-utils'
 
 const SPEECH_DIR = 'speech'
@@ -274,7 +274,7 @@ export function registerSpeechHandlers(ctx: IpcContext): void {
         modelConfig.baseUrl,
         0.7,
         modelConfig.maxTokens,
-        ctx.modelRuntime
+        scopeModelRuntimeToSession(ctx.modelRuntime, sessionId)
       )
 
       const lengthInstruction = buildLengthInstruction(length, isZh)

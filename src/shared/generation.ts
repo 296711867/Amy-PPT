@@ -124,6 +124,9 @@ export type DeckBackgroundWhitespace =
 
 export interface DeckBackgroundPolicy {
   enabled: boolean
+  coverEnabled: boolean
+  contentEnabled: boolean
+  endingEnabled: boolean
   contentBackgroundCount: 1 | 2 | 3
 }
 
@@ -142,6 +145,9 @@ export interface DeckBackgroundManifest {
 
 export const DEFAULT_DECK_BACKGROUND_POLICY: DeckBackgroundPolicy = {
   enabled: false,
+  coverEnabled: true,
+  contentEnabled: true,
+  endingEnabled: true,
   contentBackgroundCount: 1
 }
 
@@ -151,10 +157,20 @@ export const normalizeDeckBackgroundPolicy = (value: unknown): DeckBackgroundPol
       ? (value as Record<string, unknown>)
       : {}
   const rawCount = Number(record.contentBackgroundCount)
-  const contentBackgroundCount: 1 | 2 | 3 =
-    rawCount === 2 || rawCount === 3 ? rawCount : 1
+  const contentBackgroundCount: 1 | 2 | 3 = rawCount === 2 || rawCount === 3 ? rawCount : 1
+  const hasExplicitRoleSelection =
+    typeof record.coverEnabled === 'boolean' ||
+    typeof record.contentEnabled === 'boolean' ||
+    typeof record.endingEnabled === 'boolean'
+  const coverEnabled = hasExplicitRoleSelection ? record.coverEnabled === true : true
+  const contentEnabled = hasExplicitRoleSelection ? record.contentEnabled === true : true
+  const endingEnabled = hasExplicitRoleSelection ? record.endingEnabled === true : true
+  const hasEnabledRole = coverEnabled || contentEnabled || endingEnabled
   return {
-    enabled: record.enabled === true,
+    enabled: record.enabled === true && hasEnabledRole,
+    coverEnabled,
+    contentEnabled,
+    endingEnabled,
     contentBackgroundCount
   }
 }
@@ -285,6 +301,18 @@ export interface PptxImportPayload {
   styleId?: string | null
   modelConfigId?: string
 }
+
+/** Style source selected for a newly created session. */
+export type SessionStyleSelection =
+  | {
+      mode: 'preset'
+      styleId: string
+    }
+  | {
+      mode: 'ai'
+      description: string
+      themeColors: string[]
+    }
 
 export interface PptxImportProgressPayload {
   sessionId?: string

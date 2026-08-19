@@ -17,4 +17,17 @@ describe('thinking generation slide size selection', () => {
     expect(dialogSource).toContain('dropdownClassName="w-[min(640px,calc(100vw-3rem))]"')
     expect(pageSource).toContain('slideSizeId: params.slideSizeId')
   })
+
+  it('supports the same session-scoped AI style selection as quick create', () => {
+    const dialogSource = readFileSync(
+      'src/renderer/src/components/thinking/GenerationConfirmDialog.tsx',
+      'utf8'
+    )
+    const pageSource = readFileSync('src/renderer/src/pages/thinking-detail.tsx', 'utf8')
+
+    expect(dialogSource).toContain("const [styleMode, setStyleMode] = useState<'preset' | 'ai'>")
+    expect(dialogSource).toContain('buildSessionStyleSelection({')
+    expect(dialogSource).toContain('styleSelection: resolvedStyleSelection')
+    expect(pageSource).toContain('styleSelection: params.styleSelection')
+  })
 })

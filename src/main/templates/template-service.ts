@@ -16,6 +16,7 @@ import { createStyleSkill, resolveUsableStyleId } from '../styles/catalog'
 import { recordHistoryOperationStrict } from '../history/git-history-service'
 import { ensureMasterStyleLink } from '../presentation/html/master-link'
 import { createSessionMasterIfMissing } from '../session/master-service'
+import { scopeModelRuntimeToSession } from '../agent-runtime/model'
 import { captureTemplateCoverThumbnail, warmTemplateCoverThumbnails } from './template-thumbnail'
 import { copyDirExcluding } from './template-copy'
 import { resolveTemplateDesignContract } from './template-design-contract'
@@ -757,7 +758,7 @@ export async function createSessionFromTemplate(
     model: activeModel.model,
     baseUrl: activeModel.baseUrl,
     projectDir,
-    modelRuntime: ctx.modelRuntime
+    modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, sessionId)
   })
   if (sourcePlan && userReferenceDocumentPath) {
     await ctx.db.replaceSourcePageSkeletons({

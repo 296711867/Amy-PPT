@@ -22,7 +22,7 @@ import type { AnimationPreferencesPayload } from '@shared/generation'
 import type { ModelTimeoutProfile } from '@shared/model-timeout'
 import type { ThinkingParameterMode } from '@shared/model-config'
 import type { AgentManager } from '../agent-runtime/agent'
-import type { ModelRuntimeConfig } from '../agent-runtime/model'
+import { scopeModelRuntimeToSession, type ModelRuntimeConfig } from '../agent-runtime/model'
 import type { GenerateChatType } from './types'
 import type { PPTDatabase, SessionStyleSnapshotRow } from '../db/database'
 import { requireSessionSlideSize, type SlideSizePreset } from '@shared/slide-size'
@@ -569,6 +569,7 @@ export async function resolveCommonContext(
     baseUrl: activeModel.baseUrl || undefined,
     maxTokens: activeModel.maxTokens
   })
+  const modelRuntime = scopeModelRuntimeToSession(ctx.modelRuntime, sessionId)
 
   const styleSnapshot = await db.getOrCreateSessionStyleSnapshot(sessionId)
   const styleId = styleSnapshot.styleId
@@ -616,7 +617,7 @@ export async function resolveCommonContext(
     model: activeModel.model,
     baseUrl: activeModel.baseUrl,
     projectDir,
-    modelRuntime: ctx.modelRuntime
+    modelRuntime
   })
   const settings = await db.getAllSettings()
   const appLocale: 'zh' | 'en' = settings.locale === 'en' ? 'en' : 'zh'
@@ -642,7 +643,7 @@ export async function resolveCommonContext(
     runModel,
     providerBaseUrl: activeModel.baseUrl,
     maxTokens: activeModel.maxTokens,
-    modelRuntime: ctx.modelRuntime,
+    modelRuntime,
     modelTimeouts,
     projectDir,
     abortSignal: execution.abortSignal,

@@ -20,6 +20,7 @@ import {
   LayoutTemplate,
   MessageSquare,
   MessagesSquare,
+  Coins,
   Pencil,
   Search,
   Sparkles,
@@ -31,6 +32,7 @@ import { type Session, useSessionStore, useTemplateStore } from '../store'
 import { useToastStore } from '../store'
 import { ipc, type GenerateRunStateSnapshot, type HtmlThumbnailTask } from '../lib/ipc'
 import { getEditorGate, parseSessionMetadata } from '../lib/sessionMetadata'
+import { formatSessionTokenCount } from '../lib/session-token-format'
 import { useT } from '../i18n'
 import { SaveTemplateDialog } from '../components/templates/SaveTemplateDialog'
 import { useThumbnailUpdates } from '../hooks/useThumbnailUpdates'
@@ -665,6 +667,12 @@ export function SessionsPage(): React.JSX.Element {
                         })()}
                       </span>
                     ) : null}
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary px-2 py-1 text-muted-foreground">
+                      <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('sessions.tokensCount', {
+                        count: formatSessionTokenCount(session.totalTokens)
+                      })}
+                    </span>
                     {!isFullyComplete && displayFailedCount > 0 && (
                       <span className="rounded-lg border border-destructive/35 bg-[var(--ui-danger-soft)] px-2 py-1 text-destructive">
                         {t('sessions.failedCount', { count: displayFailedCount })}

@@ -10,11 +10,11 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select'
 import { StyleSelect } from '../style/StyleSelect'
 import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
+import { Input, Textarea } from '../ui/Input'
 import { useT, type I18nKey } from '@renderer/i18n'
 import { ipc } from '@renderer/lib/ipc'
 import { FontSchemeSelector } from '../font/FontSchemeSelector'
-import type { FontSelection, SourceDocumentPlan } from '@shared/generation'
+import type { FontSelection, SessionStyleSelection, SourceDocumentPlan } from '@shared/generation'
 import {
   DEFAULT_SLIDE_SIZE_ID,
   SLIDE_SIZE_PRESETS,
@@ -26,6 +26,10 @@ import { ModelSplitButton } from '../model/ModelActionButton'
 import { useModelAction } from '@renderer/hooks/useModelAction'
 import { Checkbox } from '../ui/Checkbox'
 import { resolveStyleIdOrStableDefault } from '@renderer/lib/style-selection'
+import {
+  buildSessionStyleSelection,
+  DEFAULT_AI_THEME_COLORS
+} from '@renderer/lib/ai-style-selection'
 
 const MIN_PAGE_COUNT = 1
 const MAX_PAGE_COUNT = 500
@@ -138,7 +142,7 @@ interface GenerationConfirmDialogProps {
   onConfirm: (params: {
     topic: string
     pageCount: number
-    styleId: string
+    styleSelection: SessionStyleSelection
     fontSelection: FontSelection
     slideSizeId: SlideSizePresetId
     referenceDocumentPath: string
@@ -161,18 +165,26 @@ export function GenerationConfirmDialog({
   const [confirming, setConfirming] = useState(false)
   const [topic, setTopic] = useState('')
   const [pageCount, setPageCount] = useState('5')
+  const [styleMode, setStyleMode] = useState<'preset' | 'ai'>('preset')
   const [styleId, setStyleId] = useState('')
+  const [aiStyleDescription, setAiStyleDescription] = useState('')
+  const [aiThemeColors, setAiThemeColors] = useState<string[]>([...DEFAULT_AI_THEME_COLORS])
   const [styleOptions, setStyleOptions] = useState<StyleOption[]>([])
   const [fontSelection, setFontSelection] = useState<FontSelection>({ mode: 'auto' })
   const [slideSizeId, setSlideSizeId] = useState<SlideSizePresetId>(DEFAULT_SLIDE_SIZE_ID)
   const [generateImagesWithAi, setGenerateImagesWithAi] = useState(false)
   const [generateDeckBackgrounds, setGenerateDeckBackgrounds] = useState(false)
+  const [generateCoverBackground, setGenerateCoverBackground] = useState(true)
+  const [generateContentBackgrounds, setGenerateContentBackgrounds] = useState(true)
+  const [generateEndingBackground, setGenerateEndingBackground] = useState(true)
   const [contentBackgroundCount, setContentBackgroundCount] = useState<'1' | '2' | '3'>('1')
 
   useEffect(() => {
     if (prepared) {
       setTopic(prepared.topic)
       setPageCount(String(prepared.pageCount))
+      setStyleMode('preset')
+      setAiStyleDescription(prepared.styleText?.trim() || '')
       if (styleOptions.length > 0) {
         setStyleId(resolveMatchedStyleId(prepared.styleText, prepared.styleId, styleOptions))
       }
@@ -214,9 +226,16 @@ export function GenerationConfirmDialog({
   if (!prepared) return <></>
 
   const resolvedConfirmStyleId = styleId || resolveFallbackStyleId(prepared.styleId, styleOptions)
+  const resolvedStyleSelection = buildSessionStyleSelection({
+    mode: styleMode,
+    styleId: resolvedConfirmStyleId,
+    description: aiStyleDescription,
+    themeColors: aiThemeColors
+  })
+  const canConfirm = Boolean(resolvedStyleSelection)
 
   const handleConfirm = async (modelConfigId = selectedModelConfigId): Promise<void> => {
-    if (!resolvedConfirmStyleId || confirming) return
+    if (!resolvedStyleSelection || confirming) return
     const resolvedModelConfigId = await ensureModelActive(modelConfigId)
     if (!resolvedModelConfigId) return
     setConfirming(true)
@@ -225,7 +244,7 @@ export function GenerationConfirmDialog({
       onConfirm({
         topic: topic.trim() || prepared.topic,
         pageCount: resolvedPageCount,
-        styleId: resolvedConfirmStyleId,
+        styleSelection: resolvedStyleSelection,
         fontSelection,
         slideSizeId,
         referenceDocumentPath: prepared.thinkingDocumentPath,
@@ -236,6 +255,9 @@ export function GenerationConfirmDialog({
         imagePolicy: generateImagesWithAi ? 'ai' : 'placeholder',
         deckBackgroundPolicy: {
           enabled: generateDeckBackgrounds,
+          coverEnabled: generateCoverBackground,
+          contentEnabled: generateContentBackgrounds,
+          endingEnabled: generateEndingBackground,
           contentBackgroundCount: Number(contentBackgroundCount) as 1 | 2 | 3
         },
         modelConfigId: resolvedModelConfigId
@@ -265,14 +287,79 @@ export function GenerationConfirmDialog({
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(20rem,1fr)_6.25rem_minmax(0,12rem)]">
             <div className="min-w-0">
               <label className="block font-medium">{t('home.style')}</label>
-              <StyleSelect
-                value={styleId}
-                onChange={setStyleId}
-                options={styleOptions}
-                placeholder={t('home.stylePlaceholder')}
-                className="h-8 min-w-0 py-0 text-xs"
-                dropdownClassName="w-[min(640px,calc(100vw-3rem))]"
-              />
+              <div
+                role="radiogroup"
+                aria-label={t('home.style')}
+                className="mb-2 grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/30 p-1"
+              >
+                {(['preset', 'ai'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={styleMode === mode}
+                    onClick={() => setStyleMode(mode)}
+                    className={`h-7 rounded-md px-2 text-[11px] font-medium transition-colors ${
+                      styleMode === mode
+                        ? 'bg-[var(--ui-surface-solid)] text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-[var(--ui-hover)] hover:text-foreground'
+                    }`}
+                  >
+                    {mode === 'preset' ? t('home.styleModePreset') : t('home.styleModeAi')}
+                  </button>
+                ))}
+              </div>
+              {styleMode === 'preset' ? (
+                <StyleSelect
+                  value={styleId}
+                  onChange={setStyleId}
+                  options={styleOptions}
+                  placeholder={t('home.stylePlaceholder')}
+                  className="h-8 min-w-0 py-0 text-xs"
+                  dropdownClassName="w-[min(640px,calc(100vw-3rem))]"
+                />
+              ) : (
+                <div className="space-y-2">
+                  <Textarea
+                    value={aiStyleDescription}
+                    onChange={(event) => setAiStyleDescription(event.target.value)}
+                    maxLength={2000}
+                    rows={3}
+                    placeholder={t('home.aiStyleDescriptionPlaceholder')}
+                    aria-label={t('home.aiStyleDescription')}
+                    className="min-h-[76px] resize-y px-2.5 py-2 text-xs leading-5"
+                  />
+                  <div>
+                    <span className="mb-1.5 block text-[11px] font-medium">
+                      {t('home.aiThemeColors')}
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {aiThemeColors.map((color, index) => (
+                        <label
+                          key={index}
+                          className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/20 px-1.5 py-1"
+                        >
+                          <input
+                            type="color"
+                            value={color}
+                            aria-label={t('home.aiThemeColor', { index: index + 1 })}
+                            data-ai-theme-color={index}
+                            onChange={(event) => {
+                              const next = [...aiThemeColors]
+                              next[index] = event.target.value
+                              setAiThemeColors(next)
+                            }}
+                            className="h-6 w-7 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+                          />
+                          <span className="truncate font-mono text-[10px] text-muted-foreground">
+                            {color.toUpperCase()}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="min-w-0">
@@ -331,9 +418,7 @@ export function GenerationConfirmDialog({
                     : 'border-border bg-muted/30 hover:border-[var(--ui-focus)]'
                 }`}
               >
-                <span className="block text-xs font-medium">
-                  {t('home.imageModePlaceholder')}
-                </span>
+                <span className="block text-xs font-medium">{t('home.imageModePlaceholder')}</span>
                 <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
                   {t('home.imageModePlaceholderHint')}
                 </span>
@@ -355,41 +440,72 @@ export function GenerationConfirmDialog({
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
-            <Checkbox
-              checked={generateDeckBackgrounds}
-              onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
-              aria-label={t('home.generateDeckBackgrounds')}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-medium">{t('home.generateDeckBackgrounds')}</span>
-              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
-                {t('home.generateDeckBackgroundsHint')}
-              </span>
-              {generateDeckBackgrounds ? (
-                <span className="mt-3 flex items-center gap-2" onClick={(event) => event.preventDefault()}>
-                  <span className="text-[11px] text-muted-foreground">
-                    {t('home.contentBackgroundCount')}
-                  </span>
-                  <Select
-                    value={contentBackgroundCount}
-                    onValueChange={(value) =>
-                      setContentBackgroundCount(value as '1' | '2' | '3')
-                    }
-                  >
-                    <SelectTrigger className="h-8 w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                    </SelectContent>
-                  </Select>
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <label className="flex cursor-pointer items-start gap-3">
+              <Checkbox
+                checked={generateDeckBackgrounds}
+                onCheckedChange={(checked) => setGenerateDeckBackgrounds(checked === true)}
+                aria-label={t('home.generateDeckBackgrounds')}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium">
+                  {t('home.generateDeckBackgrounds')}
                 </span>
-              ) : null}
-            </span>
-          </label>
+                <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                  {t('home.generateDeckBackgroundsHint')}
+                </span>
+              </span>
+            </label>
+            {generateDeckBackgrounds ? (
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                    <Checkbox
+                      checked={generateCoverBackground}
+                      onCheckedChange={(checked) => setGenerateCoverBackground(checked === true)}
+                    />
+                    <span className="min-w-0 leading-4">{t('home.coverBackground')}</span>
+                  </label>
+                  <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                    <Checkbox
+                      checked={generateContentBackgrounds}
+                      onCheckedChange={(checked) => setGenerateContentBackgrounds(checked === true)}
+                    />
+                    <span className="min-w-0 leading-4">{t('home.contentPageBackground')}</span>
+                  </label>
+                  <label className="flex min-w-0 cursor-pointer items-center gap-2 text-[11px]">
+                    <Checkbox
+                      checked={generateEndingBackground}
+                      onCheckedChange={(checked) => setGenerateEndingBackground(checked === true)}
+                    />
+                    <span className="min-w-0 leading-4">{t('home.endingBackground')}</span>
+                  </label>
+                </div>
+                {generateContentBackgrounds ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {t('home.contentBackgroundVariants')}
+                    </span>
+                    <Select
+                      value={contentBackgroundCount}
+                      onValueChange={(value) => setContentBackgroundCount(value as '1' | '2' | '3')}
+                    >
+                      <SelectTrigger className="h-8 w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(['1', '2', '3'] as const).map((count) => (
+                          <SelectItem key={count} value={count}>
+                            {t('home.contentBackgroundVariantOption', { count })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center">
@@ -407,7 +523,7 @@ export function GenerationConfirmDialog({
             label={t('home.createAndStart')}
             loadingLabel={t('home.creating')}
             loading={confirming}
-            disabled={!resolvedConfirmStyleId}
+            disabled={!canConfirm}
             icon={Sparkles}
             tone="primary"
             className="w-full sm:w-auto"

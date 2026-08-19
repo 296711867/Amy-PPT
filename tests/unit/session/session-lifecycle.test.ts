@@ -137,12 +137,76 @@ const createContext = (storagePath: string) => {
 }
 
 describe('session create/delete lifecycle', () => {
+  it('creates an AI style snapshot without requiring a catalog style id', async () => {
+    const storagePath = await createStorageDirectory()
+    const context = createContext(storagePath)
+    const { create } = await register(context)
+
+    await expect(
+      create(
+        {},
+        {
+          topic: 'AI style deck',
+          styleSelection: {
+            mode: 'ai',
+            description: 'quiet technical editorial',
+            themeColors: ['#102030', '#F6F1E8']
+          },
+          slideSizeId: 'wide-16-9'
+        }
+      )
+    ).resolves.toEqual({ sessionId: expect.any(String) })
+
+    expect(state.hasStyleSkill).not.toHaveBeenCalled()
+    expect(context.db.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        styleId: expect.stringMatching(/^ai-/),
+        styleSnapshot: expect.objectContaining({
+          source: 'custom',
+          description: 'quiet technical editorial',
+          styleSkill: expect.stringContaining('#102030, #F6F1E8')
+        })
+      })
+    )
+    expect(context.db.updateSessionMetadata).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        styleSelection: {
+          mode: 'ai',
+          description: 'quiet technical editorial',
+          themeColors: ['#102030', '#F6F1E8']
+        }
+      })
+    )
+  })
+
+  it('rejects an AI selection without a description', async () => {
+    const storagePath = await createStorageDirectory()
+    const context = createContext(storagePath)
+    const { create } = await register(context)
+
+    await expect(
+      create(
+        {},
+        {
+          topic: 'Invalid AI style',
+          styleSelection: { mode: 'ai', description: '  ', themeColors: ['#102030'] },
+          slideSizeId: 'wide-16-9'
+        }
+      )
+    ).rejects.toThrow('AI 自定义风格描述不能为空')
+    expect(context.db.createSession).not.toHaveBeenCalled()
+  })
+
   it('cleans the new project directory and session row when create fails after DB insert', async () => {
     const storagePath = await createStorageDirectory()
     const context = createContext(storagePath)
     context.db.createProject.mockRejectedValue(new Error('project insert failed'))
     const { create } = await register(context)
-    const createResult = create({}, { topic: 'Test deck', styleId: 'style-1', slideSizeId: 'wide-16-9' })
+    const createResult = create(
+      {},
+      { topic: 'Test deck', styleId: 'style-1', slideSizeId: 'wide-16-9' }
+    )
 
     await expect(createResult).rejects.toThrow('project insert failed')
     expect(context.db.deleteSession).toHaveBeenCalledTimes(1)
@@ -245,9 +309,9 @@ describe('session create/delete lifecycle', () => {
 
     await expect(remove({}, 'session-1')).rejects.toThrow('database delete failed')
     expect(await fs.promises.readFile(path.join(projectDir, 'index.html'), 'utf-8')).toBe('deck')
-    expect((await fs.promises.readdir(storagePath)).some((entry) => entry.includes('.deleting-'))).toBe(
-      false
-    )
+    expect(
+      (await fs.promises.readdir(storagePath)).some((entry) => entry.includes('.deleting-'))
+    ).toBe(false)
   })
 
   it('keeps the staged directory pending when cleanup fails after DB deletion', async () => {
@@ -298,7 +362,10 @@ describe('session create/delete lifecycle', () => {
 
   it('only cleans staged deletion directories that carry a DB-commit marker', async () => {
     const storagePath = await createStorageDirectory()
-    const committed = path.join(storagePath, '.session-1.deleting-11111111-1111-1111-1111-111111111111')
+    const committed = path.join(
+      storagePath,
+      '.session-1.deleting-11111111-1111-1111-1111-111111111111'
+    )
     const uncommitted = path.join(
       storagePath,
       '.session-2.deleting-22222222-2222-2222-2222-222222222222'
@@ -312,9 +379,7 @@ describe('session create/delete lifecycle', () => {
       'amy-ppt-session-delete-committed\n',
       'utf-8'
     )
-    const { cleanupPendingSessionDeletionDirs } = await import(
-      '../../../src/main/session/handlers'
-    )
+    const { cleanupPendingSessionDeletionDirs } = await import('../../../src/main/session/handlers')
 
     await expect(cleanupPendingSessionDeletionDirs(storagePath)).resolves.toBe(1)
     await expect(fs.promises.lstat(committed)).rejects.toMatchObject({ code: 'ENOENT' })

@@ -38,6 +38,7 @@ vi.mock('../../../src/renderer/src/store', () => ({
         metadata: '{}',
         generated_count: 6,
         failed_count: 0,
+        totalTokens: 1250,
         slideSizeId: 'wide-16-9',
         slideWidth: 1600,
         slideHeight: 900,
@@ -57,6 +58,7 @@ vi.mock('../../../src/renderer/src/store', () => ({
         metadata: '{}',
         generated_count: 0,
         failed_count: 0,
+        totalTokens: null,
         slideSizeId: 'vertical-9-16',
         slideWidth: 900,
         slideHeight: 1600,
@@ -84,7 +86,10 @@ vi.mock('@renderer/lib/ipc', () => ({
     onHtmlThumbnailChanged: state.onHtmlThumbnailChanged
   }
 }))
-vi.mock('@renderer/i18n', () => ({ useT: () => (key: string) => key }))
+vi.mock('@renderer/i18n', () => ({
+  useT: () => (key: string, params?: { count?: string | number }) =>
+    key === 'sessions.tokensCount' ? `${params?.count} Token` : key
+}))
 vi.mock('../../../src/renderer/src/components/templates/SaveTemplateDialog', () => ({
   SaveTemplateDialog: () => null
 }))
@@ -132,6 +137,8 @@ describe('SessionsPage rendering', () => {
     expect(placeholderImage?.src).toContain('amy-session-placeholder.png')
     expect(container.querySelectorAll('iframe')).toHaveLength(0)
     expect(container.textContent).toContain('Quarterly Review')
+    expect(card?.textContent).toContain('1.3K Token')
+    expect(portraitCard?.textContent).toContain('— Token')
     expect(container.querySelector('button[aria-label="sessions.editTitleTooltip"]')).toBeTruthy()
     expect(
       container.querySelector('button[aria-label="sessions.saveTemplateTooltip"]')

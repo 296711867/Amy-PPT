@@ -18,7 +18,7 @@ import { requireSessionSlideSize, type SlideSizePreset } from '@shared/slide-siz
 import { resolveLayoutSkillName } from '../product-skills/contract'
 import type { ModelTimeoutProfile } from '@shared/model-timeout'
 import { JobCoordinator, sessionLockKey, type JobLease } from '../agent-runtime'
-import type { ModelRuntimeConfig } from '../agent-runtime/model'
+import { scopeModelRuntimeToSession, type ModelRuntimeConfig } from '../agent-runtime/model'
 import {
   buildLayoutRulesPrompt,
   LAYOUT_RULES_SETTING_KEY,
@@ -266,7 +266,7 @@ async function resolvePageBeautifyContext(
     }),
     providerBaseUrl: activeModel.baseUrl,
     maxTokens: activeModel.maxTokens,
-    modelRuntime: ctx.modelRuntime,
+    modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, args.sessionId),
     modelTimeouts,
     projectDir,
     projectId: project.id,

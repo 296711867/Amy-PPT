@@ -4,6 +4,7 @@ import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assignDeckBackgroundAssets,
+  buildDeckBackgroundPlan,
   isDeckBackgroundManifestCompatible,
   prepareDeckBackgroundAssets,
   resolveDeckBackgroundAsset,
@@ -20,27 +21,107 @@ const manifest = {
   version: 1 as const,
   slideSizeId: 'wide-16-9',
   assets: [
-    { role: 'cover' as const, whitespace: 'cover-safe' as const, path: './cover.png', prompt: 'cover' },
-    { role: 'content' as const, whitespace: 'blank-left' as const, path: './left.png', prompt: 'left' },
-    { role: 'content' as const, whitespace: 'blank-right' as const, path: './right.png', prompt: 'right' },
-    { role: 'content' as const, whitespace: 'blank-top-center' as const, path: './top.png', prompt: 'top' },
-    { role: 'ending' as const, whitespace: 'ending-safe' as const, path: './ending.png', prompt: 'ending' }
+    {
+      role: 'cover' as const,
+      whitespace: 'cover-safe' as const,
+      path: './cover.png',
+      prompt: 'cover'
+    },
+    {
+      role: 'content' as const,
+      whitespace: 'blank-left' as const,
+      path: './left.png',
+      prompt: 'left'
+    },
+    {
+      role: 'content' as const,
+      whitespace: 'blank-right' as const,
+      path: './right.png',
+      prompt: 'right'
+    },
+    {
+      role: 'content' as const,
+      whitespace: 'blank-top-center' as const,
+      path: './top.png',
+      prompt: 'top'
+    },
+    {
+      role: 'ending' as const,
+      whitespace: 'ending-safe' as const,
+      path: './ending.png',
+      prompt: 'ending'
+    }
   ]
+}
+
+const allBackgroundsPolicy = {
+  enabled: true,
+  coverEnabled: true,
+  contentEnabled: true,
+  endingEnabled: true,
+  contentBackgroundCount: 3 as const
 }
 
 describe('deck background policy', () => {
   it('normalizes disabled defaults and clamps content variants to 1-3', () => {
     expect(normalizeDeckBackgroundPolicy(null)).toEqual({
       enabled: false,
+      coverEnabled: true,
+      contentEnabled: true,
+      endingEnabled: true,
       contentBackgroundCount: 1
     })
     expect(normalizeDeckBackgroundPolicy({ enabled: true, contentBackgroundCount: 3 })).toEqual({
       enabled: true,
+      coverEnabled: true,
+      contentEnabled: true,
+      endingEnabled: true,
       contentBackgroundCount: 3
     })
     expect(normalizeDeckBackgroundPolicy({ enabled: true, contentBackgroundCount: 8 })).toEqual({
       enabled: true,
+      coverEnabled: true,
+      contentEnabled: true,
+      endingEnabled: true,
       contentBackgroundCount: 1
+    })
+  })
+
+  it('builds independent plans for cover-only and ending-only selections', () => {
+    const coverOnly = normalizeDeckBackgroundPolicy({
+      enabled: true,
+      coverEnabled: true,
+      contentEnabled: false,
+      endingEnabled: false,
+      contentBackgroundCount: 3
+    })
+    const endingOnly = normalizeDeckBackgroundPolicy({
+      enabled: true,
+      coverEnabled: false,
+      contentEnabled: false,
+      endingEnabled: true,
+      contentBackgroundCount: 3
+    })
+
+    expect(buildDeckBackgroundPlan(7, coverOnly).map((item) => item.role)).toEqual(['cover'])
+    expect(buildDeckBackgroundPlan(7, endingOnly).map((item) => item.role)).toEqual(['ending'])
+  })
+
+  it('turns the feature off when no page role is selected', () => {
+    expect(
+      normalizeDeckBackgroundPolicy({
+        enabled: true,
+        coverEnabled: false,
+        contentEnabled: false,
+        endingEnabled: false,
+        contentBackgroundCount: 2
+      })
+    ).toEqual({
+      enabled: false,
+      coverEnabled: false,
+      contentEnabled: false,
+      endingEnabled: false,
+      contentBackgroundCount: 2
     })
   })
 
@@ -67,18 +148,13 @@ describe('deck background policy', () => {
   })
 
   it('reuses cached assets only when policy, page roles, and canvas still match', () => {
+    expect(isDeckBackgroundManifestCompatible(manifest, allBackgroundsPolicy, 7, 'wide-16-9')).toBe(
+      true
+    )
     expect(
       isDeckBackgroundManifestCompatible(
         manifest,
-        { enabled: true, contentBackgroundCount: 3 },
-        7,
-        'wide-16-9'
-      )
-    ).toBe(true)
-    expect(
-      isDeckBackgroundManifestCompatible(
-        manifest,
-        { enabled: true, contentBackgroundCount: 1 },
+        { ...allBackgroundsPolicy, contentBackgroundCount: 1 },
         7,
         'wide-16-9'
       )
@@ -86,18 +162,13 @@ describe('deck background policy', () => {
     expect(
       isDeckBackgroundManifestCompatible(
         manifest,
-        { enabled: false, contentBackgroundCount: 3 },
+        { ...allBackgroundsPolicy, enabled: false },
         7,
         'wide-16-9'
       )
     ).toBe(false)
     expect(
-      isDeckBackgroundManifestCompatible(
-        manifest,
-        { enabled: true, contentBackgroundCount: 3 },
-        7,
-        'standard-4-3'
-      )
+      isDeckBackgroundManifestCompatible(manifest, allBackgroundsPolicy, 7, 'standard-4-3')
     ).toBe(false)
   })
 
@@ -123,64 +194,64 @@ describe('deck background policy', () => {
 
   describe('prepareDeckBackgroundAssets fail-soft', () => {
     const tempDirs: string[] = []
-  const basePrepareArgs = () => {
-    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'amy-deck-bg-'))
-    tempDirs.push(projectDir)
-    return {
-      projectDir,
-      policy: { enabled: true, contentBackgroundCount: 1 },
-      pageCount: 3,
-      slideSize: { id: 'wide-16-9', label: '', width: 1600, height: 900 } as never,
-      topic: '测试主题',
-      stylePrompt: 'style',
-      provider: 'zhipu',
-      apiKey: 'key',
-      model: 'glm-5.2',
-      baseUrl: '',
-      maxTokens: 4096,
-      signal: new AbortController().signal
+    const basePrepareArgs = () => {
+      const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'amy-deck-bg-'))
+      tempDirs.push(projectDir)
+      return {
+        projectDir,
+        policy: { ...allBackgroundsPolicy, contentBackgroundCount: 1 },
+        pageCount: 3,
+        slideSize: { id: 'wide-16-9', label: '', width: 1600, height: 900 } as never,
+        topic: '测试主题',
+        stylePrompt: 'style',
+        provider: 'zhipu',
+        apiKey: 'key',
+        model: 'glm-5.2',
+        baseUrl: '',
+        maxTokens: 4096,
+        signal: new AbortController().signal
+      }
     }
-  }
 
-  afterEach(async () => {
-    for (const dir of tempDirs.splice(0)) await rmWithRetry(dir)
-  })
-
-  it('skips backgrounds instead of failing the run when the image model config lacks a model', async () => {
-    const statuses: Array<{ state: string; detail?: string }> = []
-    const result = await prepareDeckBackgroundAssets({
-      ...basePrepareArgs(),
-      db: {
-        getActiveImageModelConfig: async () => ({
-          id: 'img-1',
-          name: 'Agnes 默认',
-          provider: 'agnes',
-          active: 1,
-          modelConfig: '{}'
-        })
-      },
-      decryptApiKey: (value: string) => value,
-      onStatus: (status) => statuses.push({ state: status.state, detail: status.detail })
+    afterEach(async () => {
+      for (const dir of tempDirs.splice(0)) await rmWithRetry(dir)
     })
 
-    expect(result).toBeNull()
-    expect(statuses).toEqual([
-      { state: 'failed', detail: expect.stringContaining('缺少 model 字段') }
-    ])
-  })
+    it('skips backgrounds instead of failing the run when the image model config lacks a model', async () => {
+      const statuses: Array<{ state: string; detail?: string }> = []
+      const result = await prepareDeckBackgroundAssets({
+        ...basePrepareArgs(),
+        db: {
+          getActiveImageModelConfig: async () => ({
+            id: 'img-1',
+            name: 'Agnes 默认',
+            provider: 'agnes',
+            active: 1,
+            modelConfig: '{}'
+          })
+        },
+        decryptApiKey: (value: string) => value,
+        onStatus: (status) => statuses.push({ state: status.state, detail: status.detail })
+      })
 
-  it('skips backgrounds when no image model is configured at all', async () => {
-    const statuses: Array<{ state: string }> = []
-    const result = await prepareDeckBackgroundAssets({
-      ...basePrepareArgs(),
-      db: { getActiveImageModelConfig: async () => undefined },
-      decryptApiKey: (value: string) => value,
-      onStatus: (status) => statuses.push({ state: status.state })
+      expect(result).toBeNull()
+      expect(statuses).toEqual([
+        { state: 'failed', detail: expect.stringContaining('缺少 model 字段') }
+      ])
     })
 
-    expect(result).toBeNull()
-    expect(statuses).toEqual([{ state: 'failed' }])
-  })
+    it('skips backgrounds when no image model is configured at all', async () => {
+      const statuses: Array<{ state: string }> = []
+      const result = await prepareDeckBackgroundAssets({
+        ...basePrepareArgs(),
+        db: { getActiveImageModelConfig: async () => undefined },
+        decryptApiKey: (value: string) => value,
+        onStatus: (status) => statuses.push({ state: status.state })
+      })
+
+      expect(result).toBeNull()
+      expect(statuses).toEqual([{ state: 'failed' }])
+    })
   })
 
   it('localizes validation messages for english sessions', () => {
@@ -195,9 +266,7 @@ describe('deck background policy', () => {
         asset,
         'en'
       )
-    ).toEqual([
-      'the background image layer does not reference the assigned path ./left.png'
-    ])
+    ).toEqual(['the background image layer does not reference the assigned path ./left.png'])
   })
 
   it('does not require a background when the feature is disabled for the page', () => {

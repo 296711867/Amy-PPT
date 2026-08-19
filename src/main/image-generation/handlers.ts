@@ -18,7 +18,11 @@ import {
   type ActiveModelConfig
 } from '../config/model-config-utils'
 import { allowLocalAssetRoot } from '../io/local-asset-roots'
-import { extractModelText, resolveModel } from '../agent-runtime/model'
+import {
+  extractModelText,
+  resolveModel,
+  scopeModelRuntimeToSession
+} from '../agent-runtime/model'
 import { buildImagePromptGenerationMessages } from '../agent-runtime/prompt'
 import {
   resolveImageGenerationProvider,
@@ -234,7 +238,7 @@ export function registerImageGenerationHandlers(
       activeModel.baseUrl,
       0.45,
       activeModel.maxTokens,
-      ctx.modelRuntime
+      scopeModelRuntimeToSession(ctx.modelRuntime, sessionId)
     )
     const userPrompt = typeof record.userPrompt === 'string' ? record.userPrompt.trim() : ''
     const pageTitle = typeof record.pageTitle === 'string' ? record.pageTitle.trim() : ''

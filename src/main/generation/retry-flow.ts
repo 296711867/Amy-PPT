@@ -251,6 +251,7 @@ export async function executeRetryFailedPages(
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
     modelControl: context.modelControl,
+    modelRuntime: context.modelRuntime,
     signal: context.abortSignal,
     onStatus: ({ state, current, total, detail }) =>
       emitRetryChunk({

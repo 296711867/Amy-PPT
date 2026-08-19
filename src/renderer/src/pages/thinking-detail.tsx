@@ -17,7 +17,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/Popover'
 import { useLang, useT, type I18nKey } from '../i18n'
 import { Clock3, FileText, FolderSearch, History, Loader2, Plus, Trash2 } from 'lucide-react'
-import type { SourceDocumentPlan } from '@shared/generation'
+import type { SessionStyleSelection, SourceDocumentPlan } from '@shared/generation'
 import type { SlideSizePresetId } from '@shared/slide-size'
 import type {
   ThinkingChatMessage,
@@ -288,7 +288,7 @@ export function ThinkingDetailPage(): ReactElement {
   const handleGenerationConfirm = async (params: {
     topic: string
     pageCount: number
-    styleId: string
+    styleSelection: SessionStyleSelection
     fontSelection: import('@shared/generation').FontSelection
     slideSizeId: SlideSizePresetId
     referenceDocumentPath: string
@@ -302,7 +302,7 @@ export function ThinkingDetailPage(): ReactElement {
     try {
       const sessionId = await createSession({
         topic: params.topic,
-        styleId: params.styleId,
+        styleSelection: params.styleSelection,
         modelConfigId: params.modelConfigId,
         pageCount: params.pageCount,
         slideSizeId: params.slideSizeId,

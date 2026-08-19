@@ -26,7 +26,7 @@ export function resolveModel(
   baseUrl?: string,
   temperature?: number,
   maxTokens?: number,
-  runtime?: Pick<ModelRuntimeConfig, 'recorder'>
+  runtime?: Pick<ModelRuntimeConfig, 'recorder' | 'sessionId'>
 ): BaseLanguageModel {
   const resolvedModel = model.trim()
   if (!resolvedModel) {
@@ -59,7 +59,8 @@ export function resolveModel(
   const usageCallback = new ModelUsageCallbackHandler({
     provider,
     model: resolvedModel,
-    modelConfigId: temperatureControl?.modelConfigId
+    modelConfigId: temperatureControl?.modelConfigId,
+    sessionId: runtime?.sessionId
   }, runtime?.recorder ?? null)
 
   log.info('[llm] resolveModel', {

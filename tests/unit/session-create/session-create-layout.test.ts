@@ -178,4 +178,30 @@ describe('SessionCreatePage layout', () => {
 
     expect(source).toContain('w-[150px] min-w-0 max-w-[150px] truncate text-left hover:underline')
   })
+
+  it('switches from a preset to AI style inputs without removing the page settings', async () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null, React.createElement(SessionCreatePage)))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const modeButtons = container.querySelectorAll('[role="radio"]')
+    expect(modeButtons).toHaveLength(2)
+    expect(container.querySelector('textarea[aria-label="home.aiStyleDescription"]')).toBeNull()
+
+    await act(async () => {
+      ;(modeButtons[1] as HTMLButtonElement).click()
+    })
+
+    expect(container.querySelector('textarea[aria-label="home.aiStyleDescription"]')).toBeTruthy()
+    expect(container.querySelectorAll('input[data-ai-theme-color]')).toHaveLength(3)
+    expect(container.querySelector('input[inputmode="numeric"]')).toBeTruthy()
+
+    await act(async () => root.unmount())
+  })
 })

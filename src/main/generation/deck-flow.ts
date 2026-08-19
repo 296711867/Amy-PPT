@@ -359,6 +359,7 @@ export async function executeDeckGeneration(
     baseUrl: context.providerBaseUrl,
     maxTokens: context.maxTokens,
     modelControl: context.modelControl,
+    modelRuntime: context.modelRuntime,
     signal: context.abortSignal,
     onStatus: ({ state, current, total, role, whitespace, detail }) =>
       emitDeckChunk({

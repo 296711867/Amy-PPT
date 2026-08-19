@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { ipc } from '@renderer/lib/ipc'
-import type { FontSelection, SourceDocumentPlan } from '@shared/generation'
+import type { FontSelection, SessionStyleSelection, SourceDocumentPlan } from '@shared/generation'
 import type { SlideSizePresetId } from '@shared/slide-size'
 
 export const SESSION_NOT_FOUND_ERROR = 'Session not found'
@@ -27,6 +27,7 @@ export interface Session {
   generation_duration_sec?: number | null
   generated_count?: number | null
   failed_count?: number | null
+  totalTokens?: number | null
   thumbnailPath?: string | null
 }
 
@@ -72,7 +73,8 @@ interface SessionStore {
   fetchSessions: () => Promise<void>
   createSession: (payload: {
     topic: string
-    styleId: string
+    styleId?: string
+    styleSelection?: SessionStyleSelection
     modelConfigId?: string
     pageCount?: number
     slideSizeId?: SlideSizePresetId
@@ -142,58 +144,34 @@ export const useSessionStore = create<SessionStore>((set, get) => {
   let messageLoadEpoch = 0
 
   return {
-  sessions: [],
-  currentSession: null,
-  currentMessages: [],
-  currentGeneratedPages: [],
-  loading: false,
-  error: null,
+    sessions: [],
+    currentSession: null,
+    currentMessages: [],
+    currentGeneratedPages: [],
+    loading: false,
+    error: null,
 
-  fetchSessions: async () => {
-    try {
-      const sessions = await ipc.listSessions()
-      set({ sessions: sessions as unknown as Session[] })
-    } catch {
-      set({ error: 'Failed to fetch sessions' })
-    }
-  },
+    fetchSessions: async () => {
+      try {
+        const sessions = await ipc.listSessions()
+        set({ sessions: sessions as unknown as Session[] })
+      } catch {
+        set({ error: 'Failed to fetch sessions' })
+      }
+    },
 
-  createSession: async (payload) => {
-    const { sessionId } = await ipc.createSession(payload)
-    await get().fetchSessions()
-    return sessionId
-  },
+    createSession: async (payload) => {
+      const { sessionId } = await ipc.createSession(payload)
+      await get().fetchSessions()
+      return sessionId
+    },
 
-  loadSession: async (sessionId, guard) => {
-    const requestEpoch = ++sessionLoadEpoch
-    const isCurrentRequest = (): boolean =>
-      requestEpoch === sessionLoadEpoch && (!guard || guard())
-    const isSameSessionReload = get().currentSession?.id === sessionId
+    loadSession: async (sessionId, guard) => {
+      const requestEpoch = ++sessionLoadEpoch
+      const isCurrentRequest = (): boolean =>
+        requestEpoch === sessionLoadEpoch && (!guard || guard())
+      const isSameSessionReload = get().currentSession?.id === sessionId
 
-    set({
-      ...(isSameSessionReload
-        ? {}
-        : {
-            currentSession: null,
-            currentGeneratedPages: []
-          }),
-      loading: true,
-      error: null
-    })
-    try {
-      const { session, generatedPages } = await ipc.getSession(sessionId)
-      if (!isCurrentRequest()) return false
-      const normalizedSession = (session as unknown as Session | null | undefined) ?? null
-      set({
-        currentSession: normalizedSession,
-        // 消息由页面上下文独立管理。刷新会话/页面数据时不能清空正在显示的对话。
-        currentGeneratedPages: normalizedSession ? generatedPages || [] : [],
-        error: normalizedSession ? null : SESSION_NOT_FOUND_ERROR,
-        loading: false
-      })
-      return Boolean(normalizedSession)
-    } catch {
-      if (!isCurrentRequest()) return false
       set({
         ...(isSameSessionReload
           ? {}
@@ -201,93 +179,117 @@ export const useSessionStore = create<SessionStore>((set, get) => {
               currentSession: null,
               currentGeneratedPages: []
             }),
-        error: SESSION_LOAD_ERROR,
-        loading: false
-      })
-      return false
-    }
-  },
-
-  loadMessages: async ({ sessionId, chatType, pageId }) => {
-    const requestEpoch = ++messageLoadEpoch
-    const requestSessionEpoch = sessionLoadEpoch
-    const isCurrentRequest = (): boolean =>
-      requestEpoch === messageLoadEpoch &&
-      requestSessionEpoch === sessionLoadEpoch &&
-      get().currentSession?.id === sessionId
-    try {
-      const messages = await ipc.getSessionMessages({ sessionId, chatType, pageId })
-      const loadedMessages = (messages as unknown as Message[]).filter(
-        (message) => message.role === 'user' || message.role === 'assistant'
-      )
-      set((state) => {
-        if (!isCurrentRequest() || state.currentSession?.id !== sessionId) {
-          return state
-        }
-        const pendingMessages = state.currentMessages.filter((message) =>
-          messageMatchesContext(message, sessionId, chatType, pageId)
-        )
-        return {
-          currentMessages: sortMessages(dedupeMessages([...loadedMessages, ...pendingMessages]))
-        }
-      })
-    } catch {
-      if (isCurrentRequest()) set({ error: 'Failed to load messages' })
-    }
-  },
-
-  deleteSession: async (sessionId) => {
-    await ipc.deleteSession(sessionId)
-    await get().fetchSessions()
-    if (get().currentSession?.id === sessionId) {
-      set({ currentSession: null, currentMessages: [], currentGeneratedPages: [] })
-    }
-  },
-
-  updateSessionTitle: async ({ sessionId, title }) => {
-    await ipc.updateSessionTitle({ sessionId, title })
-    await get().fetchSessions()
-    const currentSession = get().currentSession
-    if (currentSession?.id === sessionId) {
-      set({ currentSession: { ...currentSession, title } })
-    }
-  },
-
-  importSessionFile: async () => {
-    const result = await ipc.importSessionFile()
-    if (!result.cancelled) {
-      await get().fetchSessions()
-    }
-    return result
-  },
-
-  setCurrentSession: (session) => set({ currentSession: session }),
-  setMessages: (messages) => set({ currentMessages: sortMessages(dedupeMessages(messages)) }),
-  addMessage: (message) =>
-    set((state) => {
-      const hasSameId = state.currentMessages.some((item) => item.id === message.id)
-      if (hasSameId) return state
-
-      const hasSameRecentMessage = state.currentMessages.some((item) =>
-        isSameRecentMessage(item, message)
-      )
-      if (hasSameRecentMessage) return state
-
-      return { currentMessages: sortMessages([...state.currentMessages, message]) }
-    }),
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error }),
-  resetRuntimeState: () =>
-    (() => {
-      sessionLoadEpoch += 1
-      messageLoadEpoch += 1
-      set({
-        currentSession: null,
-        currentMessages: [],
-        currentGeneratedPages: [],
-        loading: false,
+        loading: true,
         error: null
       })
-    })()
+      try {
+        const { session, generatedPages } = await ipc.getSession(sessionId)
+        if (!isCurrentRequest()) return false
+        const normalizedSession = (session as unknown as Session | null | undefined) ?? null
+        set({
+          currentSession: normalizedSession,
+          // 消息由页面上下文独立管理。刷新会话/页面数据时不能清空正在显示的对话。
+          currentGeneratedPages: normalizedSession ? generatedPages || [] : [],
+          error: normalizedSession ? null : SESSION_NOT_FOUND_ERROR,
+          loading: false
+        })
+        return Boolean(normalizedSession)
+      } catch {
+        if (!isCurrentRequest()) return false
+        set({
+          ...(isSameSessionReload
+            ? {}
+            : {
+                currentSession: null,
+                currentGeneratedPages: []
+              }),
+          error: SESSION_LOAD_ERROR,
+          loading: false
+        })
+        return false
+      }
+    },
+
+    loadMessages: async ({ sessionId, chatType, pageId }) => {
+      const requestEpoch = ++messageLoadEpoch
+      const requestSessionEpoch = sessionLoadEpoch
+      const isCurrentRequest = (): boolean =>
+        requestEpoch === messageLoadEpoch &&
+        requestSessionEpoch === sessionLoadEpoch &&
+        get().currentSession?.id === sessionId
+      try {
+        const messages = await ipc.getSessionMessages({ sessionId, chatType, pageId })
+        const loadedMessages = (messages as unknown as Message[]).filter(
+          (message) => message.role === 'user' || message.role === 'assistant'
+        )
+        set((state) => {
+          if (!isCurrentRequest() || state.currentSession?.id !== sessionId) {
+            return state
+          }
+          const pendingMessages = state.currentMessages.filter((message) =>
+            messageMatchesContext(message, sessionId, chatType, pageId)
+          )
+          return {
+            currentMessages: sortMessages(dedupeMessages([...loadedMessages, ...pendingMessages]))
+          }
+        })
+      } catch {
+        if (isCurrentRequest()) set({ error: 'Failed to load messages' })
+      }
+    },
+
+    deleteSession: async (sessionId) => {
+      await ipc.deleteSession(sessionId)
+      await get().fetchSessions()
+      if (get().currentSession?.id === sessionId) {
+        set({ currentSession: null, currentMessages: [], currentGeneratedPages: [] })
+      }
+    },
+
+    updateSessionTitle: async ({ sessionId, title }) => {
+      await ipc.updateSessionTitle({ sessionId, title })
+      await get().fetchSessions()
+      const currentSession = get().currentSession
+      if (currentSession?.id === sessionId) {
+        set({ currentSession: { ...currentSession, title } })
+      }
+    },
+
+    importSessionFile: async () => {
+      const result = await ipc.importSessionFile()
+      if (!result.cancelled) {
+        await get().fetchSessions()
+      }
+      return result
+    },
+
+    setCurrentSession: (session) => set({ currentSession: session }),
+    setMessages: (messages) => set({ currentMessages: sortMessages(dedupeMessages(messages)) }),
+    addMessage: (message) =>
+      set((state) => {
+        const hasSameId = state.currentMessages.some((item) => item.id === message.id)
+        if (hasSameId) return state
+
+        const hasSameRecentMessage = state.currentMessages.some((item) =>
+          isSameRecentMessage(item, message)
+        )
+        if (hasSameRecentMessage) return state
+
+        return { currentMessages: sortMessages([...state.currentMessages, message]) }
+      }),
+    setLoading: (loading) => set({ loading }),
+    setError: (error) => set({ error }),
+    resetRuntimeState: () =>
+      (() => {
+        sessionLoadEpoch += 1
+        messageLoadEpoch += 1
+        set({
+          currentSession: null,
+          currentMessages: [],
+          currentGeneratedPages: [],
+          loading: false,
+          error: null
+        })
+      })()
   }
 })

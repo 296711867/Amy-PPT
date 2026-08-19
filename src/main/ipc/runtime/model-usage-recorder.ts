@@ -6,6 +6,9 @@ export class DbModelUsageRecorder implements ModelUsageRecorder {
   constructor(private readonly db: PPTDatabase) {}
 
   record(entry: ModelUsageEntry): Promise<void> {
-    return this.db.recordModelUsage(entry)
+    return this.db.recordModelUsage({
+      ...entry,
+      sessionId: entry.sessionId ?? null
+    })
   }
 }

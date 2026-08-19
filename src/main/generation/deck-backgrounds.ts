@@ -14,7 +14,8 @@ import {
   assertModelText,
   extractJsonBlock,
   resolveModel,
-  runWithModelTemperatureControl
+  runWithModelTemperatureControl,
+  type ModelRuntimeConfig
 } from '../agent-runtime/model'
 import { resolveImageGenerationProvider } from '../agent-runtime/provider/image'
 import type { ResolvedImageModelConfig } from '../agent-runtime/provider/image'
@@ -83,16 +84,22 @@ type BackgroundPlanItem = {
   prompt: string
 }
 
-const buildRequestedPlan = (pageCount: number, contentCount: number): BackgroundPlanItem[] => {
-  const requested: BackgroundPlanItem[] = [
-    { role: 'cover', whitespace: 'cover-safe', prompt: '' }
-  ]
-  if (pageCount >= 3) {
-    for (let index = 0; index < contentCount; index += 1) {
+export const buildDeckBackgroundPlan = (
+  pageCount: number,
+  policy: DeckBackgroundPolicy
+): BackgroundPlanItem[] => {
+  const requested: BackgroundPlanItem[] = []
+  if (pageCount >= 1 && policy.coverEnabled) {
+    requested.push({ role: 'cover', whitespace: 'cover-safe', prompt: '' })
+  }
+  if (pageCount >= 3 && policy.contentEnabled) {
+    for (let index = 0; index < policy.contentBackgroundCount; index += 1) {
       requested.push({ role: 'content', whitespace: CONTENT_WHITESPACE[index], prompt: '' })
     }
   }
-  if (pageCount >= 2) requested.push({ role: 'ending', whitespace: 'ending-safe', prompt: '' })
+  if (pageCount >= 2 && policy.endingEnabled) {
+    requested.push({ role: 'ending', whitespace: 'ending-safe', prompt: '' })
+  }
   return requested
 }
 
@@ -108,6 +115,7 @@ const buildPromptPlan = async (args: {
   requested: BackgroundPlanItem[]
   signal: AbortSignal
   modelControl?: GenerationModelControl
+  modelRuntime?: ModelRuntimeConfig
 }): Promise<BackgroundPlanItem[]> => {
   const client = args.modelControl
     ? runWithModelTemperatureControl(args.modelControl, () =>
@@ -117,7 +125,8 @@ const buildPromptPlan = async (args: {
           args.model,
           args.baseUrl,
           0.35,
-          args.maxTokens
+          args.maxTokens,
+          args.modelRuntime
         )
       )
     : resolveModel(
@@ -126,7 +135,8 @@ const buildPromptPlan = async (args: {
         args.model,
         args.baseUrl,
         0.35,
-        args.maxTokens
+        args.maxTokens,
+        args.modelRuntime
       )
   const response = await client.invoke(
     [
@@ -177,7 +187,9 @@ export const readDeckBackgroundManifest = async (
   const manifestPath = path.join(projectDir, 'assets', 'backgrounds', 'manifest.json')
   if (!fs.existsSync(manifestPath)) return null
   try {
-    const parsed = JSON.parse(await fs.promises.readFile(manifestPath, 'utf-8')) as DeckBackgroundManifest
+    const parsed = JSON.parse(
+      await fs.promises.readFile(manifestPath, 'utf-8')
+    ) as DeckBackgroundManifest
     if (parsed.version !== 1 || !Array.isArray(parsed.assets) || parsed.assets.length === 0) {
       return null
     }
@@ -198,12 +210,13 @@ export const isDeckBackgroundManifestCompatible = (
 ): boolean => {
   if (!policy.enabled || manifest.slideSizeId !== slideSizeId) return false
 
-  const expectedContentCount = pageCount >= 3 ? policy.contentBackgroundCount : 0
-  const expectedEndingCount = pageCount >= 2 ? 1 : 0
+  const expectedCoverCount = pageCount >= 1 && policy.coverEnabled ? 1 : 0
+  const expectedContentCount =
+    pageCount >= 3 && policy.contentEnabled ? policy.contentBackgroundCount : 0
+  const expectedEndingCount = pageCount >= 2 && policy.endingEnabled ? 1 : 0
   return (
-    manifest.assets.filter((asset) => asset.role === 'cover').length === 1 &&
-    manifest.assets.filter((asset) => asset.role === 'content').length ===
-      expectedContentCount &&
+    manifest.assets.filter((asset) => asset.role === 'cover').length === expectedCoverCount &&
+    manifest.assets.filter((asset) => asset.role === 'content').length === expectedContentCount &&
     manifest.assets.filter((asset) => asset.role === 'ending').length === expectedEndingCount
   )
 }
@@ -290,6 +303,7 @@ export async function prepareDeckBackgroundAssets(args: {
   maxTokens: number
   signal: AbortSignal
   modelControl?: GenerationModelControl
+  modelRuntime?: ModelRuntimeConfig
   onStatus?: (status: {
     state: 'planning' | 'generating' | 'generated' | 'failed'
     current: number
@@ -303,12 +317,7 @@ export async function prepareDeckBackgroundAssets(args: {
   const existing = await readDeckBackgroundManifest(args.projectDir)
   if (
     existing &&
-    isDeckBackgroundManifestCompatible(
-      existing,
-      args.policy,
-      args.pageCount,
-      args.slideSize.id
-    )
+    isDeckBackgroundManifestCompatible(existing, args.policy, args.pageCount, args.slideSize.id)
   ) {
     return existing
   }
@@ -341,7 +350,8 @@ export async function prepareDeckBackgroundAssets(args: {
       `生图模型「${rawConfig.name}」缺少 model 字段，已跳过背景图（请在设置中生图模型里填写 model）`
     )
   }
-  const requested = buildRequestedPlan(args.pageCount, args.policy.contentBackgroundCount)
+  const requested = buildDeckBackgroundPlan(args.pageCount, args.policy)
+  if (requested.length === 0) return null
   args.onStatus?.({ state: 'planning', current: 0, total: requested.length })
   try {
     const plan = await buildPromptPlan({ ...args, requested })
@@ -404,7 +414,8 @@ export async function prepareDeckBackgroundAssets(args: {
     return skipBackgrounds(
       `背景图生成失败，已跳过（${
         error instanceof Error ? error.message : String(error)
-      }），演示生成将继续`
-    , 'error')
+      }），演示生成将继续`,
+      'error'
+    )
   }
 }

@@ -46,6 +46,7 @@ export const modelUsageEvents = sqliteTable(
     provider: text('provider').notNull(),
     model: text('model').notNull(),
     modelConfigId: text('model_config_id'),
+    sessionId: text('session_id'),
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     totalTokens: integer('total_tokens').notNull().default(0),
@@ -54,6 +55,10 @@ export const modelUsageEvents = sqliteTable(
   },
   (table) => ({
     modelUsageCreatedIdx: index('idx_model_usage_events_created').on(table.createdAt),
+    modelUsageSessionIdx: index('idx_model_usage_events_session').on(
+      table.sessionId,
+      table.createdAt
+    ),
     modelUsageModelIdx: index('idx_model_usage_events_model').on(
       table.provider,
       table.model,

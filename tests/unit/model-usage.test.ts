@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   ModelUsageCallbackHandler,
-  extractModelUsage
+  extractModelUsage,
+  scopeModelRuntimeToSession
 } from '../../src/main/agent-runtime/model'
 
 describe('model usage tracking', () => {
@@ -35,7 +36,8 @@ describe('model usage tracking', () => {
     const recordModelUsage = vi.fn(async () => undefined)
     const handler = new ModelUsageCallbackHandler({
       provider: 'openai',
-      model: 'compatible-model'
+      model: 'compatible-model',
+      sessionId: 'session-usage-1'
     }, { record: recordModelUsage })
 
     handler.handleLLMStart({} as never, ['Create a concise presentation outline.'], 'run-1')
@@ -50,6 +52,7 @@ describe('model usage tracking', () => {
       expect.objectContaining({
         provider: 'openai',
         model: 'compatible-model',
+        sessionId: 'session-usage-1',
         source: 'estimated',
         inputTokens: expect.any(Number),
         outputTokens: expect.any(Number),
@@ -60,5 +63,15 @@ describe('model usage tracking', () => {
     expect(recorded.inputTokens).toBeGreaterThan(0)
     expect(recorded.outputTokens).toBeGreaterThan(0)
     expect(recorded.totalTokens).toBe(recorded.inputTokens + recorded.outputTokens)
+  })
+
+  it('scopes a shared recorder to one session without mutating the shared runtime', () => {
+    const recorder = { record: vi.fn(async () => undefined) }
+    const runtime = { recorder }
+
+    const scoped = scopeModelRuntimeToSession(runtime, ' session-42 ')
+
+    expect(scoped).toEqual({ recorder, sessionId: 'session-42' })
+    expect(runtime).toEqual({ recorder })
   })
 })

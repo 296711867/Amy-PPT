@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS model_usage_events (
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
   model_config_id TEXT,
+  session_id TEXT,
   input_tokens INTEGER NOT NULL DEFAULT 0,
   output_tokens INTEGER NOT NULL DEFAULT 0,
   total_tokens INTEGER NOT NULL DEFAULT 0,
@@ -432,6 +433,7 @@ const getTableColumns = async (
     | 'source_page_skeletons'
     | 'model_configs'
     | 'image_model_configs'
+    | 'model_usage_events'
     | 'html_edit_messages'
 ): Promise<Set<string>> => {
   const result = await client.execute(`PRAGMA table_info(${tableName})`)
@@ -767,6 +769,17 @@ const enforceMessagesSchema = async (client: LibSqlClient): Promise<void> => {
   )
   await client.execute(
     'CREATE INDEX IF NOT EXISTS idx_messages_session_only ON messages(session_id)'
+  )
+}
+
+const enforceModelUsageSchema = async (client: LibSqlClient): Promise<void> => {
+  await client.executeMultiple(MODEL_USAGE_TABLE_SQL)
+  const columns = await getTableColumns(client, 'model_usage_events')
+  if (!columns.has('session_id')) {
+    await client.execute('ALTER TABLE model_usage_events ADD COLUMN session_id TEXT')
+  }
+  await client.execute(
+    'CREATE INDEX IF NOT EXISTS idx_model_usage_events_session ON model_usage_events(session_id, created_at)'
   )
 }
 
@@ -1599,7 +1612,7 @@ export const runDatabasePatches = async (args: {
   await enforceModelConfigsSchema(client)
   await enforceImageModelConfigsSchema(client)
   await enforceMessagesSchema(client)
-  await client.executeMultiple(MODEL_USAGE_TABLE_SQL)
+  await enforceModelUsageSchema(client)
   await enforceGenerationSchema(client)
   await enforceSessionPagesSchema(client)
   await enforceSourcePageSkeletonsSchema(client)

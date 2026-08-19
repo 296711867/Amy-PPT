@@ -366,6 +366,7 @@ export const zh = {
     renameDescription: '只会修改列表和导出时使用的会话名称，不会重新生成页面内容。',
     renamePlaceholder: '输入新的会话名称',
     pagesCount: '{generated}/{total} 页',
+    tokensCount: '{count} Token',
     failedCount: '失败 {count}',
     saveTemplateTooltipDisabled: '至少生成 1 页后才能保存为模板',
     saveTemplateTooltip: '保存为模板',

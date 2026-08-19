@@ -272,6 +272,7 @@ export async function extractStyleFromExistingHtml(args: {
   model: string
   baseUrl: string
   maxTokens?: number
+  modelRuntime?: ModelRuntimeConfig
   modelTimeoutMs: number
 }): Promise<StyleParseResult> {
   const samplePages = selectSamplePagePaths(
@@ -284,6 +285,7 @@ export async function extractStyleFromExistingHtml(args: {
     model: args.model,
     baseUrl: args.baseUrl,
     maxTokens: args.maxTokens,
+    modelRuntime: args.modelRuntime,
     modelTimeoutMs: args.modelTimeoutMs,
     workspaceDir: args.projectDir,
     prompt: buildStylePptxImportPrompt({
@@ -305,6 +307,7 @@ export async function extractStyleFromExistingHtml(args: {
       model: args.model,
       baseUrl: args.baseUrl,
       maxTokens: args.maxTokens,
+      modelRuntime: args.modelRuntime,
       modelTimeoutMs: args.modelTimeoutMs,
       brokenResponse: response,
       parseError: reason

@@ -69,6 +69,18 @@ type SessionOperationType =
 type SessionOperationScope = 'session' | 'deck' | 'page' | 'selector' | 'shell'
 type SessionOperationStatus = 'committing' | 'completed' | 'failed' | 'noop'
 
+const parseSessionMetadata = (value: string | null | undefined): Record<string, unknown> => {
+  if (!value || !value.trim()) return {}
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 export interface Session {
   id: string
   title: string
@@ -89,6 +101,7 @@ export interface Session {
   designContract?: string | null
   currentOperationId?: string | null
   currentCommit?: string | null
+  totalTokens?: number | null
 }
 
 export interface Message {
@@ -348,6 +361,23 @@ export interface SessionStyleSnapshotRow {
   packageDir: string
   styleSkill: string
   createdAt: number
+}
+
+/** Session-local style data used when a presentation is created without a catalog preset. */
+export interface SessionStyleSnapshotInput {
+  styleId: string
+  styleKey: string
+  styleName: string
+  styleNameZh?: string
+  styleNameEn?: string
+  description?: string
+  category?: string
+  aliases?: string
+  source?: StyleSource
+  version?: string
+  styleCase?: string
+  packageDir?: string
+  styleSkill: string
 }
 
 export interface ModelConfigRow {
@@ -682,6 +712,7 @@ export class PPTDatabase {
     title: string
     topic?: string
     styleId?: string
+    styleSnapshot?: SessionStyleSnapshotInput
     pageCount?: number
     slideSizeId?: SlideSizePresetId
     slideWidth?: number
@@ -705,7 +736,7 @@ export class PPTDatabase {
         id,
         title: data.title,
         topic: data.topic || null,
-        styleId: data.styleId || null,
+        styleId: data.styleId || data.styleSnapshot?.styleId || null,
         pageCount: data.pageCount || null,
         slideSizeId: slideSize.id,
         slideWidth: slideSize.width,
@@ -720,7 +751,9 @@ export class PPTDatabase {
       })
       .run()
 
-    if (this._stylesCache.length > 0) {
+    if (data.styleSnapshot) {
+      await this.createCustomSessionStyleSnapshot(id, data.styleSnapshot)
+    } else if (this._stylesCache.length > 0) {
       await this.createSessionStyleSnapshot(id, data.styleId)
     }
 
@@ -762,9 +795,28 @@ export class PPTDatabase {
   }
 
   async updateSessionMetadata(sessionId: string, metadata: object): Promise<void> {
+    const existing = await this.db
+      .select({ metadata: schema.sessions.metadata })
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, sessionId))
+      .get()
+    let previous: Record<string, unknown> = {}
+    if (existing?.metadata) {
+      try {
+        const parsed = JSON.parse(existing.metadata) as unknown
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          previous = parsed as Record<string, unknown>
+        }
+      } catch {
+        // Preserve the new metadata when an older session contains malformed JSON.
+      }
+    }
     await this.db
       .update(schema.sessions)
-      .set({ metadata: JSON.stringify(metadata), updatedAt: Math.floor(Date.now() / 1000) })
+      .set({
+        metadata: JSON.stringify({ ...previous, ...metadata }),
+        updatedAt: Math.floor(Date.now() / 1000)
+      })
       .where(eq(schema.sessions.id, sessionId))
       .run()
   }
@@ -857,15 +909,29 @@ export class PPTDatabase {
 
   async listSessions(limit = 50, offset = 0): Promise<Session[]> {
     const results = await this.db
-      .select()
+      .select({
+        session: schema.sessions,
+        totalTokens: sql<number | null>`CASE
+          WHEN COUNT(${schema.modelUsageEvents.id}) = 0 THEN NULL
+          ELSE COALESCE(SUM(${schema.modelUsageEvents.totalTokens}), 0)
+        END`
+      })
       .from(schema.sessions)
+      .leftJoin(
+        schema.modelUsageEvents,
+        eq(schema.modelUsageEvents.sessionId, schema.sessions.id)
+      )
       .where(ne(schema.sessions.status, 'archived'))
+      .groupBy(schema.sessions.id)
       .orderBy(desc(schema.sessions.updatedAt))
       .limit(limit)
       .offset(offset)
       .all()
 
-    return results as unknown as Session[]
+    return results.map((row) => ({
+      ...(row.session as unknown as Session),
+      totalTokens: row.totalTokens === null ? null : Number(row.totalTokens)
+    }))
   }
 
   async listSessionsWithPageCounts(limit = 50, offset = 0): Promise<SessionWithPageCount[]> {
@@ -2383,6 +2449,7 @@ export class PPTDatabase {
     provider: string
     model: string
     modelConfigId?: string
+    sessionId?: string | null
     inputTokens: number
     outputTokens: number
     totalTokens: number
@@ -2395,6 +2462,10 @@ export class PPTDatabase {
         provider: data.provider,
         model: data.model,
         modelConfigId: data.modelConfigId || null,
+        sessionId:
+          typeof data.sessionId === 'string' && data.sessionId.trim().length > 0
+            ? data.sessionId.trim()
+            : null,
         inputTokens: Math.max(0, Math.floor(data.inputTokens)),
         outputTokens: Math.max(0, Math.floor(data.outputTokens)),
         totalTokens: Math.max(0, Math.floor(data.totalTokens)),
@@ -3083,9 +3154,11 @@ export class PPTDatabase {
   private async deactivateOrphanedBuiltinStyles(systemPath: string): Promise<void> {
     const existingSystemDirs = new Set(
       fs.existsSync(systemPath)
-        ? await fs.promises.readdir(systemPath, { withFileTypes: true }).then((entries) =>
-            entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name)
-          )
+        ? await fs.promises
+            .readdir(systemPath, { withFileTypes: true })
+            .then((entries) =>
+              entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+            )
         : []
     )
     const orphans = this._stylesCache.filter(
@@ -3418,6 +3491,45 @@ export class PPTDatabase {
     return existing
   }
 
+  /**
+   * Persist a session-scoped style that does not exist in the installed catalog.
+   * The row is intentionally stored only in the session snapshot table so retries,
+   * edits, and save-as-new sessions keep the exact same generated style contract.
+   */
+  async createCustomSessionStyleSnapshot(
+    sessionId: string,
+    input: SessionStyleSnapshotInput
+  ): Promise<SessionStyleSnapshotRow> {
+    const now = Math.floor(Date.now() / 1000)
+    const description = input.description?.trim() || ''
+    const styleSkill = input.styleSkill.trim() || description
+    await this.db
+      .insert(schema.sessionStyleSnapshots)
+      .values({
+        id: crypto.randomUUID(),
+        sessionId,
+        styleId: input.styleId,
+        styleKey: input.styleKey,
+        styleName: input.styleName,
+        styleNameZh: input.styleNameZh || input.styleName,
+        styleNameEn: input.styleNameEn || '',
+        description,
+        category: input.category || 'custom',
+        aliases: input.aliases || '[]',
+        source: input.source || 'custom',
+        version: normalizeStyleVersion(input.version || '1.0.0'),
+        styleCase: input.styleCase || '',
+        packageDir: input.packageDir || '',
+        styleSkill,
+        createdAt: now
+      })
+      .onConflictDoNothing({ target: schema.sessionStyleSnapshots.sessionId })
+      .run()
+    const existing = await this.getSessionStyleSnapshot(sessionId)
+    if (!existing) throw new Error('Custom session style snapshot was not created')
+    return existing
+  }
+
   async replaceSessionStyleSnapshot(
     sessionId: string,
     styleId?: string | null
@@ -3433,6 +3545,43 @@ export class PPTDatabase {
     const existing = await this.getSessionStyleSnapshot(sessionId)
     if (existing) return existing
     const session = await this.getSession(sessionId)
+    const metadata = parseSessionMetadata(session?.metadata)
+    const selection = metadata.styleSelection
+    if (
+      selection &&
+      typeof selection === 'object' &&
+      !Array.isArray(selection) &&
+      (selection as Record<string, unknown>).mode === 'ai'
+    ) {
+      const description = String((selection as Record<string, unknown>).description || '').trim()
+      if (description) {
+        const themeColors = Array.isArray((selection as Record<string, unknown>).themeColors)
+          ? ((selection as Record<string, unknown>).themeColors as unknown[])
+              .map((item) => String(item || '').trim())
+              .filter(Boolean)
+          : []
+        const styleId = session?.styleId || `ai-${sessionId}`
+        const styleKeySuffix = sessionId.replace(/[^a-z0-9]/gi, '').slice(0, 8) || 'session'
+        return this.createCustomSessionStyleSnapshot(sessionId, {
+          styleId,
+          styleKey: `ai-generated-${styleKeySuffix}`,
+          styleName: 'AI-generated style',
+          styleNameZh: 'AI 自定义风格',
+          styleNameEn: 'AI-generated style',
+          description,
+          category: 'ai-generated',
+          aliases: JSON.stringify(['ai', 'custom']),
+          source: 'custom',
+          version: '1.0.0',
+          styleSkill: [
+            '# Session-specific AI-generated visual style',
+            `User style direction: ${description}`,
+            `Theme color anchors: ${themeColors.join(', ') || 'derive from the direction and content.'}`,
+            'Derive typography, palette roles, shape language, image direction, composition, whitespace, charts, and decoration from the current topic, prompt, content, requirements, and reference/template. Keep this exact session style consistent across generation, retries, and edits. Do not replace it with a built-in preset.'
+          ].join('\n')
+        })
+      }
+    }
     return this.createSessionStyleSnapshot(sessionId, session?.styleId)
   }
 
@@ -3488,10 +3637,14 @@ export class PPTDatabase {
     for (const row of rows) {
       const session = row.session as unknown as Session
       try {
-        const snapshot = await this.createSessionStyleSnapshot(session.id, session.styleId)
+        const snapshot = await this.getOrCreateSessionStyleSnapshot(session.id)
         if (!session.styleId || session.styleId !== snapshot.styleId) {
           fallback += 1
-          await this.updateSessionStyleId(session.id, snapshot.styleId)
+          await this.db
+            .update(schema.sessions)
+            .set({ styleId: snapshot.styleId, updatedAt: Math.floor(Date.now() / 1000) })
+            .where(eq(schema.sessions.id, session.id))
+            .run()
         }
         created += 1
       } catch (error) {

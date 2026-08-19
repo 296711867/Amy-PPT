@@ -16,6 +16,7 @@ import { recordHistoryOperationStrict } from '../../history/git-history-service'
 import { createDefaultDesignContract } from '../../presentation/design-contract'
 import { requireSlideSizePreset } from '@shared/slide-size'
 import { createSessionMasterIfMissing } from '../../session/master-service'
+import { scopeModelRuntimeToSession } from '../../agent-runtime/model'
 
 const nanoidLower = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 12)
 
@@ -94,7 +95,7 @@ export function registerPptxImportHandlers(ctx: IpcContext): void {
           model: activeModel.model,
           baseUrl: activeModel.baseUrl,
           maxTokens: activeModel.maxTokens,
-          modelRuntime: ctx.modelRuntime,
+          modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, sessionId),
           modelTimeoutMs: modelTimeouts.document
         })
       } catch (chartRewriteError) {
@@ -211,6 +212,7 @@ export function registerPptxImportHandlers(ctx: IpcContext): void {
           model: activeModel.model,
           baseUrl: activeModel.baseUrl,
           maxTokens: activeModel.maxTokens,
+          modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, sessionId),
           modelTimeoutMs: modelTimeouts.document
         })
 
@@ -235,7 +237,7 @@ export function registerPptxImportHandlers(ctx: IpcContext): void {
           model: activeModel.model,
           baseUrl: activeModel.baseUrl,
           maxTokens: activeModel.maxTokens,
-          modelRuntime: ctx.modelRuntime,
+          modelRuntime: scopeModelRuntimeToSession(ctx.modelRuntime, sessionId),
           styleId,
           styleSkillPrompt: styleResult.styleSkill,
           modelTimeoutMs: modelTimeouts.document,
