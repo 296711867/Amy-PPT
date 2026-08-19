@@ -22,15 +22,70 @@
 }
 
 /*
- * Theme coverage checklist:
- * - --ui-feature-surface/accent-1..4 style the four home and usage cards; group 4 is
- *   the Usage "模型调用 / Model calls" card.
- * - --ui-font-tag-{primary,secondary,tertiary}{,-soft,-border} style the role and
- *   script labels on the Fonts page. Do not reuse fixed success/green colors there.
- * - --ui-workspace-* owns the session editor chrome: ribbon tabs, page rail,
- *   thumbnail selection, current-page badges, and sidebar controls. Never put a
- *   fixed theme color in those components.
- * Every new theme must define all of these tokens in its own theme block.
+ * ============================================================================
+ * Amy-PPT 主题层（唯一颜色来源）
+ * ============================================================================
+ * 组件里禁止出现硬编码色值（content/工具色除外：图片查看器深色壳、公式黑、
+ * 编辑参考线粉、红色徽章等刻意固定色）。新增 UI 一律引用下面的语义 token：
+ * 优先用 Tailwind 别名（bg-background / text-foreground / bg-primary /
+ * text-muted-foreground / border-border / bg-destructive …），
+ * 没有别名时用 `bg-[var(--ui-*)]`、`shadow-[...rgb(var(--ui-shadow-color)/a)]`。
+ *
+ * ---------------------------------------------------------------------------
+ * Token 分组参考（每个主题块必须完整定义全部 token）
+ * ---------------------------------------------------------------------------
+ * 基础表面
+ *   --ui-background            页面底色（整页大面积）
+ *   --ui-app-background        页面背景渐变（radial 高光 + linear 底）
+ *   --ui-surface               卡片/面板底（半透明）
+ *   --ui-surface-solid / -elevated  实心卡片 / 抬升面板（弹窗、输入区）
+ *   --ui-surface-inset         内嵌区块（工具条按钮底、标题条）
+ *   --ui-surface-muted         弱化区块、hover 底
+ * 文字
+ *   --ui-text / -secondary / -tertiary   主文字 / 次级 / 三级（前景 3 档）
+ *   --ui-on-action             主按钮上的文字（配 --ui-action，深浅主题都要可读）
+ * 交互
+ *   --ui-action / -hover / -soft         主操作色 / 悬停 / 浅底（选中徽章、标签底）
+ *   --ui-selected / --ui-hover           选中态 / 通用 hover
+ *   --ui-focus                 焦点环、激活输入框边、focus 类边框
+ *   --ui-input                 输入框底色（带透明度的 action）
+ * 状态
+ *   --ui-danger / -hover / -soft / on-danger   删除、失败、错误徽章
+ *   --ui-success / --ui-warning / --ui-info    成功 / 警示 / 提示（警示可用
+ *                                              bg-warning/15、border-warning/40 派生浅底）
+ * 结构
+ *   --ui-border / -strong      常规边框 / 强边框（卡片描边、分隔）
+ *   --ui-overlay               遮罩层
+ *   --ui-shadow-color          阴影基色（RGB 三值，用法 rgb(var(--ui-shadow-color)/0.12)）
+ *   --ui-scrollbar-*           滚动条四件套
+ * 会话编辑器 chrome（tokens.css 清单第二组）
+ *   --ui-workspace-rail / -surface / -surface-muted / -selected / -selected-soft /
+ *   -decoration / -on-selected / -text / -text-muted / -border / -shadow-color
+ *   归会话页侧栏、页面栏、缩略图选中态、工作区工具行使用，别用通用色替代
+ * 首页/用量卡片（清单第三组）
+ *   --ui-feature-surface-1..4 / --ui-feature-accent-1..4 / --ui-feature-on-accent
+ *   1=对话创作 2=快速创建 3=PPTX 导入 4=模型用量卡
+ * 字体页标签（清单第四组，勿与 success 绿混用）
+ *   --ui-font-tag-{primary,secondary,tertiary}{,-soft,-border}
+ * 图表
+ *   --ui-chart-1..6 / -grid / -tooltip / -tooltip-text / -tooltip-muted
+ *
+ * ---------------------------------------------------------------------------
+ * 新增主题五步走（以主题 id = foo 为例）
+ * ---------------------------------------------------------------------------
+ * 1. 本文件：复制任意浅色主题块 → 改成 `:root[data-ui-theme='foo']`，按组替换
+ *    色值。浅色主题取值参考：background L≥0.93，text L≈0.25-0.30，action
+ *    L≈0.40-0.45，soft/selected 保持同色相低饱和；深色主题参考 midnight
+ *    （background L≈0.10，text L≈0.90，action 提亮、on-action 用深色）。
+ * 2. src/shared/ui-theme.ts：UI_THEME_IDS 加 'foo'；UI_THEME_CHROME 加
+ *    backgroundColor（窗口/标题栏底）+ symbolColor（标题栏按钮）+ colorScheme。
+ * 3. src/renderer/src/theme/ui-theme.ts：UI_THEME_OPTIONS 加一项
+ *    （labelKey/descriptionKey/swatches 三色）并扩展 labelKey 类型。
+ * 4. i18n zh/en：settings.themeFoo / settings.themeFooDescription 两键。
+ * 5. 跑 pnpm vitest run tests/unit/theme —— 主题完整性测试会校验：
+ *    所有主题块 token 集合一致、UI_THEME_IDS 与 CSS 块一一对应、
+ *    设置页选项与 i18n 键齐全。漏定义会在 CI 直接失败。
+ * ---------------------------------------------------------------------------
  */
 
 :root[data-ui-theme='sage'] {
