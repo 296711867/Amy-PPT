@@ -10,6 +10,7 @@ export type ProviderId =
   | 'google'
   | 'zhipu'
   | 'deepseek'
+  | 'kimi'
 
 export type SettingsTranslate = (key: I18nKey, params?: TranslationParams) => string
 

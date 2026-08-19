@@ -433,7 +433,7 @@ export interface SaveSessionAsNewResult {
 export interface ModelConfig {
   id: string
   name: string
-  provider: 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu' | 'deepseek'
+  provider: 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu' | 'deepseek' | 'kimi'
   model: string
   apiKey: string
   hasApiKey: boolean
@@ -1140,7 +1140,7 @@ export const ipc = {
   upsertModelConfig: (payload: {
     id?: string
     name: string
-    provider: 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu' | 'deepseek'
+    provider: 'anthropic' | 'openai' | 'openai-responses' | 'google' | 'zhipu' | 'deepseek' | 'kimi'
     model: string
     apiKey: string
     baseUrl: string

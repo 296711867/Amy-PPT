@@ -41,8 +41,9 @@ export function resolveModel(
   const useOpenAIResponsesApi = isOpenAIResponsesProvider(provider)
   const isZhipuProvider = provider === 'zhipu'
   const isDeepSeekProvider = provider === 'deepseek'
+  const isKimiProvider = provider === 'kimi'
   const openAIProtocol =
-    provider === 'openai' || isZhipuProvider || isDeepSeekProvider
+    provider === 'openai' || isZhipuProvider || isDeepSeekProvider || isKimiProvider
       ? 'chat-completions'
       : useOpenAIResponsesApi
         ? 'responses'
@@ -108,6 +109,21 @@ export function resolveModel(
     case 'deepseek':
       // DeepSeek 官方 OpenAI 兼容端点 https://api.deepseek.com，
       // 模型 deepseek-v4-flash / deepseek-v4-pro；thinking 参数按用户设置透传。
+      return new ChatOpenAICompletions({
+        ...buildOpenAIModelOptions({
+          model: resolvedModel,
+          apiKey,
+          baseUrl: resolvedBaseUrl,
+          temperatureOptions,
+          maxTokens: resolvedMaxTokens,
+          thinkingParameterMode
+        }),
+        callbacks: [usageCallback]
+      })
+    case 'kimi':
+      // Kimi（Moonshot）OpenAI 兼容端点 https://api.kimi.com/coding/v1，
+      // 模型 kimi-for-coding / k3 / k3-256k / kimi-for-coding-highspeed；
+      // K3 支持 reasoning_effort，关闭 thinking 会被路由到 K2.6，参数按用户设置透传。
       return new ChatOpenAICompletions({
         ...buildOpenAIModelOptions({
           model: resolvedModel,

@@ -928,6 +928,31 @@ describe('registerSettingsHandlers model temperature settings', () => {
     )
   })
 
+  it('accepts the Kimi provider when saving a model config', async () => {
+    const upsertModelConfig = vi.fn(async () => 'model-kimi')
+    const { getHandler } = await registerWithDb({ upsertModelConfig })
+
+    const saveModelConfig = getHandler('settings:upsertModelConfig')
+    await saveModelConfig?.(undefined, {
+      name: 'Kimi Code',
+      provider: 'kimi',
+      model: 'kimi-for-coding',
+      apiKey: 'secret',
+      baseUrl: 'https://api.kimi.com/coding/v1',
+      maxTokens: 4096,
+      disableTemperature: false,
+      thinkingParameterMode: 'auto'
+    })
+
+    expect(upsertModelConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'kimi',
+        model: 'kimi-for-coding',
+        baseUrl: 'https://api.kimi.com/coding/v1'
+      })
+    )
+  })
+
   it('normalizes an unknown provider back to openai', async () => {
     const upsertModelConfig = vi.fn(async () => 'model-x')
     const { getHandler } = await registerWithDb({ upsertModelConfig })

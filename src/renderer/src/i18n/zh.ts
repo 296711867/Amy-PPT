@@ -228,8 +228,12 @@ export const zh = {
       '不调用生图模型。需要图片的版式会生成带语义描述的可替换占位块（标注画面主题与替换提示），稍后可手动或用 AI 替换。',
     generateDeckBackgrounds: '生成 PPT 背景图',
     generateDeckBackgroundsHint:
-      '由 AI 生成封面、内容页和结束页背景；内容背景按留白方向循环复用，并为标题与正文预留安全区。',
-    contentBackgroundCount: '内容背景数量',
+      '按页面类型选择需要生成的背景；内容页从所选的不重复背景款式中轮换。',
+    coverBackground: '封面背景',
+    contentPageBackground: '内容页背景',
+    endingBackground: '结束页背景',
+    contentBackgroundVariants: '内容页不重复背景',
+    contentBackgroundVariantOption: '{count} 款',
     animationPreferenceOptions: {
       fade: '轻柔淡入',
       'fade-up': '上浮出现',
@@ -548,6 +552,8 @@ export const zh = {
     providerZhipu: '智谱 GLM',
     baseUrlHintDeepSeek:
       '默认走 DeepSeek 官方 OpenAI 兼容地址 https://api.deepseek.com ，模型填 deepseek-v4-pro 或 deepseek-v4-flash；thinking 参数可在下方设置。',
+    baseUrlHintKimi:
+      '默认走 Kimi Code OpenAI 兼容地址 https://api.kimi.com/coding/v1 ，模型填 kimi-for-coding（全档位）/ k3 / k3-256k / kimi-for-coding-highspeed；API Key 在 kimi.com/code/console 申请。',
     modelHint: '只要该 provider 兼容这个模型名即可，不做限制。',
     imageModelConfigLabel: '模型配置',
     apiKeyPreserveHint: '编辑已有模型时留空会保留已保存的 API Key；新模型必须填写。',

@@ -244,8 +244,12 @@ export const en = {
       'No image model needed. Image layouts get replaceable semantic placeholder blocks (subject notes + swap hint) you can replace manually or with AI later.',
     generateDeckBackgrounds: 'Generate PPT backgrounds',
     generateDeckBackgroundsHint:
-      'Generate cover, reusable content, and ending backgrounds with composition-safe blank regions for slide text.',
-    contentBackgroundCount: 'Content variants',
+      'Choose which page types need generated backgrounds. Content slides rotate through the selected unique variants.',
+    coverBackground: 'Cover background',
+    contentPageBackground: 'Content backgrounds',
+    endingBackground: 'Ending background',
+    contentBackgroundVariants: 'Unique content backgrounds',
+    contentBackgroundVariantOption: '{count} variants',
     animationPreferenceOptions: {
       fade: 'Soft fade',
       'fade-up': 'Fade up',
@@ -569,6 +573,8 @@ export const en = {
     providerZhipu: 'Zhipu GLM',
     baseUrlHintDeepSeek:
       'Defaults to the official DeepSeek OpenAI-compatible endpoint https://api.deepseek.com ; use deepseek-v4-pro or deepseek-v4-flash as the model. The thinking parameter can be set below.',
+    baseUrlHintKimi:
+      'Defaults to the Kimi Code OpenAI-compatible endpoint https://api.kimi.com/coding/v1 ; use kimi-for-coding (all tiers) / k3 / k3-256k / kimi-for-coding-highspeed. API keys are issued at kimi.com/code/console.',
     modelHint: 'Any compatible model name for this provider is accepted.',
     imageModelConfigLabel: 'Model config',
     apiKeyPreserveHint:

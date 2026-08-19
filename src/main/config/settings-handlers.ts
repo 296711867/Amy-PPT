@@ -42,7 +42,8 @@ const VALID_PROVIDERS = [
   'openai-responses',
   'google',
   'zhipu',
-  'deepseek'
+  'deepseek',
+  'kimi'
 ] as const
 type Provider = (typeof VALID_PROVIDERS)[number]
 const normalizeProvider = (provider: unknown): Provider =>
@@ -479,7 +480,10 @@ export function registerSettingsHandlers(ctx: IpcContext): void {
       } catch (error) {
         if (
           resolvedThinkingParameterMode === 'auto' &&
-          (provider === 'openai' || provider === 'zhipu' || provider === 'deepseek') &&
+          (provider === 'openai' ||
+            provider === 'zhipu' ||
+            provider === 'deepseek' ||
+            provider === 'kimi') &&
           requestedBaseUrl.length > 0 &&
           isMandatoryThinkingError(error)
         ) {
