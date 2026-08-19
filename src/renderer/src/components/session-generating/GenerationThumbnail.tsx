@@ -14,7 +14,7 @@ export function GenerationThumbnail({
   slideSize: SlideSizePreset | null
 }): React.JSX.Element {
   if (!slideSize) {
-    return <div className="h-[195px] w-full rounded-xl bg-[#f5f1e8]/88" />
+    return <div className="h-[195px] w-full rounded-xl bg-background/88" />
   }
   const thumbnailFitStyle =
     slideSize.width >= slideSize.height
@@ -26,16 +26,16 @@ export function GenerationThumbnail({
   return (
     <div
       className={cn(
-        'group relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border bg-[#fffaf1]/78 p-1.5 shadow-[0_16px_34px_rgba(70,82,58,0.12)] transition-all duration-500',
-        page.status === 'completed' && 'border-[#b8d3a6] translate-y-0 opacity-100',
+        'group relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border bg-[var(--ui-surface-elevated)]/78 p-1.5 shadow-[0_16px_34px_rgba(70,82,58,0.12)] transition-all duration-500',
+        page.status === 'completed' && 'border-[var(--ui-workspace-border)] translate-y-0 opacity-100',
         page.status === 'generating' &&
-          'border-[#8fb873] bg-[#f6fbef]/88 shadow-[0_18px_40px_rgba(95,132,72,0.22)]',
-        page.status === 'failed' && 'border-[#d7b5ae] bg-[#fbf1ee]/92',
-        page.status === 'pending' && 'border-[#dfd4bf]/72 opacity-72'
+          'border-[var(--ui-focus)] bg-[var(--ui-selected)]/88 shadow-[0_18px_40px_rgba(95,132,72,0.22)]',
+        page.status === 'failed' && 'border-[var(--ui-danger)]/40 bg-[var(--ui-danger-soft)]',
+        page.status === 'pending' && 'border-[var(--ui-border-strong)]/72 opacity-72'
       )}
     >
       <div
-        className="relative flex h-[180px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden bg-[#f5f1e8]/88 shadow-[0_5px_14px_rgba(93,107,77,0.08)]"
+        className="relative flex h-[180px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden bg-background/88 shadow-[0_5px_14px_rgba(93,107,77,0.08)]"
         style={{ contain: 'paint' }}
       >
         <div className="relative max-h-full max-w-full overflow-hidden" style={thumbnailFitStyle}>
@@ -57,7 +57,7 @@ export function GenerationThumbnail({
                 page.status === 'generating'
                   ? 'bg-[linear-gradient(135deg,#eef6e7_0%,#fff8ec_100%)]'
                   : page.status === 'failed'
-                    ? 'bg-[#f7e7e2]'
+                    ? 'bg-[var(--ui-danger-soft)]'
                     : 'bg-[linear-gradient(135deg,#f5efe4_0%,#e9decb_100%)]'
               )}
             >
@@ -80,26 +80,26 @@ export function GenerationThumbnail({
         </div>
 
         {page.status === 'generating' && (
-          <div className="absolute inset-0 border-2 border-[#83ad67]/70">
-            <div className="absolute right-2 top-2 rounded-full bg-[#fffaf1]/90 p-1 shadow-sm">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#5f8a43]" />
+          <div className="absolute inset-0 border-2 border-[var(--ui-focus)]/70">
+            <div className="absolute right-2 top-2 rounded-full bg-[var(--ui-surface-elevated)]/90 p-1 shadow-sm">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
             </div>
           </div>
         )}
 
         {page.status === 'failed' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#fbf1ee]/76">
-            <CircleAlert className="h-6 w-6 text-[#a45f58]" />
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--ui-danger-soft)]">
+            <CircleAlert className="h-6 w-6 text-destructive" />
           </div>
         )}
       </div>
 
       <div className="flex w-full min-w-0 items-center justify-between gap-2 px-0.5 pb-0.5 pt-2">
-        <span className="shrink-0 rounded-md bg-[#5d6b4d]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#4f613f]">
+        <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
           P{page.pageNumber}
         </span>
         {page.status !== 'failed' && (
-          <span className="min-w-0 truncate text-xs font-medium text-[#4d5b40]" title={page.title}>
+          <span className="min-w-0 truncate text-xs font-medium text-foreground" title={page.title}>
             {page.title}
           </span>
         )}

@@ -78,8 +78,8 @@ export function GenerationStatusPanel({
         className={cn(
           'mb-4 shrink-0 rounded-lg px-4 py-3 shadow-[0_8px_20px_rgba(120,73,65,0.08)]',
           isPaused
-            ? 'border border-[#d7c59e] bg-[#fff8e8]/94 text-[#70562d]'
-            : 'border border-[#d7b5ae]/80 bg-[#fbf1ee]/86 text-[#93564f]'
+            ? 'border border-warning/40 bg-warning/15 text-warning'
+            : 'border border-[var(--ui-danger)]/40 bg-[var(--ui-danger-soft)] text-destructive'
         )}
       >
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -89,13 +89,13 @@ export function GenerationStatusPanel({
             ) : (
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             )}
-            <span className="shrink-0 rounded-md border border-[#d7b5ae]/70 bg-[#fff8f4]/75 px-2 py-1 text-xs font-semibold text-[#8e5a53]">
+            <span className="shrink-0 rounded-md border border-[var(--ui-danger)]/40 bg-[var(--ui-danger-soft)] px-2 py-1 text-xs font-semibold text-destructive">
               {isPaused ? pausedLabel || '生成已暂停' : interruptedLabel}
             </span>
             <div className="min-w-0 text-xs">
-              <div className="text-[#775f48]">{error}</div>
+              <div className="text-muted-foreground">{error}</div>
               {isPaused && (
-                <div className="mt-1 text-[#927957]">
+                <div className="mt-1 text-muted-foreground">
                   {pausedProgressLabel || '已完成'} {completedPageCount}/{totalPages}{' '}
                   {pageUnitLabel || '页'}
                   {typeof pendingPageCount === 'number' && pendingPageCount > 0
@@ -104,11 +104,11 @@ export function GenerationStatusPanel({
                 </div>
               )}
               {technicalError && (
-                <details className="mt-1 max-w-2xl text-[11px] text-[#8c7563]">
+                <details className="mt-1 max-w-2xl text-[11px] text-muted-foreground">
                   <summary className="cursor-pointer select-none">
                     {errorDetailsLabel || '错误详情'}
                   </summary>
-                  <div className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-[#dccdbb] bg-white/60 p-2 font-mono">
+                  <div className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--ui-border-strong)] bg-white/60 p-2 font-mono">
                     {technicalError}
                   </div>
                 </details>
@@ -118,7 +118,7 @@ export function GenerationStatusPanel({
               <button
                 type="button"
                 onClick={onEnterEditor}
-                className="shrink-0 text-xs font-medium text-[#6f8159] underline-offset-2 hover:underline"
+                className="shrink-0 text-xs font-medium text-primary underline-offset-2 hover:underline"
               >
                 {enterEditorLabel}
               </button>
@@ -165,11 +165,11 @@ export function GenerationStatusPanel({
   const activeStageIndex = stages.indexOf(currentStage as GenerationStageKey)
 
   return (
-    <div className="mb-4 shrink-0 rounded-lg border border-[#d8ccb5] bg-[#fff9ef] px-4 py-2 text-[#435138] shadow-[0_12px_28px_rgba(78,91,63,0.13)]">
+    <div className="mb-4 shrink-0 rounded-lg border border-[var(--ui-border-strong)] bg-[var(--ui-surface-elevated)] px-4 py-2 text-primary shadow-[0_12px_28px_rgba(78,91,63,0.13)]">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#617350]">
-            <span className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] text-[#7d8b63]">
+          <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-primary">
+            <span className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
               {stages.map((stage, index) => {
                 const isActive = index === activeStageIndex
                 const isDone = index < activeStageIndex || status === 'completed'
@@ -178,14 +178,14 @@ export function GenerationStatusPanel({
                     key={stage}
                     className={cn(
                       'inline-flex items-center gap-1 leading-4',
-                      isDone && 'text-[#5f8a43]',
-                      isActive && 'font-semibold text-[#365528]',
-                      !isDone && !isActive && 'text-[#a09882]'
+                      isDone && 'text-primary',
+                      isActive && 'font-semibold text-foreground',
+                      !isDone && !isActive && 'text-muted-foreground'
                     )}
                   >
                     {isDone && <CheckCircle2 className="h-3 w-3" />}
                     {isActive && (status === 'queued' || status === 'running') && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#4f7b3f]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     )}
                     {stage === 'rendering' && completedPageCount > 0
                       ? `${stageLabels[stage]} ${completedPageCount}/${totalPages}`
@@ -220,7 +220,7 @@ export function GenerationStatusPanel({
               )}
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full border border-[#d8ccb5]/80 bg-[#fffaf1] shadow-[inset_0_1px_2px_rgba(74,58,40,0.12)]">
+          <div className="h-1.5 overflow-hidden rounded-full border border-[var(--ui-border-strong)]/80 bg-[var(--ui-surface-elevated)] shadow-[inset_0_1px_2px_rgba(74,58,40,0.12)]">
             <div
               className="h-full rounded-full bg-[linear-gradient(90deg,#9ecf8a_0%,#6f9f59_52%,#4f7b3f_100%)] bg-[length:200%_100%] transition-[width] duration-500"
               style={{

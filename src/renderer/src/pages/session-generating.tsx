@@ -1110,7 +1110,7 @@ export function SessionGeneratingPage({
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-[#edf3e8]">
+    <div className="relative flex h-full flex-col overflow-hidden bg-[var(--ui-selected)]">
       <style>{`
         @keyframes gen-shimmer-move { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
         @keyframes gen-page-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -1139,7 +1139,7 @@ export function SessionGeneratingPage({
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,248,240,0.82)_0%,rgba(255,248,240,0.65)_42%,rgba(255,248,240,0.34)_100%)]" />
       </div>
 
-      <div className="app-drag-region app-titlebar relative z-20 flex items-center bg-[#f7f0e2]/90 backdrop-blur-sm" />
+      <div className="app-drag-region app-titlebar relative z-20 flex items-center bg-muted/90 backdrop-blur-sm" />
 
       <div className="app-no-drag relative z-10 flex min-h-0 flex-1 flex-col gap-4 px-5 pb-5 pt-4 lg:flex-row">
         <GenerationSidebar

@@ -30,19 +30,19 @@ export function GenerationSidebar({
 }): React.JSX.Element {
   return (
     <aside className="flex min-h-0 w-full shrink-0 flex-col gap-3 lg:w-[250px]">
-      <section className="rounded-lg border border-[#d8ccb5]/78 bg-[#fff9ef]/88 p-3 text-[#435138] shadow-[0_14px_30px_rgba(78,91,63,0.12)]">
+      <section className="rounded-lg border border-[var(--ui-border-strong)]/78 bg-[var(--ui-surface-elevated)]/88 p-3 text-primary shadow-[0_14px_30px_rgba(78,91,63,0.12)]">
         <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onBackHome}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#d8ccb5]/80 bg-[#fffaf1] text-[#5d6b4d] transition-colors hover:bg-[#f4ecd9] hover:text-[#34402c]"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--ui-border-strong)]/80 bg-[var(--ui-surface-elevated)] text-primary transition-colors hover:bg-muted hover:text-foreground"
             aria-label={backHomeLabel}
             title={backHomeLabel}
           >
             <Home className="h-4 w-4" />
           </button>
           <div className="flex min-h-8 min-w-0 flex-1 items-center">
-            <h1 className="truncate text-[15px] font-semibold leading-5 text-[#2f3b28]" title={title}>
+            <h1 className="truncate text-[15px] font-semibold leading-5 text-foreground" title={title}>
               {title}
             </h1>
           </div>
