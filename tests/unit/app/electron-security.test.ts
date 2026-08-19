@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { localAssetUrl } from '../../../src/shared/local-asset'
 import {
   allowLocalAssetRoot,
-  isPathAllowedByDynamicRoot
+  isPathAllowedByDynamicRoot,
+  normalizeExistingPath
 } from '../../../src/main/io/local-asset-roots'
 import {
   isAllowedMainWindowNavigation,
@@ -91,11 +92,7 @@ describe('Electron navigation security policy', () => {
   })
 
   it('binds only an allowed unbound local main frame to its registered project root', () => {
-    // realpath: CI Windows runners hand out 8.3 short tmp paths (RUNNER~1)
-    // while the resolver returns long paths; normalize both sides.
-    const projectDir = fs.realpathSync(
-      fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-render-'))
-    )
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-render-'))
     const pagePath = path.join(projectDir, 'page.html')
     const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oh-my-ppt-hidden-outside-'))
     const outsidePath = path.join(outsideDir, 'page.html')
@@ -105,7 +102,7 @@ describe('Electron navigation security policy', () => {
 
     expect(
       resolveUnboundLocalMainFrameRoot(pathToFileURL(pagePath).toString(), 'mainFrame')
-    ).toBe(projectDir)
+    ).toBe(normalizeExistingPath(projectDir))
     expect(
       resolveUnboundLocalMainFrameRoot(pathToFileURL(pagePath).toString(), 'stylesheet')
     ).toBeNull()
