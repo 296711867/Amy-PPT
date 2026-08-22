@@ -178,7 +178,10 @@ export const IPC_INVOKE_CHANNELS = [
   'thinking:removeSource',
   'thinking:revealWorkspace',
   'thinking:updatePageOutline',
-  'thinking:uploadSources'
+  'thinking:uploadSources',
+  'layoutAssets:list',
+  'layoutAssets:importFromSession',
+  'layoutAssets:delete'
 ] as const
 
 export const IPC_EVENT_CHANNELS = [

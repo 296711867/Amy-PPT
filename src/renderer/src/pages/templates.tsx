@@ -13,6 +13,7 @@ import {
 import { SaveTemplateDialog } from '../components/templates/SaveTemplateDialog'
 import { TemplateCard, TemplateEmptyState } from '../components/templates/TemplateCard'
 import { TemplateUseDialog } from '../components/templates/TemplateUseDialog'
+import { LayoutLibrarySection } from '../components/templates/LayoutLibrarySection'
 import { ModelSplitButton } from '../components/model/ModelActionButton'
 import { useTemplateStore, useToastStore } from '../store'
 import { ipc, type TemplateListItem } from '../lib/ipc'
@@ -302,6 +303,8 @@ export function TemplatesPage(): React.JSX.Element {
           ))}
         </div>
       )}
+
+      <LayoutLibrarySection />
 
       {directCreatingTemplate ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ui-overlay)] backdrop-blur-[2px]">

@@ -5,6 +5,7 @@ import fs from 'fs'
 import crypto from 'crypto'
 import type { IpcContext } from '../../ipc/context'
 import { importPptxToEditableHtml, type PptxImportProgressPayload } from './index'
+import { importLayoutAssetsFromSession } from '../../layout-assets/library'
 import { extractStyleFromExistingHtml } from '../../styles/import/pptx'
 import { createPptxChartRewriteHandler } from './chart-rewrite-agent'
 import { createStyleSkill, resolveUsableStyleId } from '../../styles/catalog'
@@ -181,6 +182,30 @@ export function registerPptxImportHandlers(ctx: IpcContext): void {
         warnings: imported.warnings.slice(0, 30)
       })
       await db.updateProjectStatus(projectId, 'draft')
+
+      // --- Layout asset harvest (non-blocking, pure local) ---
+      // 上传的模板页自动参数化收进版式库；失败不影响导入结果。
+      void importLayoutAssetsFromSession({
+        sessionId,
+        pages: imported.pages.map((page) => ({
+          pageId: page.pageId,
+          pageNumber: page.pageNumber,
+          title: page.title,
+          htmlPath: page.htmlPath
+        })),
+        projectDir,
+        roles: (pageNumber, total) => {
+          if (pageNumber <= 1) return ['cover']
+          if (pageNumber >= total && total > 1) return ['ending']
+          return ['content']
+        }
+      }).catch((layoutError) => {
+        log.warn('[pptx:import] layout asset harvest failed', {
+          sessionId,
+          message: layoutError instanceof Error ? layoutError.message : String(layoutError)
+        })
+      })
+
       await recordHistoryOperationStrict(db, {
         sessionId,
         projectDir,

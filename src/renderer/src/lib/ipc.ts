@@ -1061,6 +1061,35 @@ export const ipc = {
     getIpc().invoke('documents:parsePlan', payload) as Promise<ParsedDocumentPlanResult>,
   importPptx: (payload: PptxImportPayload) =>
     getIpc().invoke('pptx:import', payload) as Promise<PptxImportResult>,
+  layoutAssetsList: () =>
+    getIpc().invoke('layoutAssets:list') as Promise<{
+      libraryPath: string
+      assets: Array<{
+        id: string
+        title: string
+        roles: string[]
+        source: 'template' | 'mined' | 'authored'
+        slideSizeId: string
+        slotSummary: { title: boolean; lists: number; media: number; texts: number }
+        capacity: {
+          titleMaxChars: number
+          moduleMin: number
+          moduleMax: number
+          mediaSlots: number
+          hasChart: boolean
+        }
+        origin: { sessionId?: string; pageId?: string; importedAt?: number }
+      }>
+    }>,
+  layoutAssetsImportFromSession: (sessionId: string) =>
+    getIpc().invoke('layoutAssets:importFromSession', { sessionId }) as Promise<{
+      imported: number
+      skipped: number
+      duplicated: number
+      reason?: string
+    }>,
+  layoutAssetsDelete: (id: string) =>
+    getIpc().invoke('layoutAssets:delete', { id }) as Promise<{ success: boolean }>,
   chooseAndUploadAssets: (sessionId: string, assetType: 'image' | 'video' = 'image') =>
     getIpc().invoke('assets:chooseAndUpload', { sessionId, assetType }) as Promise<{
       assets: UploadedAsset[]
